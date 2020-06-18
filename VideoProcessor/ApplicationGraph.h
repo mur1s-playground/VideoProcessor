@@ -4,6 +4,7 @@
 #include "wx/sizer.h"
 
 #include <vector>
+#include <map>
 
 using namespace std;
 
@@ -17,7 +18,9 @@ enum application_graph_component_type {
 	AGCT_MASK_RCNN,
 	AGCT_GPU_VIDEO_ALPHA_MERGE,
 	AGCT_GPU_COMPOSER,
-	AGCT_GPU_COMPOSER_ELEMENT
+	AGCT_GPU_COMPOSER_ELEMENT,
+	AGCT_GPU_MOTION_BLUR,
+	AGCT_GPU_GAUSSIAN_BLUR
 };
 
 #define application_graph_component void *
@@ -32,6 +35,8 @@ enum application_graph_node_vtype {
 };
 
 struct application_graph_node {
+	int n_id;
+
 	application_graph_component component;
 	enum application_graph_component_type component_type;
 
@@ -51,6 +56,12 @@ struct application_graph_node {
 	bool process_run;
 
 	void *on_input_connect;
+	void *on_input_edit;
+	void *on_input_disconnect;
+
+	void* on_delete;
+
+	void *externalise;
 };
 
 struct application_graph_edge {
@@ -59,6 +70,7 @@ struct application_graph_edge {
 };
 
 struct application_graph {
+	string									name;
 	vector<struct application_graph_node *> nodes;
 	vector<struct application_graph_edge *> edges;
 };
@@ -78,6 +90,13 @@ void application_graph_draw_edges(struct application_graph* ag, wxDC& dc);
 
 void application_graph_hovering_node(int application_graph_id);
 
+void application_graph_delete_edge(int application_graph_id, int edge_id, bool refresh = true);
+void application_graph_delete_node(int application_graph_id, int node_id);
 
-extern std::vector <struct application_graph*>   ags;
-extern int application_graph_hovering_node_id;
+void application_graph_save(string base_dir, string name);
+void application_graph_load(string base_dir, string name);
+
+extern std::vector <struct application_graph*>		ags;
+
+extern int											application_graph_active_id;
+extern int											application_graph_hovering_node_id;

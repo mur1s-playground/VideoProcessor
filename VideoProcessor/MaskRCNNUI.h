@@ -8,7 +8,9 @@
 void mask_rcnn_ui_graph_init(struct application_graph_node* agn, application_graph_component agc, int pos_x, int pos_y);
 
 class MaskRCNNFrame : public wxFrame {
-	
+	int node_graph_id;
+	int node_id;
+
 public:
 	string classes;
 
@@ -22,4 +24,6 @@ public:
 
 	void OnMaskRCNNFrameButtonOk(wxCommandEvent& event);
 	void OnMaskRCNNFrameButtonClose(wxCommandEvent& event);
+
+	void Show(int node_graph_id, int node_id);
 };

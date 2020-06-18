@@ -10,6 +10,7 @@ using namespace std;
 
 struct video_source {
 	VideoCapture video_capture;
+	HWND hwnd_desktop;
 	string name;
 
 	int video_width;
@@ -17,6 +18,7 @@ struct video_source {
 	int video_channels;
 
 	bool is_open;
+	bool read_hwnd;
 	bool read_video_capture;
 	bool do_copy;
 	bool direction_smb_to_gmb;
@@ -38,3 +40,7 @@ void video_source_init(struct video_source* vs, const char* path);
 
 void video_source_on_input_connect(struct application_graph_node* agn, int input_id);
 DWORD* video_source_loop(LPVOID args);
+
+void video_source_externalise(struct application_graph_node* agn, string& out_str);
+void video_source_load(struct video_source* vs, ifstream& in_f);
+void video_source_destory(struct application_graph_node* agn);

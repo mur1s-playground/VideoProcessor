@@ -4,6 +4,9 @@
 #include "ApplicationGraph.h"
 #include "NLMeansKernel.h"
 
+#include <sstream>
+#include <fstream>
+
 void gpu_denoise_init(struct gpu_denoise* gd, int search_window_size, int region_size, float filtering_param) {
 	gd->search_window_size = search_window_size;
 	gd->region_size = region_size;
@@ -46,4 +49,34 @@ DWORD* gpu_denoise_loop(LPVOID args) {
 	agn->process_run = false;
 	myApp->drawPane->Refresh();
 	return NULL;
+}
+
+void gpu_denoise_externalise(struct application_graph_node* agn, string& out_str) {
+	struct gpu_denoise* gd = (struct gpu_denoise*)agn->component;
+
+	stringstream s_out;
+	s_out << gd->search_window_size << std::endl;
+	s_out << gd->region_size << std::endl;
+
+	s_out << gd->filtering_param << std::endl;
+	
+	out_str = s_out.str();
+}
+
+void gpu_denoise_load(struct gpu_denoise* gd, ifstream& in_f) {
+	std::string line;
+	std::getline(in_f, line);
+	gd->search_window_size = stoi(line);
+	std::getline(in_f, line);
+	gd->region_size = stoi(line);
+	std::getline(in_f, line);
+	gd->filtering_param = stoi(line);
+	
+	gd->vs_in = nullptr;
+	gd->gmb_out = nullptr;
+}
+
+void gpu_denoise_destroy(struct application_graph_node* agn) {
+	struct gpu_denoise* gd = (struct gpu_denoise*)agn->component;
+	delete gd;
 }

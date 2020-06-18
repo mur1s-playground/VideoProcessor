@@ -156,8 +156,12 @@
     <ClCompile Include="GPUComposerUI.cpp" />
     <ClCompile Include="GPUDenoise.cpp" />
     <ClCompile Include="GPUDenoiseUI.cpp" />
+    <ClCompile Include="GPUGaussianBlur.cpp" />
+    <ClCompile Include="GPUGaussianBlurUI.cpp" />
     <ClCompile Include="GPUMemoryBuffer.cpp" />
     <ClCompile Include="GPUMemoryBufferUI.cpp" />
+    <ClCompile Include="GPUMotionBlur.cpp" />
+    <ClCompile Include="GPUMotionBlurUI.cpp" />
     <ClCompile Include="ImShow.cpp" />
     <ClCompile Include="ImShowUI.cpp" />
     <ClCompile Include="Logger.cpp" />
@@ -168,6 +172,7 @@
     <ClCompile Include="SharedMemoryBufferUI.cpp" />
     <ClCompile Include="GPUVideoAlphaMerge.cpp" />
     <ClCompile Include="GPUVideoAlphaMergeUI.cpp" />
+    <ClCompile Include="UIManager.cpp" />
     <ClCompile Include="VideoSource.cpp" />
     <ClCompile Include="VideoSourceUI.cpp" />
   </ItemGroup>
@@ -175,30 +180,39 @@
     <ClInclude Include="ApplicationGraph.h" />
     <ClInclude Include="ComposeKernel.h" />
     <ClInclude Include="CUDAStreamHandler.h" />
+    <ClInclude Include="GaussianBlur.h" />
     <ClInclude Include="GPUComposer.h" />
     <ClInclude Include="GPUComposerElement.h" />
     <ClInclude Include="GPUComposerElementUI.h" />
     <ClInclude Include="GPUComposerUI.h" />
     <ClInclude Include="GPUDenoise.h" />
     <ClInclude Include="GPUDenoiseUI.h" />
+    <ClInclude Include="GPUGaussianBlur.h" />
+    <ClInclude Include="GPUGaussianBlurUI.h" />
     <ClInclude Include="GPUMemoryBuffer.h" />
     <ClInclude Include="GPUMemoryBufferUI.h" />
+    <ClInclude Include="GPUMotionBlur.h" />
+    <ClInclude Include="GPUMotionBlurUI.h" />
     <ClInclude Include="ImShow.h" />
     <ClInclude Include="ImShowUI.h" />
     <ClInclude Include="Logger.h" />
     <ClInclude Include="MainUI.h" />
     <ClInclude Include="MaskRCNN.h" />
     <ClInclude Include="MaskRCNNUI.h" />
+    <ClInclude Include="MotionBlur.h" />
     <ClInclude Include="NLMeansKernel.h" />
     <ClInclude Include="SharedMemoryBuffer.h" />
     <ClInclude Include="SharedMemoryBufferUI.h" />
     <ClInclude Include="GPUVideoAlphaMerge.h" />
     <ClInclude Include="GPUVideoAlphaMergeUI.h" />
+    <ClInclude Include="UIManager.h" />
     <ClInclude Include="VideoSource.h" />
     <ClInclude Include="VideoSourceUI.h" />
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="ComposeKernel.cu" />
+    <CudaCompile Include="GaussianBlur.cu" />
+    <CudaCompile Include="MotionBlur.cu" />
     <CudaCompile Include="NLMeansKernel.cu">
       <FileType>Document</FileType>
     </CudaCompile>

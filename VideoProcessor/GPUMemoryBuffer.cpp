@@ -2,6 +2,10 @@
 
 #include "cuda_runtime.h"
 #include "Logger.h"
+#include "ApplicationGraph.h"
+
+#include <sstream>
+#include <fstream>
 
 void gpu_memory_buffer_init(struct gpu_memory_buffer* gmb, const char* name, int size, int slots, int meta_size) {
 	gmb->name = name;
@@ -20,6 +24,20 @@ void gpu_memory_buffer_init(struct gpu_memory_buffer* gmb, const char* name, int
 	memset(gmb->p_rw, 0, (slots+1) * 2 + meta_size);
 	
 	gmb->h_mutex = CreateMutex(NULL, FALSE, NULL);
+}
+
+void gpu_memory_buffer_edit(struct gpu_memory_buffer* gmb, const char* name, int size, int slots, int meta_size) {
+	gmb->name = name;
+	gmb->size = size;
+	gmb->slots = slots;
+	gmb->meta_size = meta_size;
+
+	cudaFree((void **)&gmb->p_device);
+	cudaMalloc((void**)&gmb->p_device, size * slots);
+
+	delete(gmb->p_rw);
+	gmb->p_rw = new unsigned char[(slots + 1) * 2 + meta_size];
+	memset(gmb->p_rw, 0, (slots + 1) * 2 + meta_size);
 }
 
 bool gpu_memory_buffer_try_rw(struct gpu_memory_buffer* gmb, int slot, bool block, int sleep_ms) {
@@ -91,4 +109,38 @@ void gpu_memory_buffer_release_r(struct gpu_memory_buffer* gmb, int slot) {
 	WaitForSingleObject(gmb->h_mutex, INFINITE);
 	gmb->p_rw[2 * slot]--;
 	ReleaseMutex(gmb->h_mutex);
+}
+
+void gpu_memory_buffer_externalise(struct application_graph_node* agn, string& out_str) {
+	struct gpu_memory_buffer* gmb = (struct gpu_memory_buffer*)agn->component;
+
+	stringstream s_out;
+	s_out << gmb->name << std::endl;
+	s_out << gmb->size << std::endl;
+	s_out << gmb->slots << std::endl;
+	s_out << gmb->meta_size << std::endl;
+
+	out_str = s_out.str();
+}
+
+void gpu_memory_buffer_load(struct gpu_memory_buffer* gmb, ifstream& in_f) {
+	std::string line;
+	std::getline(in_f, line);
+	string name = line;
+	std::getline(in_f, line);
+	int size = stoi(line);
+	std::getline(in_f, line);
+	int slots = stoi(line);
+	std::getline(in_f, line);
+	int meta_size = stoi(line);
+	
+	gpu_memory_buffer_init(gmb, name.c_str(), size, slots, meta_size);
+}
+
+void gpu_memory_buffer_destroy(struct application_graph_node* agn) {
+	struct gpu_memory_buffer* gmb = (struct gpu_memory_buffer*)agn->component;
+	cudaFree((void**)&gmb->p_device);
+	delete(gmb->p_rw);
+	CloseHandle(gmb->h_mutex);
+	delete(gmb);
 }

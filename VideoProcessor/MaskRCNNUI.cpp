@@ -43,6 +43,10 @@ void mask_rcnn_ui_graph_init(struct application_graph_node* agn, application_gra
     agn->process = mask_rcnn_loop;
     agn->process_run = false;
     agn->on_input_connect = nullptr;
+    agn->on_input_disconnect = nullptr;
+    agn->on_input_edit = nullptr;
+    agn->on_delete = mask_rcnn_destroy;
+    agn->externalise = mask_rcnn_externalise;
 }
 
 MaskRCNNFrame::MaskRCNNFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("Mask RCNN")) {
@@ -126,8 +130,15 @@ MaskRCNNFrame::MaskRCNNFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("Mask R
 void MaskRCNNFrame::OnMaskRCNNFrameButtonOk(wxCommandEvent& event) {
     this->Hide();
 
-    struct mask_rcnn* mrcnn = new mask_rcnn();
-    mask_rcnn_init(mrcnn);
+    struct mask_rcnn* mrcnn;
+    if (node_id == -1) {
+        mrcnn = new mask_rcnn();
+        mask_rcnn_init(mrcnn);
+    } else {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        mrcnn = (struct mask_rcnn*)agn->component;
+        mrcnn->net_classes_active.clear();
+    }
     wxString confthres = tc_confthres->GetValue();
     tc_confthres->SetValue("0.5");
     mrcnn->net_conf_threshold = stof(confthres.c_str().AsChar());
@@ -146,9 +157,12 @@ void MaskRCNNFrame::OnMaskRCNNFrameButtonOk(wxCommandEvent& event) {
     }
     mrcnn->net_classes_active.push_back(string((classes_l.substr(start, end)).c_str().AsChar()));
 
-    application_graph_node* agn = new application_graph_node();
-    mask_rcnn_ui_graph_init(agn, (application_graph_component)mrcnn, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
-    ags[0]->nodes.push_back(agn);
+    if (node_id == -1) {
+        application_graph_node* agn = new application_graph_node();
+        agn->n_id = ags[node_graph_id]->nodes.size();
+        mask_rcnn_ui_graph_init(agn, (application_graph_component)mrcnn, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
+        ags[node_graph_id]->nodes.push_back(agn);
+    }
     myApp->drawPane->Refresh();
 }
 
@@ -157,4 +171,32 @@ void MaskRCNNFrame::OnMaskRCNNFrameButtonClose(wxCommandEvent& event) {
     tc_confthres->SetValue("0.5");
     tc_maskthres->SetValue("0.3");
     tc_classes->SetValue(classes);
+}
+
+void MaskRCNNFrame::Show(int node_graph_id, int node_id) {
+    this->node_graph_id = node_graph_id;
+    this->node_id = node_id;
+    if (node_id > -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct mask_rcnn* mrcnn = (struct mask_rcnn*)agn->component;
+
+        stringstream s_ct;
+        s_ct << mrcnn->net_conf_threshold;
+        tc_confthres->SetValue(wxString(s_ct.str()));
+
+        stringstream s_mt;
+        s_mt << mrcnn->net_mask_threshold;
+        tc_maskthres->SetValue(wxString(s_mt.str()));
+
+        stringstream s_classes;
+        for (int i = 0; i < mrcnn->net_classes_active.size(); i++) {
+            if (i > 0) {
+                s_classes << ",";
+            }
+            s_classes << mrcnn->net_classes_active[i];
+        }
+        
+        tc_classes->SetValue(wxString(s_classes.str().c_str()));
+    }
+    wxFrame::Show(true);
 }

@@ -35,9 +35,15 @@ void gpu_composer_ui_graph_init(struct application_graph_node* agn, application_
     agn->process = gpu_composer_loop;
     agn->process_run = false;
     agn->on_input_connect = gpu_composer_on_input_connect;
+    agn->on_input_disconnect = nullptr;
+    agn->on_input_edit = nullptr;
+    agn->externalise = gpu_composer_externalise;
+    agn->on_delete = gpu_composer_destroy;
 }
 
 GPUComposerFrame::GPUComposerFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("Im Show")) {
+    node_graph_id = -1;
+    node_id = -1;
 
     wxPanel* panel = new wxPanel(this, -1);
 
@@ -57,7 +63,7 @@ GPUComposerFrame::GPUComposerFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("
 
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
 
-    wxButton* ok_button = new wxButton(panel, -1, wxT("Ok"), wxDefaultPosition, wxSize(70, 30));
+    ok_button = new wxButton(panel, -1, wxT("Ok"), wxDefaultPosition, wxSize(70, 30));
     ok_button->Bind(wxEVT_BUTTON, &GPUComposerFrame::OnGPUComposerFrameButtonOk, this);
 
     hbox_buttons->Add(ok_button, 0);
@@ -75,15 +81,33 @@ void GPUComposerFrame::OnGPUComposerFrameButtonOk(wxCommandEvent& event) {
     this->Hide();
     wxString str = tc->GetValue();
     tc->SetValue(wxT(""));
-    struct gpu_composer* gc = new gpu_composer();
-    gpu_composer_init(gc, str.c_str().AsChar());
-    struct application_graph_node* agn = new application_graph_node();
-    gpu_composer_ui_graph_init(agn, (application_graph_component)gc, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
-    ags[0]->nodes.push_back(agn);
+    if (node_id == -1) {
+        struct gpu_composer* gc = new gpu_composer();
+        gpu_composer_init(gc, str.c_str().AsChar());
+        struct application_graph_node* agn = new application_graph_node();
+        agn->n_id = ags[node_graph_id]->nodes.size();
+        gpu_composer_ui_graph_init(agn, (application_graph_component)gc, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
+        ags[node_graph_id]->nodes.push_back(agn);
+    } else {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct gpu_composer* gc = (struct gpu_composer*)agn->component;
+        gc->name = str.c_str().AsChar();
+    }
     myApp->drawPane->Refresh();
 }
 
 void GPUComposerFrame::OnGPUComposerFrameButtonClose(wxCommandEvent& event) {
     this->Hide();
     tc->SetValue(wxT(""));
+}
+
+void GPUComposerFrame::Show(int node_graph_id, int node_id) {
+    this->node_graph_id = node_graph_id;
+    this->node_id = node_id;
+    if (node_id > -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct gpu_composer* gc = (struct gpu_composer*)agn->component;
+        tc->SetValue(wxString(gc->name));
+    }
+    wxFrame::Show(true);
 }

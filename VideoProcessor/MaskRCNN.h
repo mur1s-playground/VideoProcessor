@@ -28,3 +28,6 @@ struct mask_rcnn {
 void mask_rcnn_init(struct mask_rcnn *mrcnn);
 DWORD* mask_rcnn_loop(LPVOID args);
 
+void mask_rcnn_externalise(struct application_graph_node* agn, string& out_str);
+void mask_rcnn_load(struct mask_rcnn* mrcnn, ifstream& in_f);
+void mask_rcnn_destroy(struct application_graph_node* agn);

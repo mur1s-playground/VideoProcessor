@@ -1,6 +1,7 @@
 #include "SharedMemoryBufferUI.h"
 
 #include "SharedMemoryBuffer.h"
+#include <sstream>
 
 #include "MainUI.h"
 
@@ -28,6 +29,10 @@ void shared_memory_buffer_ui_graph_init(struct application_graph_node* agn, appl
     agn->process = nullptr;
     agn->process_run = false;
     agn->on_input_connect = nullptr;
+    agn->on_input_disconnect = nullptr;
+    agn->on_input_edit = nullptr;
+    agn->on_delete = shared_memory_buffer_destroy;
+    agn->externalise = shared_memory_buffer_externalise;
 }
 
 SharedMemoryBufferFrame::SharedMemoryBufferFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("Shared Memory Buffer")) {
@@ -95,12 +100,20 @@ void SharedMemoryBufferFrame::OnSharedMemoryBufferFrameButtonOk(wxCommandEvent& 
     wxString str_slots = tc_slots->GetValue();
     tc_slots->SetValue(wxT(""));
 
-    struct shared_memory_buffer* smb = new shared_memory_buffer();
-    shared_memory_buffer_init(smb, str.c_str().AsChar(), stoi(str_size.c_str().AsChar()), stoi(str_slots.c_str().AsChar()), sizeof(int));
-    
-    struct application_graph_node* agn = new application_graph_node();
-    shared_memory_buffer_ui_graph_init(agn, (application_graph_component)smb, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
-    ags[0]->nodes.push_back(agn);
+    if (node_id == -1) {
+        struct shared_memory_buffer* smb = new shared_memory_buffer();
+        shared_memory_buffer_init(smb, str.c_str().AsChar(), stoi(str_size.c_str().AsChar()), stoi(str_slots.c_str().AsChar()), sizeof(int));
+
+        struct application_graph_node* agn = new application_graph_node();
+        agn->n_id = ags[node_graph_id]->nodes.size();
+        shared_memory_buffer_ui_graph_init(agn, (application_graph_component)smb, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
+        ags[node_graph_id]->nodes.push_back(agn);
+    } else {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct shared_memory_buffer* smb = (struct shared_memory_buffer*)agn->component;
+
+        shared_memory_buffer_edit(smb, str.c_str().AsChar(), stoi(str_size.c_str().AsChar()), stoi(str_slots.c_str().AsChar()), sizeof(int));
+    }
     myApp->drawPane->Refresh();
 }
 
@@ -109,4 +122,24 @@ void SharedMemoryBufferFrame::OnSharedMemoryBufferFrameButtonClose(wxCommandEven
     tc_name->SetValue(wxT(""));
     tc_size->SetValue(wxT(""));
     tc_slots->SetValue(wxT(""));
+}
+
+void SharedMemoryBufferFrame::Show(int node_graph_id, int node_id) {
+    this->node_graph_id = node_graph_id;
+    this->node_id = node_id;
+    if (node_id > -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct shared_memory_buffer* smb = (struct shared_memory_buffer*)agn->component;
+
+        tc_name->SetValue(wxString(smb->name));
+
+        stringstream s_size;
+        s_size << smb->size;
+        tc_size->SetValue(wxString(s_size.str()));
+
+        stringstream s_slots;
+        s_slots << smb->slots;
+        tc_slots->SetValue(wxString(s_slots.str()));
+    }
+    wxFrame::Show(true);
 }

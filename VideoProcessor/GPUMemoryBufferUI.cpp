@@ -1,6 +1,7 @@
 #include "GPUMemoryBufferUI.h"
 
 #include "GPUMemoryBuffer.h"
+#include <sstream>
 
 #include "MainUI.h"
 
@@ -28,6 +29,10 @@ void gpu_memory_buffer_ui_graph_init(struct application_graph_node* agn, applica
     agn->process = nullptr;
     agn->process_run = false;
     agn->on_input_connect = nullptr;
+    agn->on_input_disconnect = nullptr;
+    agn->on_input_edit = nullptr;
+    agn->on_delete = gpu_memory_buffer_destroy;
+    agn->externalise = gpu_memory_buffer_externalise;
 }
 
 GPUMemoryBufferFrame::GPUMemoryBufferFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("GPU Memory Buffer")) {
@@ -95,12 +100,20 @@ void GPUMemoryBufferFrame::OnGPUMemoryBufferFrameButtonOk(wxCommandEvent& event)
     wxString str_slots = tc_slots->GetValue();
     tc_slots->SetValue(wxT(""));
 
-    struct gpu_memory_buffer* gmb = new gpu_memory_buffer();
-    gpu_memory_buffer_init(gmb, str.c_str().AsChar(), stoi(str_size.c_str().AsChar()), stoi(str_slots.c_str().AsChar()), sizeof(int));
+    if (node_id == -1) {
+        struct gpu_memory_buffer* gmb = new gpu_memory_buffer();
+        gpu_memory_buffer_init(gmb, str.c_str().AsChar(), stoi(str_size.c_str().AsChar()), stoi(str_slots.c_str().AsChar()), sizeof(int));
 
-    struct application_graph_node* agn = new application_graph_node();
-    gpu_memory_buffer_ui_graph_init(agn, (application_graph_component)gmb, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
-    ags[0]->nodes.push_back(agn);
+        struct application_graph_node* agn = new application_graph_node();
+        agn->n_id = ags[node_graph_id]->nodes.size();
+        gpu_memory_buffer_ui_graph_init(agn, (application_graph_component)gmb, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
+        ags[node_graph_id]->nodes.push_back(agn);
+    } else {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct gpu_memory_buffer* gmb = (struct gpu_memory_buffer*)agn->component;
+
+        gpu_memory_buffer_edit(gmb, str.c_str().AsChar(), stoi(str_size.c_str().AsChar()), stoi(str_slots.c_str().AsChar()), sizeof(int));
+    }
     myApp->drawPane->Refresh();
 }
 
@@ -109,4 +122,24 @@ void GPUMemoryBufferFrame::OnGPUMemoryBufferFrameButtonClose(wxCommandEvent& eve
     tc_name->SetValue(wxT(""));
     tc_size->SetValue(wxT(""));
     tc_slots->SetValue(wxT(""));
+}
+
+void GPUMemoryBufferFrame::Show(int node_graph_id, int node_id) {
+    this->node_graph_id = node_graph_id;
+    this->node_id = node_id;
+    if (node_id > -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct gpu_memory_buffer* gmb = (struct gpu_memory_buffer*)agn->component;
+        
+        tc_name->SetValue(wxString(gmb->name));
+        
+        stringstream s_size;
+        s_size << gmb->size;
+        tc_size->SetValue(wxString(s_size.str()));
+        
+        stringstream s_slots;
+        s_slots << gmb->slots;
+        tc_slots->SetValue(wxString(s_slots.str()));
+    }
+    wxFrame::Show(true);
 }

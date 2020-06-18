@@ -13,3 +13,6 @@ struct gpu_composer_element {
 };
 
 void gpu_composer_element_init(struct gpu_composer_element *gce);
+void gpu_composer_element_externalise(struct application_graph_node* agn, string& out_str);
+void gpu_composer_element_load(struct gpu_composer_element* gce, ifstream& in_f);
+void gpu_composer_element_destroy(struct application_graph_node* agn);

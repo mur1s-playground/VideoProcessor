@@ -8,6 +8,8 @@
 void gpu_composer_element_ui_graph_init(struct application_graph_node* agn, application_graph_component agc, int pos_x, int pos_y);
 
 class GPUComposerElementFrame : public wxFrame {
+	int node_graph_id;
+	int node_id;
 
 public:
 	wxTextCtrl* tc_dx;
@@ -24,4 +26,6 @@ public:
 
 	void OnGPUComposerElementFrameButtonOk(wxCommandEvent& event);
 	void OnGPUComposerElementFrameButtonClose(wxCommandEvent& event);
+
+	void Show(int node_graph_id, int node_id);
 };

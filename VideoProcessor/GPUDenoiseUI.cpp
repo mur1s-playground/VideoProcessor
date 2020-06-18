@@ -40,6 +40,10 @@ void gpu_denoise_ui_graph_init(struct application_graph_node* agn, application_g
     agn->process = gpu_denoise_loop;
     agn->process_run = false;
     agn->on_input_connect = nullptr;
+    agn->on_input_disconnect = nullptr;
+    agn->on_input_edit = nullptr;
+    agn->on_delete = gpu_denoise_destroy;
+    agn->externalise = gpu_denoise_externalise;
 }
 
 GPUDenoiseFrame::GPUDenoiseFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("GPU Denoise")) {
@@ -106,12 +110,21 @@ void GPUDenoiseFrame::OnGPUDenoiseButtonOk(wxCommandEvent& event) {
     wxString str_filtering = tc_filtering->GetValue();
     tc_filtering->SetValue(wxT("3.0"));
 
-    struct gpu_denoise* gd = new gpu_denoise();
-    gpu_denoise_init(gd, stoi(str.c_str().AsChar()), stoi(str_region.c_str().AsChar()), stof(str_filtering.c_str().AsChar()));
+    if (node_id == -1) {
+        struct gpu_denoise* gd = new gpu_denoise();
+        gpu_denoise_init(gd, stoi(str.c_str().AsChar()), stoi(str_region.c_str().AsChar()), stof(str_filtering.c_str().AsChar()));
 
-    struct application_graph_node* agn = new application_graph_node();
-    gpu_denoise_ui_graph_init(agn, (application_graph_component)gd, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
-    ags[0]->nodes.push_back(agn);
+        struct application_graph_node* agn = new application_graph_node();
+        agn->n_id = ags[node_graph_id]->nodes.size();
+        gpu_denoise_ui_graph_init(agn, (application_graph_component)gd, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
+        ags[node_graph_id]->nodes.push_back(agn);
+    } else {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct gpu_denoise* gd = (struct gpu_denoise*)agn->component;
+        gd->search_window_size = stoi(str.c_str().AsChar());
+        gd->region_size = stoi(str_region.c_str().AsChar());
+        gd->filtering_param = stof(str_filtering.c_str().AsChar());
+    }
     myApp->drawPane->Refresh();
 }
 
@@ -120,4 +133,25 @@ void GPUDenoiseFrame::OnGPUDenoiseButtonClose(wxCommandEvent& event) {
     tc_searchwindow->SetValue(wxT("21"));
     tc_region->SetValue(wxT("7"));
     tc_filtering->SetValue(wxT("3.0"));
+}
+
+void GPUDenoiseFrame::Show(int node_graph_id, int node_id) {
+    this->node_graph_id = node_graph_id;
+    this->node_id = node_id;
+    if (node_id > -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct gpu_denoise* gd = (struct gpu_denoise*)agn->component;
+        stringstream s_sw;
+        s_sw << gd->search_window_size;
+        tc_searchwindow->SetValue(wxString(s_sw.str()));
+
+        stringstream s_region;
+        s_region << gd->region_size;
+        tc_region->SetValue(wxString(s_region.str()));
+
+        stringstream s_filtering;
+        s_filtering << gd->filtering_param;
+        tc_filtering->SetValue(wxString(s_filtering.str()));
+    }
+    wxFrame::Show(true);
 }

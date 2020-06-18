@@ -41,6 +41,11 @@ void gpu_composer_element_ui_graph_init(struct application_graph_node* agn, appl
     agn->process = nullptr;
     agn->process_run = false;
     agn->on_input_connect = nullptr;
+    agn->on_input_disconnect = nullptr;
+    agn->on_input_edit = nullptr;
+    agn->on_delete = gpu_composer_element_destroy;
+
+    agn->externalise = gpu_composer_element_externalise;
 }
 
 
@@ -163,8 +168,16 @@ void GPUComposerElementFrame::OnGPUComposerElementFrameButtonOk(wxCommandEvent& 
     wxString str_scale = tc_scale->GetValue();
     tc_scale->SetValue(wxT("1.00"));
 
-    struct gpu_composer_element* gce = new gpu_composer_element();
-    gpu_composer_element_init(gce);
+    struct gpu_composer_element* gce;
+    struct application_graph_node* agn;
+    if (node_id == -1) {
+        gce = new gpu_composer_element();
+        gpu_composer_element_init(gce);
+    } else {
+        agn = ags[node_graph_id]->nodes[node_id];
+        gce = (struct gpu_composer_element*)agn->component;
+    }
+    
     gce->dx = stoi(str_dx.c_str().AsChar());
     gce->dy = stoi(str_dy.c_str().AsChar());
 
@@ -175,9 +188,12 @@ void GPUComposerElementFrame::OnGPUComposerElementFrameButtonOk(wxCommandEvent& 
 
     gce->scale = stof(str_scale.c_str().AsChar());
 
-    struct application_graph_node* agn = new application_graph_node();
-    gpu_composer_element_ui_graph_init(agn, (application_graph_component)gce, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
-    ags[0]->nodes.push_back(agn);
+    if (node_id == -1) {
+        agn = new application_graph_node();
+        agn->n_id = ags[node_graph_id]->nodes.size();
+        gpu_composer_element_ui_graph_init(agn, (application_graph_component)gce, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
+        ags[node_graph_id]->nodes.push_back(agn);
+    }
     myApp->drawPane->Refresh();
 }
 
@@ -190,4 +206,41 @@ void GPUComposerElementFrame::OnGPUComposerElementFrameButtonClose(wxCommandEven
     tc_crop_y1->SetValue(wxT("0"));
     tc_crop_y2->SetValue(wxT("0"));
     tc_scale->SetValue(wxT("1.0"));
+}
+
+void GPUComposerElementFrame::Show(int node_graph_id, int node_id) {
+    this->node_graph_id = node_graph_id;
+    this->node_id = node_id;
+    if (node_id > -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct gpu_composer_element* gc = (struct gpu_composer_element*)agn->component;
+        stringstream s_dx;
+        s_dx << gc->dx;
+        tc_dx->SetValue(wxString(s_dx.str()));
+
+        stringstream s_dy;
+        s_dy << gc->dy;
+        tc_dy->SetValue(wxString(s_dy.str()));
+
+        stringstream s_crop_x1;
+        s_crop_x1 << gc->crop_x1;
+        tc_crop_x1->SetValue(wxString(s_crop_x1.str()));
+
+        stringstream s_crop_x2;
+        s_crop_x2 << gc->crop_x2;
+        tc_crop_x2->SetValue(wxString(s_crop_x2.str()));
+
+        stringstream s_crop_y1;
+        s_crop_y1 << gc->crop_y1;
+        tc_crop_y1->SetValue(wxString(s_crop_y1.str()));
+
+        stringstream s_crop_y2;
+        s_crop_y2 << gc->crop_y2;
+        tc_crop_y2->SetValue(wxString(s_crop_y2.str()));
+
+        stringstream s_scale;
+        s_scale << gc->scale;
+        tc_scale->SetValue(wxString(s_scale.str()));
+    }
+    wxFrame::Show(true);
 }

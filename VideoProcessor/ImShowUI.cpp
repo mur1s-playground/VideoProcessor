@@ -30,6 +30,10 @@ void im_show_ui_graph_init(struct application_graph_node* agn, application_graph
     agn->process = im_show_loop;
     agn->process_run = false;
     agn->on_input_connect = nullptr;
+    agn->on_input_disconnect = nullptr;
+    agn->on_input_edit = nullptr;
+    agn->on_delete = im_show_destroy;
+    agn->externalise = im_show_externalise;
 }
 
 ImShowFrame::ImShowFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("Im Show")) {
@@ -70,15 +74,33 @@ void ImShowFrame::OnImShowFrameButtonOk(wxCommandEvent& event) {
     this->Hide();
     wxString str = tc->GetValue();
     tc->SetValue(wxT(""));
-    struct im_show* is = new im_show();
-    im_show_init(is, str.c_str().AsChar());
-    struct application_graph_node* agn = new application_graph_node();
-    im_show_ui_graph_init(agn, (application_graph_component)is, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
-    ags[0]->nodes.push_back(agn);
+    if (node_id == -1) {
+        struct im_show* is = new im_show();
+        im_show_init(is, str.c_str().AsChar());
+        struct application_graph_node* agn = new application_graph_node();
+        agn->n_id = ags[node_graph_id]->nodes.size();
+        im_show_ui_graph_init(agn, (application_graph_component)is, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
+        ags[node_graph_id]->nodes.push_back(agn);
+    } else {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct im_show* is = (struct im_show*)agn->component;
+        is->name = str.c_str().AsChar();
+    }
     myApp->drawPane->Refresh();
 }
 
 void ImShowFrame::OnImShowFrameButtonClose(wxCommandEvent& event) {
     this->Hide();
     tc->SetValue(wxT(""));
+}
+
+void ImShowFrame::Show(int node_graph_id, int node_id) {
+    this->node_graph_id = node_graph_id;
+    this->node_id = node_id;
+    if (node_id > -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct im_show* is = (struct im_show*)agn->component;
+        tc->SetValue(wxString(is->name));
+    }
+    wxFrame::Show(true);
 }

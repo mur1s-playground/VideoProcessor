@@ -54,6 +54,10 @@ void video_source_ui_graph_init(struct application_graph_node* agn, application_
     agn->process_run = false;
 
     agn->on_input_connect = video_source_on_input_connect;
+    agn->on_input_disconnect = nullptr;
+    agn->on_input_edit = nullptr;
+    agn->on_delete = video_source_destory;
+    agn->externalise = video_source_externalise;
 }
 
 VideoSourceFrame::VideoSourceFrame(wxWindow *parent) : wxFrame(parent, -1, wxT("Video Source")) {
@@ -138,12 +142,19 @@ VideoSourceFrame::VideoSourceFrame(wxWindow *parent) : wxFrame(parent, -1, wxT("
     panel->SetSizer(vbox);
 }
 
+//TODO: complete
 void VideoSourceFrame::OnVideoSourceFrameButtonOk(wxCommandEvent& event) {
     this->Hide();
     wxString str = tc->GetValue();
     tc->SetValue(wxT(""));
-    struct video_source* vs = new video_source();
-    video_source_init(vs, str.c_str().AsChar());
+    struct video_source* vs;
+    if (node_id == -1) {
+        vs = new video_source();
+        video_source_init(vs, str.c_str().AsChar());
+    } else {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        vs = (struct video_source*)agn->component;
+    }
 
     wxString str_width = tc_width->GetValue();
     tc_width->SetValue(wxT(""));
@@ -177,9 +188,12 @@ void VideoSourceFrame::OnVideoSourceFrameButtonOk(wxCommandEvent& event) {
         vs->direction_smb_to_gmb = false;
     }
     
-    struct application_graph_node* agn = new application_graph_node();
-    video_source_ui_graph_init(agn, (application_graph_component)vs, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
-    ags[0]->nodes.push_back(agn);
+    if (node_id == -1) {
+        struct application_graph_node* agn = new application_graph_node();
+        agn->n_id = ags[node_graph_id]->nodes.size();
+        video_source_ui_graph_init(agn, (application_graph_component)vs, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
+        ags[node_graph_id]->nodes.push_back(agn);
+    }
     myApp->drawPane->Refresh();
 }
 
@@ -188,5 +202,38 @@ void VideoSourceFrame::OnVideoSourceFrameButtonClose(wxCommandEvent& event) {
     tc->SetValue(wxT(""));
     tc_width->SetValue(wxT(""));
     tc_height->SetValue(wxT(""));
+    tc_channels->SetValue(wxT(""));
     ch_direction->SetSelection(0);
+}
+
+void VideoSourceFrame::Show(int node_graph_id, int node_id) {
+    this->node_graph_id = node_graph_id;
+    this->node_id = node_id;
+    if (node_id > -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct video_source* vs = (struct video_source*)agn->component;
+
+        tc->SetValue(wxString(vs->name));
+
+        stringstream s_w;
+        s_w << vs->video_width;
+        tc_width->SetValue(wxString(s_w.str()));
+
+        stringstream s_h;
+        s_h << vs->video_height;
+        tc_height->SetValue(wxString(s_h.str()));
+
+        stringstream s_c;
+        s_c << vs->video_channels;
+        tc_channels->SetValue(wxString(s_c.str()));
+
+        if (!vs->do_copy && vs->direction_smb_to_gmb) {
+            ch_direction->SetSelection(0);
+        } else if (vs->do_copy && vs->direction_smb_to_gmb) {
+            ch_direction->SetSelection(1);
+        } else if (vs->do_copy && !vs->direction_smb_to_gmb) {
+            ch_direction->SetSelection(2);
+        }
+    }
+    wxFrame::Show(true);
 }

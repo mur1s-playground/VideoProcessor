@@ -2,6 +2,7 @@
 
 #include <opencv2/imgproc.hpp>
 
+#include <sstream>
 #include <fstream>
 
 #include "VideoSource.h"
@@ -121,4 +122,48 @@ DWORD* mask_rcnn_loop(LPVOID args) {
 	}
 	agn->process_run = false;
 	myApp->drawPane->Refresh();
+	return NULL;
+}
+
+void mask_rcnn_externalise(struct application_graph_node* agn, string& out_str) {
+	struct mask_rcnn* mrcnn = (struct mask_rcnn*)agn->component;
+
+	stringstream s_out;
+	s_out << mrcnn->net_conf_threshold << std::endl;
+	s_out << mrcnn->net_mask_threshold << std::endl;
+
+	for (int i = 0; i < mrcnn->net_classes_active.size(); i++) {
+		if (i > 0) {
+			s_out << ",";
+		}
+		s_out << mrcnn->net_classes_active[i];
+	}
+	s_out << std::endl;
+
+	out_str = s_out.str();
+}
+
+void mask_rcnn_load(struct mask_rcnn* mrcnn, ifstream& in_f) {
+	mask_rcnn_init(mrcnn);
+
+	std::string line;
+	std::getline(in_f, line);
+	mrcnn->net_conf_threshold = stof(line);
+	std::getline(in_f, line);
+	mrcnn->net_mask_threshold = stof(line);
+
+	std::getline(in_f, line);
+	int start = 0;
+	int end = line.find_first_of(",", start);
+	while (end != std::string::npos) {
+		mrcnn->net_classes_active.push_back(line.substr(start, end - start).c_str());
+		start = end + 1;
+		end = line.find_first_of(",", start);
+	}
+	mrcnn->net_classes_active.push_back(line.substr(start, end - start).c_str());
+}
+
+void mask_rcnn_destroy(struct application_graph_node *agn) {
+	struct mask_rcnn* mrcnn = (struct mask_rcnn*)agn->component;
+	delete mrcnn;
 }

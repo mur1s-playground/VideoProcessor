@@ -8,6 +8,9 @@
 
 #include "Logger.h"
 
+#include <sstream>
+#include <fstream>
+
 void im_show_init(struct im_show *is, const char *name) {
 	stringstream ss_name;
 	ss_name << name;
@@ -40,4 +43,25 @@ DWORD* im_show_loop(LPVOID args) {
 	agn->process_run = false;
 	myApp->drawPane->Refresh();
 	return NULL;
+}
+
+void im_show_externalise(struct application_graph_node* agn, string& out_str) {
+	struct im_show* is = (struct im_show*)agn->component;
+
+	stringstream s_out;
+	s_out << is->name << std::endl;
+	out_str = s_out.str();
+}
+
+void im_show_load(struct im_show* is, ifstream& in_f) {
+	std::string line;
+	std::getline(in_f, line);
+	string name = line;
+	
+	im_show_init(is, name.c_str());
+}
+
+void im_show_destroy(struct application_graph_node* agn) {
+	struct im_show* is = (struct im_show*)agn->component;
+	delete is;
 }
