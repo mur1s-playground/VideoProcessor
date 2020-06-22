@@ -175,6 +175,7 @@ void BasicDrawPane::OnShowContextMenu(wxMouseEvent& event) {
             menu->Append(MENU_ID_START_NODE, wxT("Start/Stop"));
         }
         menu->Append(MENU_ID_EDIT_NODE, wxT("Edit"));
+        menu->Append(MENU_ID_EDIT_NODE_SETTINGS, wxT("Edit Settings"));
         menu->Append(MENU_ID_DELETE_NODE, wxT("Delete"));
     } else {
         menu = new wxMenu(wxT("Add Node"));
@@ -281,6 +282,10 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
             }
         }
         break;
+    case MENU_ID_EDIT_NODE_SETTINGS: {
+        ui_manager_show_frame(AGCT_ANY_NODE_SETTINGS, application_graph_active_id, application_graph_hovering_node_id);
+        break;
+    }
     case MENU_ID_DELETE_NODE: {
         application_graph_delete_node(application_graph_active_id, application_graph_hovering_node_id);
         break;

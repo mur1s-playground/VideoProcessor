@@ -114,6 +114,12 @@
     <ClCompile Include="GPUGaussianBlurUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Clock.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="ApplicationGraphNodeSettingsUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -207,6 +213,12 @@
       <Filter>Headerdateien\Nodes</Filter>
     </ClInclude>
     <ClInclude Include="GPUGaussianBlurUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Clock.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="ApplicationGraphNodeSettingsUI.h">
       <Filter>Headerdateien\UI</Filter>
     </ClInclude>
   </ItemGroup>

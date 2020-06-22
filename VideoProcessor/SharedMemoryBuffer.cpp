@@ -141,15 +141,14 @@ void shared_memory_buffer_release_r(struct shared_memory_buffer* smb, int slot) 
 	smb->p_buf_c[smb->size * smb->slots + 2 * slot]--;
 	ReleaseMutex(smb->h_mutex);
 }
-/*
+
 struct application_graph_node {
 	int n_id;
 
 	void* component;
 };
-*/
+
 void shared_memory_buffer_externalise(struct application_graph_node* agn, string& out_str) {
-	/*
 	struct shared_memory_buffer* smb = (struct shared_memory_buffer*)agn->component;
 
 	stringstream s_out;
@@ -159,7 +158,6 @@ void shared_memory_buffer_externalise(struct application_graph_node* agn, string
 	s_out << smb->meta_size << std::endl;
 
 	out_str = s_out.str();
-	*/
 }
 
 void shared_memory_buffer_load(struct shared_memory_buffer* smb, ifstream& in_f) {
@@ -178,7 +176,6 @@ void shared_memory_buffer_load(struct shared_memory_buffer* smb, ifstream& in_f)
 
 //TODO: complete
 void shared_memory_buffer_destroy(struct application_graph_node* agn) {
-	/*
 	struct shared_memory_buffer* smb = (struct shared_memory_buffer*)agn->component;
 
 	if (smb->h_mutex != NULL) {
@@ -189,5 +186,4 @@ void shared_memory_buffer_destroy(struct application_graph_node* agn) {
 	}
 
 	delete smb;
-	*/
 }

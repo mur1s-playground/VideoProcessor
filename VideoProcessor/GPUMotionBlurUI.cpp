@@ -35,6 +35,12 @@ void gpu_motion_blur_ui_graph_init(struct application_graph_node* agn, applicati
     pair<enum application_graph_component_type, void*> inner_in2 = pair<enum application_graph_component_type, void*>(AGCT_GPU_MEMORY_BUFFER, (void*)&mb->gmb_out);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in2));
 
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&agn->process_tps_balancer.sleep_ms));
+
+    application_graph_tps_balancer_init(agn, 30);
+
     agn->process = gpu_motion_blur_loop;
     agn->process_run = false;
     agn->on_input_connect = nullptr;

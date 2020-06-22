@@ -31,6 +31,8 @@ DWORD* gpu_composer_loop(LPVOID args) {
 
 	int next_frame_out = -1;
 	while (agn->process_run) {
+		application_graph_tps_balancer_timer_start(agn);
+
 		next_frame_out = (next_frame_out + 1) % gc->vs_out->smb_framecount;
 		
 		gpu_memory_buffer_try_rw(gc->vs_out->gmb, next_frame_out, true, 8);
@@ -58,6 +60,9 @@ DWORD* gpu_composer_loop(LPVOID args) {
 		gpu_memory_buffer_try_rw(gc->vs_out->gmb, gc->vs_out->gmb->slots, true, 8);
 		gc->vs_out->gmb->p_rw[2 * (gc->vs_out->gmb->slots + 1)] = next_frame_out;
 		gpu_memory_buffer_release_rw(gc->vs_out->gmb, gc->vs_out->gmb->slots);
+
+		application_graph_tps_balancer_timer_stop(agn);
+		application_graph_tps_balancer_sleep(agn);
 	}
 	agn->process_run = false;
 	myApp->drawPane->Refresh();

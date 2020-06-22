@@ -27,6 +27,12 @@
 #include "GPUVideoAlphaMerge.h"
 #include "GPUVideoAlphaMergeUI.h"
 
+#include "GPUMotionBlur.h"
+#include "GPUMotionBlurUI.h"
+
+#include "GPUGaussianBlur.h"
+#include "GPUGaussianBlurUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -36,6 +42,50 @@ using namespace std;
 vector <struct application_graph *>   ags;
 int application_graph_active_id = 0;
 int application_graph_hovering_node_id = -1;
+
+void application_graph_tps_balancer_init(struct application_graph_node *agn, int tps_target) {
+    agn->process_tps_balancer.tps_current = tps_target;
+    agn->process_tps_balancer.tps_target = tps_target;
+    agn->process_tps_balancer.overlap = 0;
+    agn->process_tps_balancer.started = false;
+}
+
+void application_graph_tps_balancer_timer_start(struct application_graph_node* agn) {
+    if (!agn->process_tps_balancer.started) {
+        agn->process_tps_balancer.started = true;
+        clock_gettime(0, &agn->process_tps_balancer.start);
+    }
+}
+
+void application_graph_tps_balancer_timer_stop(struct application_graph_node* agn) {
+    agn->process_tps_balancer.started = false;
+    clock_gettime(0, &agn->process_tps_balancer.stop);
+}
+
+int application_graph_tps_balancer_get_sleep_ms(struct application_graph_node* agn) {
+    unsigned long long time_start = agn->process_tps_balancer.start.tv_sec * 1000000000 + agn->process_tps_balancer.start.tv_nsec;
+    unsigned long long time_stop = agn->process_tps_balancer.stop.tv_sec * 1000000000 + agn->process_tps_balancer.stop.tv_nsec;
+    unsigned long long time_delta = time_stop - time_start;
+    int sleep_time = (int)floor(((1000000000 / agn->process_tps_balancer.tps_target) - time_delta) / 100000);
+    if (sleep_time > 0) {
+        agn->process_tps_balancer.overlap += (sleep_time % 10);
+        sleep_time /= 10;
+        if (agn->process_tps_balancer.overlap >= 10) {
+            sleep_time++;
+            agn->process_tps_balancer.overlap -= 10;
+        }
+        return sleep_time;
+    }
+    return 0;
+}
+
+void application_graph_tps_balancer_sleep(struct application_graph_node* agn) {
+    int sleep_time = application_graph_tps_balancer_get_sleep_ms(agn);
+    agn->process_tps_balancer.sleep_ms = sleep_time;
+    if (sleep_time > 0) {
+        Sleep(sleep_time);
+    }
+}
 
 int application_graph_is_on_input(int id, int node_id, int pos_x, int pos_y, float* dist_out) {
     struct application_graph_node* current_node = ags[id]->nodes[node_id];
@@ -594,6 +644,18 @@ void application_graph_load(string base_dir, string name) {
                     struct video_source* vs = new video_source();
                     video_source_load(vs, g_infile);
                     video_source_ui_graph_init(agn, (application_graph_component)vs, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_GPU_MOTION_BLUR: {
+                    struct gpu_motion_blur* mb = new gpu_motion_blur();
+                    gpu_motion_blur_load(mb, g_infile);
+                    gpu_motion_blur_ui_graph_init(agn, (application_graph_component)mb, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_GPU_GAUSSIAN_BLUR: {
+                    struct gpu_gaussian_blur* gb = new gpu_gaussian_blur();
+                    gpu_gaussian_blur_load(gb, g_infile);
+                    gpu_gaussian_blur_ui_graph_init(agn, (application_graph_component)gb, pos_x, pos_y);
                     break;
                 }
             }

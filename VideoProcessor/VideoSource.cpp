@@ -91,6 +91,7 @@ DWORD* video_source_loop(LPVOID args) {
 	if (vs->direction_smb_to_gmb) {
 			int last_id = -1;
 			while (agn->process_run) {
+				application_graph_tps_balancer_timer_start(agn);
 				int next_id = -1;
 				if (vs->read_video_capture) {
 					next_id = (vs->smb_last_used_id + 1) % vs->smb_framecount;
@@ -171,13 +172,14 @@ DWORD* video_source_loop(LPVOID args) {
 					shared_memory_buffer_release_rw(vs->smb, vs->smb_framecount);
 					last_id = next_id;
 					vs->smb_last_used_id = next_id;
-				} else {
-					Sleep(8);
 				}
+				application_graph_tps_balancer_timer_stop(agn);
+				application_graph_tps_balancer_sleep(agn);
 			}
 	} else if (!vs->read_video_capture && vs->do_copy && !vs->direction_smb_to_gmb) {
 		int last_gpu_id = -1;
 		while (agn->process_run) {
+			application_graph_tps_balancer_timer_start(agn);
 			gpu_memory_buffer_try_r(vs->gmb, vs->gmb->slots, true, 8);
 			int next_gpu_id = vs->gmb->p_rw[2 * (vs->gmb->slots + 1)];
 			gpu_memory_buffer_release_r(vs->gmb, vs->gmb->slots);
@@ -195,6 +197,8 @@ DWORD* video_source_loop(LPVOID args) {
 				vs->smb_last_used_id = next_id;
 				last_gpu_id = next_gpu_id;
 			}
+			application_graph_tps_balancer_timer_stop(agn);
+			application_graph_tps_balancer_sleep(agn);
 		}
 	}
 	

@@ -27,6 +27,8 @@ void im_show_ui_graph_init(struct application_graph_node* agn, application_graph
     pair<enum application_graph_component_type, void*> inner_in = pair<enum application_graph_component_type, void*>(AGCT_VIDEO_SOURCE, (void*)&is->vs);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in));
 
+    application_graph_tps_balancer_init(agn, 30);
+
     agn->process = im_show_loop;
     agn->process_run = false;
     agn->on_input_connect = nullptr;

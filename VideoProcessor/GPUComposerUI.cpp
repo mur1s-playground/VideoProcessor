@@ -32,6 +32,12 @@ void gpu_composer_ui_graph_init(struct application_graph_node* agn, application_
     pair<enum application_graph_component_type, void*> inner_in2 = pair<enum application_graph_component_type, void*>(AGCT_VIDEO_SOURCE, (void*)&gc->vs_out);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in2));
 
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&agn->process_tps_balancer.sleep_ms));
+
+    application_graph_tps_balancer_init(agn, 30);
+
     agn->process = gpu_composer_loop;
     agn->process_run = false;
     agn->on_input_connect = gpu_composer_on_input_connect;

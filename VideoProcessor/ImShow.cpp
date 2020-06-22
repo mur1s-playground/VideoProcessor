@@ -28,6 +28,7 @@ DWORD* im_show_loop(LPVOID args) {
 	int last_frame = -1;
 	namedWindow(is->name.c_str(), WINDOW_AUTOSIZE);
 	while (agn->process_run) {
+		application_graph_tps_balancer_timer_start(agn);
 		shared_memory_buffer_try_r(is->vs->smb, is->vs->smb_framecount, true, 8);
 										      //slots																	//rw-locks									      //meta
 		int next_frame = is->vs->smb->p_buf_c[is->vs->smb_framecount * is->vs->video_channels * is->vs->video_height * is->vs->video_width + ((is->vs->smb_framecount + 1) * 2)];
@@ -38,7 +39,9 @@ DWORD* im_show_loop(LPVOID args) {
 			cv::imshow(is->name.c_str(), is->vs->mats[next_frame]);
 			shared_memory_buffer_release_r(is->vs->smb, next_frame);
 		}
-		cv::waitKey(16);
+		application_graph_tps_balancer_timer_stop(agn);
+		int sleep_time = application_graph_tps_balancer_get_sleep_ms(agn);
+		if (sleep_time > 0) cv::waitKey(sleep_time);
 	}
 	agn->process_run = false;
 	myApp->drawPane->Refresh();

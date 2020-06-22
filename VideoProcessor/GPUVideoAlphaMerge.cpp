@@ -25,6 +25,8 @@ DWORD* gpu_video_alpha_merge_loop(LPVOID args) {
 	int last_frame_alpha = -1;
 	int current_out_frame = -1;
 	while (agn->process_run) {
+		application_graph_tps_balancer_timer_start(agn);
+
 		gpu_memory_buffer_try_r(vam->vs_rgb->gmb, vam->vs_rgb->gmb->slots, true, 8);
 		int next_frame_rgb = vam->vs_rgb->gmb->p_rw[2 * (vam->vs_rgb->gmb->slots + 1)];
 		gpu_memory_buffer_release_r(vam->vs_rgb->gmb, vam->vs_rgb->gmb->slots);
@@ -60,9 +62,9 @@ DWORD* gpu_video_alpha_merge_loop(LPVOID args) {
 			
 			last_frame_rgb = next_frame_rgb;
 			last_frame_alpha = next_frame_alpha;
-		} else {
-			Sleep(16);
 		}
+		application_graph_tps_balancer_timer_stop(agn);
+		application_graph_tps_balancer_sleep(agn);
 	}
 	agn->process_run = false;
 	myApp->drawPane->Refresh();

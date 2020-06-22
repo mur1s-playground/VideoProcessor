@@ -6,10 +6,26 @@
 #include <vector>
 #include <map>
 
+#include "Clock.h"
+
 using namespace std;
+
+struct application_graph_tps_balancer {
+	int tps_current;
+	int tps_target;
+
+	timespec start;
+	timespec stop;
+
+	int overlap;
+	int sleep_ms;
+
+	bool started;
+};
 
 enum application_graph_component_type {
 	AGCT_NONE,
+	AGCT_ANY_NODE_SETTINGS,
 	AGCT_IM_SHOW,
 	AGCT_VIDEO_SOURCE,
 	AGCT_SHARED_MEMORY_BUFFER,
@@ -54,6 +70,7 @@ struct application_graph_node {
 
 	void *process;
 	bool process_run;
+	struct application_graph_tps_balancer process_tps_balancer;
 
 	void *on_input_connect;
 	void *on_input_edit;
@@ -74,6 +91,12 @@ struct application_graph {
 	vector<struct application_graph_node *> nodes;
 	vector<struct application_graph_edge *> edges;
 };
+
+void application_graph_tps_balancer_init(struct application_graph_node* agn, int tps_target);
+void application_graph_tps_balancer_timer_start(struct application_graph_node* agn);
+void application_graph_tps_balancer_timer_stop(struct application_graph_node* agn);
+int application_graph_tps_balancer_get_sleep_ms(struct application_graph_node* agn);
+void application_graph_tps_balancer_sleep(struct application_graph_node* agn);
 
 int application_graph_is_on_input(int id, int node_id, int pos_x, int pos_y, float* dist_out);
 int application_graph_is_on_output(int id, int node_id, int pos_x, int pos_y, float* dist_out);

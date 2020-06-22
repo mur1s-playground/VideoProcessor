@@ -40,6 +40,12 @@ void mask_rcnn_ui_graph_init(struct application_graph_node* agn, application_gra
     pair<enum application_graph_component_type, void*> inner_in_2 = pair<enum application_graph_component_type, void*>(AGCT_SHARED_MEMORY_BUFFER, (void*)&mrcnn->v_src_out);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in_2));
 
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&agn->process_tps_balancer.sleep_ms));
+
+    application_graph_tps_balancer_init(agn, 30);
+
     agn->process = mask_rcnn_loop;
     agn->process_run = false;
     agn->on_input_connect = nullptr;

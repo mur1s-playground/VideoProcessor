@@ -50,6 +50,12 @@ void video_source_ui_graph_init(struct application_graph_node* agn, application_
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&vs->smb_size_req));
 
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&agn->process_tps_balancer.sleep_ms));
+
+    application_graph_tps_balancer_init(agn, 30);
+
     agn->process = video_source_loop;
     agn->process_run = false;
 

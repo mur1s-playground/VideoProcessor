@@ -98,6 +98,8 @@ DWORD* mask_rcnn_loop(LPVOID args) {
 	
 	int last_frame = -1;
 	while (agn->process_run) {
+		application_graph_tps_balancer_timer_start(agn);
+
 		shared_memory_buffer_try_r(mrcnn->v_src_in->smb, mrcnn->v_src_in->smb_framecount, true, 8);
 		//slots																	//rw-locks									      //meta
 		int next_frame = mrcnn->v_src_in->smb->p_buf_c[mrcnn->v_src_in->smb_framecount * 3 * mrcnn->v_src_in->video_height * mrcnn->v_src_in->video_width + ((mrcnn->v_src_in->smb_framecount + 1) * 2)];
@@ -119,6 +121,8 @@ DWORD* mask_rcnn_loop(LPVOID args) {
 			shared_memory_buffer_release_r(mrcnn->v_src_in->smb, next_frame);
 			last_frame = next_frame;
 		}
+		application_graph_tps_balancer_timer_stop(agn);
+		application_graph_tps_balancer_sleep(agn);
 	}
 	agn->process_run = false;
 	myApp->drawPane->Refresh();

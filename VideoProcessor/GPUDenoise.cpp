@@ -23,6 +23,8 @@ DWORD* gpu_denoise_loop(LPVOID args) {
 	if (gd->vs_in == nullptr || gd->vs_in->gmb == nullptr) return NULL;
 	int last_gpu_id = -1;
 	while (agn->process_run) {
+		application_graph_tps_balancer_timer_start(agn);
+		
 		gpu_memory_buffer_try_r(gd->vs_in->gmb, gd->vs_in->gmb->slots, true, 8);
 		int next_gpu_id = gd->vs_in->gmb->p_rw[2 * (gd->vs_in->gmb->slots + 1)];
 		gpu_memory_buffer_release_r(gd->vs_in->gmb, gd->vs_in->gmb->slots);
@@ -44,7 +46,8 @@ DWORD* gpu_denoise_loop(LPVOID args) {
 			gpu_memory_buffer_release_rw(gd->gmb_out, gd->gmb_out->slots);
 			last_gpu_id = next_gpu_id;
 		}
-		Sleep(16);
+		application_graph_tps_balancer_timer_stop(agn);
+		application_graph_tps_balancer_sleep(agn);
 	}
 	agn->process_run = false;
 	myApp->drawPane->Refresh();

@@ -11,6 +11,7 @@
 #include "VideoSourceUI.h"
 #include "GPUMotionBlurUI.h"
 #include "GPUGaussianBlurUI.h"
+#include "ApplicationGraphNodeSettingsUI.h"
 
 #include "MainUI.h"
 
@@ -21,6 +22,14 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 		enum application_graph_component_type agct_s = ui_manager_frame_store[i].first;
 		if (agct_s == agct) {
 			switch (agct_s) {
+			case AGCT_ANY_NODE_SETTINGS: {
+				ApplicationGraphNodeSettingsFrame* agnf = (ApplicationGraphNodeSettingsFrame *)ui_manager_frame_store[i].second;
+				if (!agnf->IsShownOnScreen()) {
+					agnf->Show(node_graph_id, node_id);
+					return;
+				}
+				break;
+			}
 			case AGCT_GPU_COMPOSER: {
 				GPUComposerFrame* gcf = (GPUComposerFrame*)ui_manager_frame_store[i].second;
 				if (!gcf->IsShownOnScreen()) {
@@ -117,6 +126,13 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 	}
 
 	switch (agct) {
+	case AGCT_ANY_NODE_SETTINGS: {
+			ApplicationGraphNodeSettingsFrame* agnf = new ApplicationGraphNodeSettingsFrame((wxWindow*)myApp->frame);
+			ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_ANY_NODE_SETTINGS, (void*)agnf));
+			agnf->Show(node_graph_id, node_id);
+			return;
+			break;
+		}
 	case AGCT_GPU_COMPOSER: {
 			GPUComposerFrame* gcf = new GPUComposerFrame((wxWindow*)myApp->frame);
 			ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_GPU_COMPOSER, (void*)gcf));
