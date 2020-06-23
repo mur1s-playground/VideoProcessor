@@ -4,4 +4,4 @@ void compose_kernel_launch(const unsigned char* src, const int src_width, const 
 
 void compose_kernel_set_zero_launch(unsigned char* dst, const int dst_width, const int dst_height, const int dst_channels);
 
-void compose_kernel_rgb_alpha_merge_launch(const unsigned char* src_rgb, const unsigned char* src_alpha, unsigned char* dst, const int width, const int height);
+void compose_kernel_rgb_alpha_merge_launch(const unsigned char* src_rgb, const unsigned char* src_alpha, const unsigned int src_alpha_channels, const unsigned int src_alpha_channel_id, unsigned char* dst, const int width, const int height);

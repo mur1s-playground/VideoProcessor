@@ -47,7 +47,7 @@ DWORD* gpu_video_alpha_merge_loop(LPVOID args) {
 			
 			compose_kernel_rgb_alpha_merge_launch(
 				&vam->vs_rgb->gmb->p_device[next_frame_rgb_delayed * vam->vs_rgb->video_width * vam->vs_rgb->video_height* vam->vs_rgb->video_channels],
-				&vam->vs_alpha->gmb->p_device[next_frame_alpha * vam->vs_alpha->video_width * vam->vs_alpha->video_height * vam->vs_alpha->video_channels],
+				&vam->vs_alpha->gmb->p_device[next_frame_alpha * vam->vs_alpha->video_width * vam->vs_alpha->video_height * vam->vs_alpha->video_channels], vam->vs_alpha->video_channels, vam->channel_id,
 				&vam->vs_out->gmb->p_device[current_out_frame * vam->vs_out->video_width * vam->vs_out->video_height * vam->vs_out->video_channels],
 				vam->vs_out->video_width, vam->vs_out->video_height
 			);

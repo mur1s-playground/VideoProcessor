@@ -32,7 +32,7 @@ void mask_rcnn_init(struct mask_rcnn *mrcnn) {
 //INTERNAL HELPERS
 void draw_box(struct mask_rcnn* mrcnn, int current_output_id, int class_id, Rect box, Mat& object_mask) {
 	if (class_id < (int)mrcnn->net_classes_available.size() && find(mrcnn->net_classes_active.begin(), mrcnn->net_classes_active.end(), mrcnn->net_classes_available[class_id]) != mrcnn->net_classes_active.end()) {
-		Scalar color = Scalar(255, 255, 255, 255);
+		//Scalar color = Scalar(255, 255, 255, 255);
 		if (box.y + box.height > mrcnn->v_src_in->video_height) {
 			box.height -= (box.y + box.height - mrcnn->v_src_in->video_height);
 		}
@@ -41,11 +41,12 @@ void draw_box(struct mask_rcnn* mrcnn, int current_output_id, int class_id, Rect
 		Mat mask = (object_mask > mrcnn->net_mask_threshold);
 
 		if ((0 <= box.x && 0 <= box.width && box.x + box.width <= mrcnn->v_src_in->video_width && 0 <= box.y && 0 <= box.height && box.y + box.height <= mrcnn->v_src_in->video_height)) {
-			Mat coloredRoi = color + 0.0f * mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id](box);
-			coloredRoi.convertTo(coloredRoi, CV_8UC3);
+			//Mat coloredRoi = color + 0.0f * mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id](box);
+			//coloredRoi.convertTo(coloredRoi, CV_8UC3);
 
 			mask.convertTo(mask, CV_8U);
-			coloredRoi.copyTo(mrcnn->v_src_out->mats[current_output_id](box), mask);
+			//coloredRoi.copyTo(mrcnn->v_src_out->mats[current_output_id](box), mask);
+			mask.copyTo(mrcnn->v_src_out->mats[current_output_id](box), mask);
 		}
 	}
 }
@@ -86,7 +87,7 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs) {
 	}
 	shared_memory_buffer_release_rw(mrcnn->v_src_out->smb, current_frame);
 	shared_memory_buffer_try_rw(mrcnn->v_src_out->smb, mrcnn->v_src_out->smb_framecount, true, 8);
-	mrcnn->v_src_out->smb->p_buf_c[mrcnn->v_src_out->smb_framecount * 3 * mrcnn->v_src_out->video_height * mrcnn->v_src_out->video_width + ((mrcnn->v_src_out->smb_framecount + 1) * 2)] = current_frame;
+	mrcnn->v_src_out->smb->p_buf_c[mrcnn->v_src_out->smb_framecount * mrcnn->v_src_out->video_channels * mrcnn->v_src_out->video_height * mrcnn->v_src_out->video_width + ((mrcnn->v_src_out->smb_framecount + 1) * 2)] = current_frame;
 	mrcnn->v_src_out->smb_last_used_id = current_frame;
 	shared_memory_buffer_release_rw(mrcnn->v_src_out->smb, mrcnn->v_src_out->smb_framecount);
 }
