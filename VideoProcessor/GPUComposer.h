@@ -23,6 +23,8 @@ struct gpu_composer {
 void gpu_composer_init(struct gpu_composer* gc, const char* name);
 
 void gpu_composer_on_input_connect(struct application_graph_node* agn, int input_id);
+void gpu_composer_on_input_disconnect(struct application_graph_edge* edge);
+
 DWORD* gpu_composer_loop(LPVOID args);
 
 void gpu_composer_externalise(struct application_graph_node* agn, string& out_str);

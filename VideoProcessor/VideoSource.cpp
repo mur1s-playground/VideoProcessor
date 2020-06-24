@@ -118,8 +118,8 @@ DWORD* video_source_loop(LPVOID args) {
 
 					srcheight = windowsize.bottom;
 					srcwidth = windowsize.right;
-					height = 1080;  //change this to whatever size you want to resize to
-					width = 1920;
+					height = vs->video_height;  //change this to whatever size you want to resize to
+					width = vs->video_width;
 
 					hbwindow = CreateCompatibleBitmap(hwindowDC, width, height);
 					bi.biSize = sizeof(BITMAPINFOHEADER);    //http://msdn.microsoft.com/en-us/library/windows/window/dd183402%28v=vs.85%29.aspx

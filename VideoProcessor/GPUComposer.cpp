@@ -2,11 +2,14 @@
 
 #include <sstream>
 #include <fstream>
+#include <algorithm>
 
 #include "ApplicationGraph.h"
 #include "MainUI.h"
 
 #include "ComposeKernel.h"
+
+#include "Logger.h"
 
 void gpu_composer_init(struct gpu_composer* gc, const char* name) {
 	stringstream ss_name;
@@ -17,11 +20,23 @@ void gpu_composer_init(struct gpu_composer* gc, const char* name) {
 	gc->vs_out = nullptr;
 }
 
-void gpu_composer_on_input_connect(struct application_graph_node* agn, int input_id) {
+void gpu_composer_on_input_connect(struct application_graph_node *agn, int input_id) {
 	struct gpu_composer* gc = (struct gpu_composer*)agn->component;
 
 	if (input_id == 0) {
 		gc->gce_ins.push_back(gc->gce_in_connector);
+	}
+}
+
+void gpu_composer_on_input_disconnect(struct application_graph_edge *edge) {
+	struct gpu_composer* gc = (struct gpu_composer*)edge->to.first->component;
+	int input_id = edge->to.second;
+	if (input_id == 0) {
+		struct gpu_composer_element* gce = (struct gpu_composer_element*)edge->from.first->component;
+		vector<gpu_composer_element*>::iterator gce_ins_it = find(gc->gce_ins.begin(), gc->gce_ins.end(), gce);
+		if (gce_ins_it != gc->gce_ins.end()) {
+			gc->gce_ins.erase(gce_ins_it);
+		}
 	}
 }
 

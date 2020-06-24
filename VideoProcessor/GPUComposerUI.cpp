@@ -41,7 +41,7 @@ void gpu_composer_ui_graph_init(struct application_graph_node* agn, application_
     agn->process = gpu_composer_loop;
     agn->process_run = false;
     agn->on_input_connect = gpu_composer_on_input_connect;
-    agn->on_input_disconnect = nullptr;
+    agn->on_input_disconnect = gpu_composer_on_input_disconnect;
     agn->on_input_edit = nullptr;
     agn->externalise = gpu_composer_externalise;
     agn->on_delete = gpu_composer_destroy;

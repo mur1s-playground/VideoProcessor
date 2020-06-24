@@ -473,9 +473,31 @@ void application_graph_hovering_node(int application_graph_id) {
     }
 }
 
+void application_graph_delete_edge(int application_graph_id, int node_id, int input_id) {
+    for (int i = 0; i < ags[application_graph_id]->edges.size(); i++) {
+        struct application_graph_edge* current_edge = ags[application_graph_id]->edges[i];
+        if (current_edge != nullptr) {
+            if (current_edge->to.first == ags[application_graph_id]->nodes[node_id] && current_edge->to.second == input_id) {
+                application_graph_delete_edge(application_graph_id, i, true);
+                break;
+            }
+        }
+    }
+}
+
 void application_graph_delete_edge(int application_graph_id, int edge_id, bool refresh) {
     struct application_graph_edge* current_edge = ags[application_graph_id]->edges[edge_id];
     ags[application_graph_id]->edges[edge_id] = nullptr;
+
+#ifndef FPTR_DEL_EDG
+#define FPTR_DEL_EDG
+    typedef void (*deledgptr)(struct application_graph_edge* edge);
+#endif
+    if (current_edge->to.first->on_input_disconnect != nullptr) {
+        deledgptr f_ptr = (deledgptr)current_edge->to.first->on_input_disconnect;
+        f_ptr(current_edge);
+    }
+
     delete current_edge;
     if (refresh) {
         myApp->drawPane->Refresh();
@@ -498,8 +520,10 @@ void application_graph_delete_node(int application_graph_id, int node_id) {
 #define FPTR_DEL_AGN
     typedef void (*delagnptr)(struct application_graph_node* agn);
 #endif
-    delagnptr f_ptr = (delagnptr)current_node->on_delete;
-    f_ptr(current_node);
+    if (current_node->on_delete != nullptr) {
+        delagnptr f_ptr = (delagnptr)current_node->on_delete;
+        f_ptr(current_node);
+    }
 
     delete current_node;
     myApp->drawPane->Refresh();

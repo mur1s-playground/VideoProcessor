@@ -86,10 +86,11 @@ BEGIN_EVENT_TABLE(BasicDrawPane, wxPanel)
  EVT_LEFT_DOWN(BasicDrawPane::mouseDown)
  EVT_LEFT_UP(BasicDrawPane::mouseReleased)
  EVT_RIGHT_DOWN(BasicDrawPane::rightClick)
-    /*
- EVT_LEAVE_WINDOW(BasicDrawPane::mouseLeftWindow)
+    
+ //EVT_LEAVE_WINDOW(BasicDrawPane::mouseLeftWindow)
  EVT_KEY_DOWN(BasicDrawPane::keyPressed)
  EVT_KEY_UP(BasicDrawPane::keyReleased)
+ /*
  EVT_MOUSEWHEEL(BasicDrawPane::mouseWheelMoved)
  */
 
@@ -135,15 +136,34 @@ void BasicDrawPane::mouseMoved(wxMouseEvent& event) {
     }
 }
 
+bool ctrl_pressed = false;
+void BasicDrawPane::keyPressed(wxKeyEvent& event) {
+    if (event.GetKeyCode() == wxKeyCode::WXK_CONTROL) {
+        ctrl_pressed = true;
+    }
+}
+
+void BasicDrawPane::keyReleased(wxKeyEvent& event) {
+    if (event.GetKeyCode() == wxKeyCode::WXK_CONTROL) {
+        ctrl_pressed = false;
+    }
+}
+
 void BasicDrawPane::mouseDown(wxMouseEvent& event) {
     const wxPoint pt = wxGetMousePosition();
     mouse_down_mouse_x = pt.x - this->GetScreenPosition().x;
     mouse_down_mouse_y = pt.y - this->GetScreenPosition().y;
     if (application_graph_active_id > -1 && application_graph_active_id < ags.size() && application_graph_hovering_node_id > -1) {
         float dist_out = -1.0f;
-        application_graph_is_on_input(application_graph_active_id, application_graph_hovering_node_id, mouse_down_mouse_x, mouse_down_mouse_y, &dist_out);
+        int closest_id = application_graph_is_on_input(application_graph_active_id, application_graph_hovering_node_id, mouse_down_mouse_x, mouse_down_mouse_y, &dist_out);
         if (dist_out == -1.0f || dist_out >= 6) {
             move_node_started = true;
+        } else {
+            if (ctrl_pressed) {
+                if (closest_id > -1) {
+                    application_graph_delete_edge(application_graph_active_id, application_graph_hovering_node_id, closest_id);
+                }
+            }
         }
     }
 }

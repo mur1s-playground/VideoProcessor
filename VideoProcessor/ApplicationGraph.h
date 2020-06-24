@@ -113,6 +113,7 @@ void application_graph_draw_edges(struct application_graph* ag, wxDC& dc);
 
 void application_graph_hovering_node(int application_graph_id);
 
+void application_graph_delete_edge(int application_graph_id, int node_id, int input_id);
 void application_graph_delete_edge(int application_graph_id, int edge_id, bool refresh = true);
 void application_graph_delete_node(int application_graph_id, int node_id);
 
