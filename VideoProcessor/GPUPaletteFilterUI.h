@@ -12,6 +12,9 @@ class GPUPaletteFilterFrame : public wxFrame {
 	int node_id;
 
 public:
+	wxTextCtrl* tc_palette_auto_time;
+	wxTextCtrl* tc_palette_auto_size;
+
 	wxTextCtrl* tc_palette;
 
 	GPUPaletteFilterFrame(wxWindow* parent);

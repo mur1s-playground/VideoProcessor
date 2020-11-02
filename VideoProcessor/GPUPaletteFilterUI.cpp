@@ -24,6 +24,11 @@ void gpu_palette_filter_ui_graph_init(struct application_graph_node* agn, applic
     struct gpu_palette_filter* gpf = (struct gpu_palette_filter*)agn->component;
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&gpf->palette_auto_time));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_auto_size));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
     /*
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING_LIST, (void*)&gpf->palette));
 
@@ -59,6 +64,26 @@ GPUPaletteFilterFrame::GPUPaletteFilterFrame(wxWindow* parent) : wxFrame(parent,
     wxPanel* panel = new wxPanel(this, -1);
 
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
+
+    wxBoxSizer* hbox_fc = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_fc = new wxStaticText(panel, -1, wxT("Palette auto time"));
+    hbox_fc->Add(st_fc, 0, wxRIGHT, 8);
+
+    tc_palette_auto_time = new wxTextCtrl(panel, -1, wxT("10.0"));
+    hbox_fc->Add(tc_palette_auto_time, 1);
+
+    vbox->Add(hbox_fc, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    wxBoxSizer* hbox_a = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_a = new wxStaticText(panel, -1, wxT("Palette auto size"));
+    hbox_a->Add(st_a, 0, wxRIGHT, 8);
+
+    tc_palette_auto_size = new wxTextCtrl(panel, -1, wxT("128"));
+    hbox_a->Add(tc_palette_auto_size, 1);
+
+    vbox->Add(hbox_a, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
 
     wxBoxSizer* hbox_classes = new wxBoxSizer(wxHORIZONTAL);
@@ -107,18 +132,23 @@ void GPUPaletteFilterFrame::OnGPUPaletteFilterFrameButtonOk(wxCommandEvent& even
         gpf = (struct gpu_palette_filter*)agn->component;
     }
     
-    wxString classes_l = tc_palette->GetValue();
-    int start = 0;
-    int end = classes_l.find_first_of(",", start);
-    while (end != std::string::npos) {
+    float palette_auto_time = stof(string(tc_palette_auto_time->GetValue()));
+    float palette_auto_size = stoi(string(tc_palette_auto_size->GetValue()));
+
+    if (palette_auto_time == 0.0f) {
+        wxString classes_l = tc_palette->GetValue();
+        int start = 0;
+        int end = classes_l.find_first_of(",", start);
+        while (end != std::string::npos) {
+            gpf->palette.push_back(stof(string(classes_l.substr(start, end - start).c_str())));
+            start = end + 1;
+            end = classes_l.find_first_of(",", start);
+        }
         gpf->palette.push_back(stof(string(classes_l.substr(start, end - start).c_str())));
-        start = end + 1;
-        end = classes_l.find_first_of(",", start);
     }
-    gpf->palette.push_back(stof(string(classes_l.substr(start, end - start).c_str())));
     
     if (node_id == -1) {
-        gpu_palette_filter_init(gpf);
+        gpu_palette_filter_init(gpf, palette_auto_time, palette_auto_size);
         application_graph_node* agn = new application_graph_node();
         agn->n_id = ags[node_graph_id]->nodes.size();
         gpu_palette_filter_ui_graph_init(agn, (application_graph_component)gpf, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
