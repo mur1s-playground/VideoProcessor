@@ -158,12 +158,16 @@
     <ClCompile Include="GPUComposerUI.cpp" />
     <ClCompile Include="GPUDenoise.cpp" />
     <ClCompile Include="GPUDenoiseUI.cpp" />
+    <ClCompile Include="GPUEdgeFilter.cpp" />
+    <ClCompile Include="GPUEdgeFilterUI.cpp" />
     <ClCompile Include="GPUGaussianBlur.cpp" />
     <ClCompile Include="GPUGaussianBlurUI.cpp" />
     <ClCompile Include="GPUMemoryBuffer.cpp" />
     <ClCompile Include="GPUMemoryBufferUI.cpp" />
     <ClCompile Include="GPUMotionBlur.cpp" />
     <ClCompile Include="GPUMotionBlurUI.cpp" />
+    <ClCompile Include="GPUPaletteFilter.cpp" />
+    <ClCompile Include="GPUPaletteFilterUI.cpp" />
     <ClCompile Include="ImShow.cpp" />
     <ClCompile Include="ImShowUI.cpp" />
     <ClCompile Include="Logger.cpp" />
@@ -183,6 +187,7 @@
     <ClInclude Include="ApplicationGraphNodeSettingsUI.h" />
     <ClInclude Include="ComposeKernel.h" />
     <ClInclude Include="CUDAStreamHandler.h" />
+    <ClInclude Include="EdgeFilterKernel.h" />
     <ClInclude Include="GaussianBlur.h" />
     <ClInclude Include="GPUComposer.h" />
     <ClInclude Include="GPUComposerElement.h" />
@@ -190,12 +195,16 @@
     <ClInclude Include="GPUComposerUI.h" />
     <ClInclude Include="GPUDenoise.h" />
     <ClInclude Include="GPUDenoiseUI.h" />
+    <ClInclude Include="GPUEdgeFilter.h" />
+    <ClInclude Include="GPUEdgeFilterUI.h" />
     <ClInclude Include="GPUGaussianBlur.h" />
     <ClInclude Include="GPUGaussianBlurUI.h" />
     <ClInclude Include="GPUMemoryBuffer.h" />
     <ClInclude Include="GPUMemoryBufferUI.h" />
     <ClInclude Include="GPUMotionBlur.h" />
     <ClInclude Include="GPUMotionBlurUI.h" />
+    <ClInclude Include="GPUPaletteFilter.h" />
+    <ClInclude Include="GPUPaletteFilterUI.h" />
     <ClInclude Include="ImShow.h" />
     <ClInclude Include="ImShowUI.h" />
     <ClInclude Include="Logger.h" />
@@ -204,6 +213,7 @@
     <ClInclude Include="MaskRCNNUI.h" />
     <ClInclude Include="MotionBlur.h" />
     <ClInclude Include="NLMeansKernel.h" />
+    <ClInclude Include="PaletteFilterKernel.h" />
     <ClInclude Include="SharedMemoryBuffer.h" />
     <ClInclude Include="SharedMemoryBufferUI.h" />
     <ClInclude Include="GPUVideoAlphaMerge.h" />
@@ -215,11 +225,13 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="ComposeKernel.cu" />
+    <CudaCompile Include="EdgeFilterKernel.cu" />
     <CudaCompile Include="GaussianBlur.cu" />
     <CudaCompile Include="MotionBlur.cu" />
     <CudaCompile Include="NLMeansKernel.cu">
       <FileType>Document</FileType>
     </CudaCompile>
+    <CudaCompile Include="PaletteFilterKernel.cu" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

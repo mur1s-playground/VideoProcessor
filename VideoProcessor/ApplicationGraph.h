@@ -36,7 +36,9 @@ enum application_graph_component_type {
 	AGCT_GPU_COMPOSER,
 	AGCT_GPU_COMPOSER_ELEMENT,
 	AGCT_GPU_MOTION_BLUR,
-	AGCT_GPU_GAUSSIAN_BLUR
+	AGCT_GPU_GAUSSIAN_BLUR,
+	AGCT_GPU_EDGE_FILTER,
+	AGCT_GPU_PALETTE_FILTER
 };
 
 #define application_graph_component void *

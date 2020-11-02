@@ -33,6 +33,12 @@
 #include "GPUGaussianBlur.h"
 #include "GPUGaussianBlurUI.h"
 
+#include "GPUEdgeFilter.h"
+#include "GPUEdgeFilterUI.h"
+
+#include "GPUPaletteFilter.h"
+#include "GPUPaletteFilterUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -680,6 +686,18 @@ void application_graph_load(string base_dir, string name) {
                     struct gpu_gaussian_blur* gb = new gpu_gaussian_blur();
                     gpu_gaussian_blur_load(gb, g_infile);
                     gpu_gaussian_blur_ui_graph_init(agn, (application_graph_component)gb, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_GPU_EDGE_FILTER: {
+                    struct gpu_edge_filter* gef = new gpu_edge_filter();
+                    gpu_edge_filter_load(gef, g_infile);
+                    gpu_edge_filter_ui_graph_init(agn, (application_graph_component)gef, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_GPU_PALETTE_FILTER: {
+                    struct gpu_palette_filter* gpf = new gpu_palette_filter();
+                    gpu_palette_filter_load(gpf, g_infile);
+                    gpu_palette_filter_ui_graph_init(agn, (application_graph_component)gpf, pos_x, pos_y);
                     break;
                 }
             }

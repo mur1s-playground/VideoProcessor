@@ -12,6 +12,8 @@
 #include "GPUMotionBlurUI.h"
 #include "GPUGaussianBlurUI.h"
 #include "ApplicationGraphNodeSettingsUI.h"
+#include "GPUEdgeFilterUI.h"
+#include "GPUPaletteFilterUI.h"
 
 #include "MainUI.h"
 
@@ -118,6 +120,22 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 				}
 				break;
 			}
+			case AGCT_GPU_EDGE_FILTER: {
+				GPUEdgeFilterFrame* mbf = (GPUEdgeFilterFrame*)ui_manager_frame_store[i].second;
+				if (!mbf->IsShownOnScreen()) {
+					mbf->Show(node_graph_id, node_id);
+					return;
+				}
+				break;
+			}
+			case AGCT_GPU_PALETTE_FILTER: {
+				GPUPaletteFilterFrame* mbf = (GPUPaletteFilterFrame*)ui_manager_frame_store[i].second;
+				if (!mbf->IsShownOnScreen()) {
+					mbf->Show(node_graph_id, node_id);
+					return;
+				}
+				break;
+			}
 			default:
 
 				break;
@@ -210,6 +228,20 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 			return;
 			break;
 		}
+	case AGCT_GPU_EDGE_FILTER: {
+			GPUEdgeFilterFrame* mbf = new GPUEdgeFilterFrame((wxWindow*)myApp->frame);
+			ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_GPU_EDGE_FILTER, (void*)mbf));
+			mbf->Show(node_graph_id, node_id);
+			return;
+			break;
+		}
+	case AGCT_GPU_PALETTE_FILTER: {
+			GPUPaletteFilterFrame* mbf = new GPUPaletteFilterFrame((wxWindow*)myApp->frame);
+			ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_GPU_EDGE_FILTER, (void*)mbf));
+			mbf->Show(node_graph_id, node_id);
+			return;
+			break;
+	}
 	default:
 		break;
 	}

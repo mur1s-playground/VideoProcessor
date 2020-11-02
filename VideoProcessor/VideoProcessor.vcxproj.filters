@@ -120,6 +120,18 @@
     <ClCompile Include="ApplicationGraphNodeSettingsUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="GPUEdgeFilter.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="GPUEdgeFilterUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="GPUPaletteFilter.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="GPUPaletteFilterUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -221,6 +233,24 @@
     <ClInclude Include="ApplicationGraphNodeSettingsUI.h">
       <Filter>Headerdateien\UI</Filter>
     </ClInclude>
+    <ClInclude Include="GPUEdgeFilter.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="GPUEdgeFilterUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="EdgeFilterKernel.h">
+      <Filter>Headerdateien\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="GPUPaletteFilter.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="GPUPaletteFilterUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="PaletteFilterKernel.h">
+      <Filter>Headerdateien\Kernel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="NLMeansKernel.cu">
@@ -233,6 +263,12 @@
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
     <CudaCompile Include="GaussianBlur.cu">
+      <Filter>Quelldateien\Kernel</Filter>
+    </CudaCompile>
+    <CudaCompile Include="EdgeFilterKernel.cu">
+      <Filter>Quelldateien\Kernel</Filter>
+    </CudaCompile>
+    <CudaCompile Include="PaletteFilterKernel.cu">
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
   </ItemGroup>
