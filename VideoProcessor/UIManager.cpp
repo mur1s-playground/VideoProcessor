@@ -237,7 +237,7 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 		}
 	case AGCT_GPU_PALETTE_FILTER: {
 			GPUPaletteFilterFrame* mbf = new GPUPaletteFilterFrame((wxWindow*)myApp->frame);
-			ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_GPU_EDGE_FILTER, (void*)mbf));
+			ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_GPU_PALETTE_FILTER, (void*)mbf));
 			mbf->Show(node_graph_id, node_id);
 			return;
 			break;

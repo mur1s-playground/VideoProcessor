@@ -35,6 +35,7 @@ void gpu_palette_filter_ui_graph_init(struct application_graph_node* agn, applic
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_BOOL, (void*)&gpf->device_palette_switch));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_size[0]));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_size[1]));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&gpf->palette_auto_timer));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
     /*

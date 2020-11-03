@@ -166,7 +166,7 @@ DWORD* gpu_palette_filter_loop(LPVOID args) {
 			gpu_palette_auto_build(mb);
 			mb->palette_auto_timer = mb->palette_auto_time;
 		} else {
-			mb->palette_auto_timer -= (33.0f / 1800000.0f);
+			mb->palette_auto_timer -= (33.0f / 180000.0f);
 		}
 
 		application_graph_tps_balancer_timer_start(agn);
@@ -211,11 +211,16 @@ void gpu_palette_filter_externalise(struct application_graph_node* agn, string& 
 	s_out << mb->palette_auto_bucket_count << std::endl;
 	s_out << mb->palette_auto_quantization_size << std::endl;
 
-	for (int i = 0; i < mb->palette.size(); i++) {
-		if (i > 0) {
-			s_out << ",";
+	if (mb->palette.size() == 0) {
+		s_out << "0" << std::endl;
+	} else {
+		for (int i = 0; i < mb->palette.size(); i++) {
+			if (i > 0) {
+				s_out << ",";
+			}
+			s_out << mb->palette[i];
 		}
-		s_out << mb->palette[i];
+		s_out << std::endl;
 	}
 	out_str = s_out.str();
 }
