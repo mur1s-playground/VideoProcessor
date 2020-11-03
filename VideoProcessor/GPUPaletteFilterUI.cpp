@@ -27,6 +27,14 @@ void gpu_palette_filter_ui_graph_init(struct application_graph_node* agn, applic
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&gpf->palette_auto_time));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_auto_size));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_auto_bucket_count));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_auto_quantization_size));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_BOOL, (void*)&gpf->device_palette_switch));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_size[0]));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_size[1]));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
     /*
@@ -86,6 +94,28 @@ GPUPaletteFilterFrame::GPUPaletteFilterFrame(wxWindow* parent) : wxFrame(parent,
     vbox->Add(hbox_a, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
 
+    wxBoxSizer* hbox_b = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_b = new wxStaticText(panel, -1, wxT("Palette auto bucket count"));
+    hbox_b->Add(st_b, 0, wxRIGHT, 8);
+
+    tc_palette_auto_bucket_count = new wxTextCtrl(panel, -1, wxT("10"));
+    hbox_b->Add(tc_palette_auto_bucket_count, 1);
+
+    vbox->Add(hbox_b, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+
+    wxBoxSizer* hbox_c = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_c = new wxStaticText(panel, -1, wxT("Palette auto quantization size"));
+    hbox_c->Add(st_c, 0, wxRIGHT, 8);
+
+    tc_palette_auto_quantization_size = new wxTextCtrl(panel, -1, wxT("16"));
+    hbox_c->Add(tc_palette_auto_quantization_size, 1);
+
+    vbox->Add(hbox_c, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+
     wxBoxSizer* hbox_classes = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_classes = new wxStaticText(panel, wxID_ANY,
         wxT("Palette"));
@@ -133,7 +163,9 @@ void GPUPaletteFilterFrame::OnGPUPaletteFilterFrameButtonOk(wxCommandEvent& even
     }
     
     float palette_auto_time = stof(string(tc_palette_auto_time->GetValue()));
-    float palette_auto_size = stoi(string(tc_palette_auto_size->GetValue()));
+    int palette_auto_size = stoi(string(tc_palette_auto_size->GetValue()));
+    int palette_auto_bucket_count = stoi(string(tc_palette_auto_bucket_count->GetValue()));
+    int palette_auto_quantization_size = stoi(string(tc_palette_auto_quantization_size->GetValue()));
 
     if (palette_auto_time == 0.0f) {
         wxString classes_l = tc_palette->GetValue();
@@ -148,11 +180,17 @@ void GPUPaletteFilterFrame::OnGPUPaletteFilterFrameButtonOk(wxCommandEvent& even
     }
     
     if (node_id == -1) {
-        gpu_palette_filter_init(gpf, palette_auto_time, palette_auto_size);
+        gpu_palette_filter_init(gpf, palette_auto_time, palette_auto_size, palette_auto_bucket_count, palette_auto_quantization_size);
         application_graph_node* agn = new application_graph_node();
         agn->n_id = ags[node_graph_id]->nodes.size();
         gpu_palette_filter_ui_graph_init(agn, (application_graph_component)gpf, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
         ags[node_graph_id]->nodes.push_back(agn);
+    } else {
+        gpf->palette_auto_time = palette_auto_time;
+        gpf->palette_auto_size = palette_auto_size;
+        gpf->palette_auto_bucket_count = palette_auto_bucket_count;
+        gpf->palette_auto_quantization_size = palette_auto_quantization_size;
+        gpf->palette_auto_timer = 0.0f;
     }
     myApp->drawPane->Refresh();
 }
@@ -168,6 +206,22 @@ void GPUPaletteFilterFrame::Show(int node_graph_id, int node_id) {
     if (node_id > -1) {
         struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
         struct gpu_palette_filter* gpf = (struct gpu_palette_filter*)agn->component;
+
+        wxString auto_time;
+        auto_time << gpf->palette_auto_time;
+        tc_palette_auto_time->SetValue(auto_time);
+
+        wxString auto_size;
+        auto_size << gpf->palette_auto_size;
+        tc_palette_auto_size->SetValue(auto_size);
+
+        wxString auto_bucket_count;
+        auto_bucket_count << gpf->palette_auto_bucket_count;
+        tc_palette_auto_bucket_count->SetValue(auto_bucket_count);
+
+        wxString auto_quantization_size;
+        auto_quantization_size << gpf->palette_auto_quantization_size;
+        tc_palette_auto_quantization_size->SetValue(auto_quantization_size);
 
         stringstream s_classes;
         for (int i = 0; i < gpf->palette.size(); i++) {

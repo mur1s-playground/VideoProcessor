@@ -311,6 +311,10 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
                     ui_manager_show_frame(AGCT_GPU_EDGE_FILTER, application_graph_active_id, application_graph_hovering_node_id);
                     break;
                 }
+                case AGCT_GPU_PALETTE_FILTER: {
+                    ui_manager_show_frame(AGCT_GPU_PALETTE_FILTER, application_graph_active_id, application_graph_hovering_node_id);
+                    break;
+                }
             }
         }
         break;

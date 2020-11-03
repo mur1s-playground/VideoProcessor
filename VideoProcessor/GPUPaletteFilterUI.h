@@ -14,6 +14,8 @@ class GPUPaletteFilterFrame : public wxFrame {
 public:
 	wxTextCtrl* tc_palette_auto_time;
 	wxTextCtrl* tc_palette_auto_size;
+	wxTextCtrl* tc_palette_auto_bucket_count;
+	wxTextCtrl* tc_palette_auto_quantization_size;
 
 	wxTextCtrl* tc_palette;
 
