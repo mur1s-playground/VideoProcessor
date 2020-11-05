@@ -23,6 +23,9 @@ struct gpu_memory_buffer {
 void gpu_memory_buffer_init(struct gpu_memory_buffer* gmb, const char* name, int size, int slots, int meta_size);
 void gpu_memory_buffer_edit(struct gpu_memory_buffer* gmb, const char* name, int size, int slots, int meta_size);
 
+void gpu_memory_buffer_set_time(struct gpu_memory_buffer* gmb, int slot, unsigned long long time);
+unsigned long long gpu_memory_buffer_get_time(struct gpu_memory_buffer* gmb, int slot);
+
 bool gpu_memory_buffer_try_rw(struct gpu_memory_buffer* gmb, int slot, bool block, int sleep_ms);
 void gpu_memory_buffer_release_rw(struct gpu_memory_buffer* gmb, int slot);
 bool gpu_memory_buffer_try_r(struct gpu_memory_buffer* gmb, int slot, bool block, int sleep_ms);

@@ -37,6 +37,7 @@ DWORD* gpu_denoise_loop(LPVOID args) {
 			gpu_memory_buffer_try_rw(gd->gmb_out, next_gpu_out_id, true, 8);
 
 			nl_means_kernel_launch(gd->search_window_size, gd->region_size, gd->filtering_param, &gd->vs_in->gmb->p_device[next_gpu_id * gd->vs_in->video_channels * gd->vs_in->video_width * gd->vs_in->video_height], gd->vs_in->video_width, gd->vs_in->video_height, gd->vs_in->video_channels, &gd->gmb_out->p_device[next_gpu_out_id * gd->vs_in->video_channels * gd->vs_in->video_width * gd->vs_in->video_height]);
+			gpu_memory_buffer_set_time(gd->gmb_out, next_gpu_out_id, gpu_memory_buffer_get_time(gd->vs_in->gmb, next_gpu_id));
 
 			gpu_memory_buffer_release_rw(gd->gmb_out, next_gpu_out_id);
 			gpu_memory_buffer_release_r(gd->vs_in->gmb, next_gpu_id);

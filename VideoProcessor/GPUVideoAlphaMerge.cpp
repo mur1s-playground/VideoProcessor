@@ -24,6 +24,8 @@ DWORD* gpu_video_alpha_merge_loop(LPVOID args) {
 	int last_frame_rgb = -1;
 	int last_frame_alpha = -1;
 	int current_out_frame = -1;
+	unsigned long long sync_time = 0;
+
 	while (agn->process_run) {
 		application_graph_tps_balancer_timer_start(agn);
 
@@ -37,32 +39,61 @@ DWORD* gpu_video_alpha_merge_loop(LPVOID args) {
 
 		current_out_frame = (current_out_frame + 1) % vam->vs_out->gmb->slots;
 		
+		//TODO: account for prio channel running slower than non-prio channel
 		if (next_frame_rgb != last_frame_rgb || next_frame_alpha != last_frame_alpha) {
-			int next_frame_rgb_delayed = next_frame_rgb - vam->rgb_delay;
-			if (next_frame_rgb_delayed < 0) next_frame_rgb_delayed += vam->vs_rgb->gmb->slots;
+			unsigned long long sync_time = 0;
+			int next_frame_rgb_id = next_frame_rgb;
+			int next_frame_alpha_id = next_frame_alpha;
+			if (vam->rgb_delay == 0) { //rgb prio
+				gpu_memory_buffer_try_r(vam->vs_rgb->gmb, next_frame_rgb, true, 8);
+				sync_time = gpu_memory_buffer_get_time(vam->vs_rgb->gmb, next_frame_rgb);
 
-			gpu_memory_buffer_try_r(vam->vs_rgb->gmb, next_frame_rgb_delayed, true, 8);
-			gpu_memory_buffer_try_r(vam->vs_alpha->gmb, next_frame_alpha, true, 8);
+				for (int td = 0; td < vam->vs_alpha->gmb->slots; td++) {
+					next_frame_alpha_id = next_frame_alpha - td;
+					if (next_frame_alpha_id < 0) next_frame_alpha_id += vam->vs_alpha->gmb->slots;
+					gpu_memory_buffer_try_r(vam->vs_alpha->gmb, next_frame_alpha_id, true, 8);
+					if (gpu_memory_buffer_get_time(vam->vs_alpha->gmb, next_frame_alpha_id) <= sync_time) {
+						break;
+					}
+					gpu_memory_buffer_release_r(vam->vs_alpha->gmb, next_frame_alpha);
+				}
+			} else { //alpha prio
+				gpu_memory_buffer_try_r(vam->vs_alpha->gmb, next_frame_alpha, true, 8);
+				sync_time = gpu_memory_buffer_get_time(vam->vs_alpha->gmb, next_frame_alpha);
+
+				for (int td = 0; td < vam->vs_rgb->gmb->slots; td++) {
+					next_frame_rgb_id = next_frame_rgb - td;
+					if (next_frame_rgb_id < 0) next_frame_rgb_id += vam->vs_rgb->gmb->slots;
+					gpu_memory_buffer_try_r(vam->vs_rgb->gmb, next_frame_rgb_id, true, 8);
+					if (gpu_memory_buffer_get_time(vam->vs_rgb->gmb, next_frame_rgb_id) <= sync_time) {
+						break;
+					}
+					gpu_memory_buffer_release_r(vam->vs_rgb->gmb, next_frame_rgb_id);
+				}
+			}
+
 			gpu_memory_buffer_try_rw(vam->vs_out->gmb, current_out_frame, true, 8);
 			
 			compose_kernel_rgb_alpha_merge_launch(
-				&vam->vs_rgb->gmb->p_device[next_frame_rgb_delayed * vam->vs_rgb->video_width * vam->vs_rgb->video_height* vam->vs_rgb->video_channels],
-				&vam->vs_alpha->gmb->p_device[next_frame_alpha * vam->vs_alpha->video_width * vam->vs_alpha->video_height * vam->vs_alpha->video_channels], vam->vs_alpha->video_channels, vam->channel_id,
+				&vam->vs_rgb->gmb->p_device[next_frame_rgb_id * vam->vs_rgb->video_width * vam->vs_rgb->video_height* vam->vs_rgb->video_channels],
+				&vam->vs_alpha->gmb->p_device[next_frame_alpha_id * vam->vs_alpha->video_width * vam->vs_alpha->video_height * vam->vs_alpha->video_channels], vam->vs_alpha->video_channels, vam->channel_id,
 				&vam->vs_out->gmb->p_device[current_out_frame * vam->vs_out->video_width * vam->vs_out->video_height * vam->vs_out->video_channels],
 				vam->vs_out->video_width, vam->vs_out->video_height
 			);
+			gpu_memory_buffer_set_time(vam->vs_out->gmb, current_out_frame, sync_time);
 
 			gpu_memory_buffer_release_rw(vam->vs_out->gmb, current_out_frame);
-			gpu_memory_buffer_release_r(vam->vs_alpha->gmb, next_frame_alpha);
-			gpu_memory_buffer_release_r(vam->vs_rgb->gmb, next_frame_rgb_delayed);
+			gpu_memory_buffer_release_r(vam->vs_alpha->gmb, next_frame_alpha_id);
+			gpu_memory_buffer_release_r(vam->vs_rgb->gmb, next_frame_rgb_id);
 			
 			gpu_memory_buffer_try_rw(vam->vs_out->gmb, vam->vs_out->gmb->slots, true, 8);
 			vam->vs_out->gmb->p_rw[2 * (vam->vs_out->gmb->slots + 1)] = current_out_frame;
 			gpu_memory_buffer_release_rw(vam->vs_out->gmb, vam->vs_out->gmb->slots);
 			
-			last_frame_rgb = next_frame_rgb;
-			last_frame_alpha = next_frame_alpha;
+			last_frame_rgb = next_frame_rgb_id;
+			last_frame_alpha = next_frame_alpha_id;
 		}
+		
 		application_graph_tps_balancer_timer_stop(agn);
 		application_graph_tps_balancer_sleep(agn);
 	}

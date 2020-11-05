@@ -12,6 +12,8 @@ class GPUEdgeFilterFrame : public wxFrame {
 	int node_id;
 
 public:
+	wxTextCtrl* tc_amplify;
+
 	GPUEdgeFilterFrame(wxWindow* parent);
 
 	void OnGPUEdgeFilterButtonOk(wxCommandEvent& event);

@@ -20,6 +20,9 @@ void gpu_edge_filter_ui_graph_init(struct application_graph_node* agn, applicati
     agn->pos_y = pos_y;
 
     struct gpu_edge_filter* gd = (struct gpu_edge_filter*)agn->component;
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&gd->amplify));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
 
@@ -54,6 +57,17 @@ GPUEdgeFilterFrame::GPUEdgeFilterFrame(wxWindow* parent) : wxFrame(parent, -1, w
 
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
 
+    wxBoxSizer* hbox_fc = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_fc = new wxStaticText(panel, -1, wxT("Amplify"));
+    hbox_fc->Add(st_fc, 0, wxRIGHT, 8);
+
+    tc_amplify = new wxTextCtrl(panel, -1, wxT("1.0"));
+    hbox_fc->Add(tc_amplify, 1);
+
+    vbox->Add(hbox_fc, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
 
     wxButton* ok_button = new wxButton(panel, -1, wxT("Ok"), wxDefaultPosition, wxSize(70, 30));
@@ -72,23 +86,30 @@ GPUEdgeFilterFrame::GPUEdgeFilterFrame(wxWindow* parent) : wxFrame(parent, -1, w
 void GPUEdgeFilterFrame::OnGPUEdgeFilterButtonOk(wxCommandEvent& event) {
     this->Hide();
    
+    float amplify = stof(string(tc_amplify->GetValue()));
+
     if (node_id == -1) {
         struct gpu_edge_filter* gef = new gpu_edge_filter();
-        gpu_edge_filter_init(gef);
+        gpu_edge_filter_init(gef, amplify);
 
         struct application_graph_node* agn = new application_graph_node();
         agn->n_id = ags[node_graph_id]->nodes.size();
         gpu_edge_filter_ui_graph_init(agn, (application_graph_component)gef, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
         ags[node_graph_id]->nodes.push_back(agn);
-    }
-    else {
+    } else {
         struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
         struct gpu_edge_filter* gef = (struct gpu_edge_filter*)agn->component;
+
+        gef->amplify = amplify;
     }
     myApp->drawPane->Refresh();
 }
 
 void GPUEdgeFilterFrame::OnGPUEdgeFilterButtonClose(wxCommandEvent& event) {
+    wxString amplify_str;
+    amplify_str << 1.0;
+    tc_amplify->SetValue(amplify_str);
+
     this->Hide();
 }
 
@@ -98,6 +119,10 @@ void GPUEdgeFilterFrame::Show(int node_graph_id, int node_id) {
     if (node_id > -1) {
         struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
         struct gpu_edge_filter* gef = (struct gpu_edge_filter*)agn->component;
+
+        wxString amplify_str;
+        amplify_str << gef->amplify;
+        tc_amplify->SetValue(amplify_str);
     }
     wxFrame::Show(true);
 }

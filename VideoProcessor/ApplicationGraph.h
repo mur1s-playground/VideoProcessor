@@ -94,6 +94,8 @@ struct application_graph {
 	vector<struct application_graph_edge *> edges;
 };
 
+unsigned long long application_graph_tps_balancer_get_time();
+
 void application_graph_tps_balancer_init(struct application_graph_node* agn, int tps_target);
 void application_graph_tps_balancer_timer_start(struct application_graph_node* agn);
 void application_graph_tps_balancer_timer_stop(struct application_graph_node* agn);

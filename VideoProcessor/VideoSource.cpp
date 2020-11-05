@@ -97,6 +97,7 @@ DWORD* video_source_loop(LPVOID args) {
 					next_id = (vs->smb_last_used_id + 1) % vs->smb_framecount;
 					shared_memory_buffer_try_rw(vs->smb, next_id, true, 8);
 					vs->video_capture >> vs->mats[next_id];
+					shared_memory_buffer_set_time(vs->smb, next_id, application_graph_tps_balancer_get_time());
 					shared_memory_buffer_release_rw(vs->smb, next_id);
 					if (vs->mats[next_id].empty()) {
 						vs->is_open = false;
@@ -145,6 +146,7 @@ DWORD* video_source_loop(LPVOID args) {
 					DeleteDC(hwindowCompatibleDC);
 					ReleaseDC(vs->hwnd_desktop, hwindowDC);
 
+					shared_memory_buffer_set_time(vs->smb, next_id, application_graph_tps_balancer_get_time());
 					shared_memory_buffer_release_rw(vs->smb, next_id);
 				} else {
 					shared_memory_buffer_try_r(vs->smb, vs->smb_framecount, true, 8);
@@ -160,6 +162,7 @@ DWORD* video_source_loop(LPVOID args) {
 						shared_memory_buffer_try_r(vs->smb, next_id, true, 8);
 						cudaMemcpyAsync(vs->gmb->p_device + (next_gpu_id * vs->video_channels * vs->video_height * vs->video_width), &vs->smb->p_buf_c[next_id * vs->video_channels * vs->video_height * vs->video_width], vs->video_channels * vs->video_height * vs->video_width, cudaMemcpyHostToDevice, cuda_streams[0]);
 						cudaStreamSynchronize(cuda_streams[0]);
+						gpu_memory_buffer_set_time(vs->gmb, next_gpu_id, shared_memory_buffer_get_time(vs->smb, next_id));
 						shared_memory_buffer_release_r(vs->smb, next_id);
 						gpu_memory_buffer_release_rw(vs->gmb, next_gpu_id);
 						gpu_memory_buffer_try_rw(vs->gmb, vs->gmb->slots, true, 8);
@@ -189,6 +192,7 @@ DWORD* video_source_loop(LPVOID args) {
 				shared_memory_buffer_try_rw(vs->smb, next_id, true, 8);
 				cudaMemcpyAsync(&vs->smb->p_buf_c[next_id * vs->video_channels * vs->video_height * vs->video_width], vs->gmb->p_device + (next_gpu_id * vs->video_channels * vs->video_height * vs->video_width), vs->video_channels * vs->video_height * vs->video_width, cudaMemcpyDeviceToHost, cuda_streams[4]);
 				cudaStreamSynchronize(cuda_streams[4]);
+				shared_memory_buffer_set_time(vs->smb, next_id, gpu_memory_buffer_get_time(vs->gmb, next_gpu_id));
 				shared_memory_buffer_release_rw(vs->smb, next_id);
 				gpu_memory_buffer_release_r(vs->gmb, next_gpu_id);
 				shared_memory_buffer_try_rw(vs->smb, vs->smb_framecount, true, 8);

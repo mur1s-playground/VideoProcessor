@@ -20,8 +20,8 @@ void gpu_memory_buffer_init(struct gpu_memory_buffer* gmb, const char* name, int
 		gmb->error = true;
 	}
 
-	gmb->p_rw = new unsigned char[(slots+1) *2 + meta_size];
-	memset(gmb->p_rw, 0, (slots+1) * 2 + meta_size);
+	gmb->p_rw = new unsigned char[(slots+1) *2 + meta_size + slots * sizeof(unsigned long long)];
+	memset(gmb->p_rw, 0, (slots+1) * 2 + meta_size + slots * sizeof(unsigned long long));
 	
 	gmb->h_mutex = CreateMutex(NULL, FALSE, NULL);
 }
@@ -36,8 +36,18 @@ void gpu_memory_buffer_edit(struct gpu_memory_buffer* gmb, const char* name, int
 	cudaMalloc((void**)&gmb->p_device, size * slots);
 
 	delete(gmb->p_rw);
-	gmb->p_rw = new unsigned char[(slots + 1) * 2 + meta_size];
-	memset(gmb->p_rw, 0, (slots + 1) * 2 + meta_size);
+	gmb->p_rw = new unsigned char[(slots + 1) * 2 + meta_size + slots*sizeof(unsigned long long)];
+	memset(gmb->p_rw, 0, (slots + 1) * 2 + meta_size + slots * sizeof(unsigned long long));
+}
+
+void gpu_memory_buffer_set_time(struct gpu_memory_buffer* gmb, int slot, unsigned long long time) {
+	unsigned long long* time_pos = (unsigned long long*) &gmb->p_rw[2 * (gmb->slots + 1) + gmb->meta_size + slot * sizeof(unsigned long long)];
+	*time_pos = time;
+}
+
+unsigned long long gpu_memory_buffer_get_time(struct gpu_memory_buffer* gmb, int slot) {
+	unsigned long long* time_pos = (unsigned long long*) &gmb->p_rw[2 * (gmb->slots + 1) + gmb->meta_size + slot * sizeof(unsigned long long)];
+	return *time_pos;
 }
 
 bool gpu_memory_buffer_try_rw(struct gpu_memory_buffer* gmb, int slot, bool block, int sleep_ms) {

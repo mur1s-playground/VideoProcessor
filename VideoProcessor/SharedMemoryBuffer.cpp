@@ -22,7 +22,7 @@ void shared_memory_buffer_init(struct shared_memory_buffer* smb, const char* nam
 	smb->meta_size = meta_size;
 
 	int rw_locks_size = (slots+1) * 2;
-	size_t size_complete = size*slots + rw_locks_size + meta_size;
+	size_t size_complete = size*slots + rw_locks_size + meta_size + slots*sizeof(unsigned long long);
 
 	char* name_r = (char*)malloc(strlen(name) + 1);
 	name_r[0] = 'c';
@@ -52,7 +52,7 @@ void shared_memory_buffer_edit(struct shared_memory_buffer* smb, const char* nam
 	smb->meta_size = meta_size;
 
 	int rw_locks_size = (slots + 1) * 2;
-	size_t size_complete = size * slots + rw_locks_size + meta_size;
+	size_t size_complete = size * slots + rw_locks_size + meta_size + slots * sizeof(unsigned long long);
 
 	char* name_r = (char*)malloc(strlen(name) + 2);
 	name_r[0] = 'c';
@@ -70,6 +70,16 @@ void shared_memory_buffer_edit(struct shared_memory_buffer* smb, const char* nam
 	smb->p_buffer = (LPTSTR)MapViewOfFile(smb->h_map_file, FILE_MAP_ALL_ACCESS, 0, 0, size_complete);
 	smb->p_buf_c = (unsigned char*)smb->p_buffer;
 	memset(smb->p_buf_c, 0, size_complete);
+}
+
+void shared_memory_buffer_set_time(struct shared_memory_buffer* smb, int slot, unsigned long long time) {
+	unsigned long long* time_pos = (unsigned long long *)&smb->p_buf_c[smb->size * smb->slots + 2 * (smb->slots + 1) + smb->meta_size + slot * sizeof(unsigned long long)];
+	*time_pos = time;
+}
+
+unsigned long long shared_memory_buffer_get_time(struct shared_memory_buffer* smb, int slot) {
+	unsigned long long* time_pos = (unsigned long long*)&smb->p_buf_c[smb->size * smb->slots + 2 * (smb->slots + 1) + smb->meta_size + slot * sizeof(unsigned long long)];
+	return *time_pos;
 }
 
 bool shared_memory_buffer_try_rw(struct shared_memory_buffer* smb, int slot, bool block, int sleep_ms) {

@@ -25,6 +25,9 @@ void shared_memory_buffer_init_default(struct shared_memory_buffer* smb);
 void shared_memory_buffer_init(struct shared_memory_buffer* smb, const char* name, int size, int slots, int meta_size);
 void shared_memory_buffer_edit(struct shared_memory_buffer* smb, const char* name, int size, int slots, int meta_size);
 
+void shared_memory_buffer_set_time(struct shared_memory_buffer* smb, int slot, unsigned long long time);
+unsigned long long shared_memory_buffer_get_time(struct shared_memory_buffer* smb, int slot);
+
 bool shared_memory_buffer_try_rw(struct shared_memory_buffer* smb, int slot, bool block, int sleep_ms);
 void shared_memory_buffer_release_rw(struct shared_memory_buffer* smb, int slot);
 

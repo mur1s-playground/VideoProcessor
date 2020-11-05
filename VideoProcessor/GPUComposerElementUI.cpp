@@ -20,6 +20,8 @@ void gpu_composer_element_ui_graph_init(struct application_graph_node* agn, appl
     struct gpu_composer_element* gce = (struct gpu_composer_element*)agn->component;
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gce->delay));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gce->dx));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gce->dy));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
@@ -54,6 +56,17 @@ GPUComposerElementFrame::GPUComposerElementFrame(wxWindow* parent) : wxFrame(par
     wxPanel* panel = new wxPanel(this, -1);
 
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
+
+    wxBoxSizer* hbox_d = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_d = new wxStaticText(panel, -1, wxT("delay"));
+    hbox_d->Add(st_d, 0, wxRIGHT, 8);
+
+    tc_delay = new wxTextCtrl(panel, -1, wxT("0"));
+    hbox_d->Add(tc_delay, 1);
+
+    vbox->Add(hbox_d, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
 
     wxBoxSizer* hbox_dx = new wxBoxSizer(wxHORIZONTAL);
 
@@ -150,6 +163,9 @@ GPUComposerElementFrame::GPUComposerElementFrame(wxWindow* parent) : wxFrame(par
 
 void GPUComposerElementFrame::OnGPUComposerElementFrameButtonOk(wxCommandEvent& event) {
     this->Hide();
+    wxString str_delay = tc_delay->GetValue();
+    tc_delay->SetValue(wxT("0"));
+
     wxString str_dx = tc_dx->GetValue();
     tc_dx->SetValue(wxT("0"));
 
@@ -178,6 +194,8 @@ void GPUComposerElementFrame::OnGPUComposerElementFrameButtonOk(wxCommandEvent& 
         gce = (struct gpu_composer_element*)agn->component;
     }
     
+    gce->delay = stoi(str_delay.c_str().AsChar());
+
     gce->dx = stoi(str_dx.c_str().AsChar());
     gce->dy = stoi(str_dy.c_str().AsChar());
 
@@ -199,6 +217,7 @@ void GPUComposerElementFrame::OnGPUComposerElementFrameButtonOk(wxCommandEvent& 
 
 void GPUComposerElementFrame::OnGPUComposerElementFrameButtonClose(wxCommandEvent& event) {
     this->Hide();
+    tc_delay->SetValue(wxT("0"));
     tc_dx->SetValue(wxT("0"));
     tc_dy->SetValue(wxT("0"));
     tc_crop_x1->SetValue(wxT("0"));
@@ -214,6 +233,11 @@ void GPUComposerElementFrame::Show(int node_graph_id, int node_id) {
     if (node_id > -1) {
         struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
         struct gpu_composer_element* gc = (struct gpu_composer_element*)agn->component;
+        
+        stringstream s_delay;
+        s_delay << gc->delay;
+        tc_delay->SetValue(wxString(s_delay.str()));
+
         stringstream s_dx;
         s_dx << gc->dx;
         tc_dx->SetValue(wxString(s_dx.str()));

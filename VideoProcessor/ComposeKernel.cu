@@ -92,7 +92,27 @@ __global__ void compose_kernel(const unsigned char* src, const int src_width, co
         int dst_row = dy + base_row;
 		int dst_col = dx + base_col;
 		int dst_channel = (i % (dst_channels * width)) % dst_channels;
-        if (dst_channels == src_channels) {
+        if (dst_channels == src_channels && dst_channels == 4) {
+            if (dst_row >= 0 && dst_row < dst_height && dst_col >= 0 && dst_col < dst_width) {
+                float alpha_value = 0.0f;
+                float value = 0.0f;
+                float v_c = 0.0f;
+                for (int sf_h = 0; sf_h < step_size_h; sf_h++) {
+                    for (int sf_w = 0; sf_w < step_size_w; sf_w++) {
+                        alpha_value += interpixel(src, src_width, src_height, src_channels, src_col + sf_w, src_row + sf_h, 3);
+                        value += interpixel(src, src_width, src_height, src_channels, src_col + sf_w, src_row + sf_h, dst_channel);
+                        v_c++;
+                    }
+                }
+                if (dst_channel < 3) {
+                    float res_val = ((255.0f - (alpha_value / v_c)) / 255.0f) * dst[dst_row * (dst_width * dst_channels) + dst_col * dst_channels + dst_channel] + ((alpha_value / v_c) / 255.0f) * (value / v_c);
+                    dst[dst_row * (dst_width * dst_channels) + dst_col * dst_channels + dst_channel] = (unsigned char)res_val;
+                } else {
+                    float cur_val = dst[dst_row * (dst_width * dst_channels) + dst_col * dst_channels + dst_channel];
+                    if (cur_val < value) dst[dst_row * (dst_width * dst_channels) + dst_col * dst_channels + dst_channel] = value;
+                }
+            }
+        } else if (dst_channels == src_channels) {
             if (dst_row >= 0 && dst_row < dst_height && dst_col >= 0 && dst_col < dst_width) {
                 float value = 0.0f;
                 float v_c = 0.0f;

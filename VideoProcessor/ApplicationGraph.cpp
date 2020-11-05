@@ -49,6 +49,12 @@ vector <struct application_graph *>   ags;
 int application_graph_active_id = 0;
 int application_graph_hovering_node_id = -1;
 
+unsigned long long application_graph_tps_balancer_get_time() {
+    struct timespec now;
+    clock_gettime(0, &now);
+    return now.tv_sec * 1000000000 + now.tv_nsec;
+}
+
 void application_graph_tps_balancer_init(struct application_graph_node *agn, int tps_target) {
     agn->process_tps_balancer.tps_current = tps_target;
     agn->process_tps_balancer.tps_target = tps_target;

@@ -51,7 +51,7 @@ void draw_box(struct mask_rcnn* mrcnn, int current_output_id, int class_id, Rect
 	}
 }
 
-void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs) {
+void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_frame_id) {
 	Mat out_detections = outs[0];
 	Mat out_masks = outs[1];
 
@@ -85,6 +85,9 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs) {
 			draw_box(mrcnn, current_frame, class_id, box, object_mask);
 		}
 	}
+
+	shared_memory_buffer_set_time(mrcnn->v_src_out->smb, current_frame, shared_memory_buffer_get_time(mrcnn->v_src_in->smb, in_frame_id));
+
 	shared_memory_buffer_release_rw(mrcnn->v_src_out->smb, current_frame);
 	shared_memory_buffer_try_rw(mrcnn->v_src_out->smb, mrcnn->v_src_out->smb_framecount, true, 8);
 	mrcnn->v_src_out->smb->p_buf_c[mrcnn->v_src_out->smb_framecount * mrcnn->v_src_out->video_channels * mrcnn->v_src_out->video_height * mrcnn->v_src_out->video_width + ((mrcnn->v_src_out->smb_framecount + 1) * 2)] = current_frame;
@@ -117,7 +120,7 @@ DWORD* mask_rcnn_loop(LPVOID args) {
 			vector<Mat> outs;
 			mrcnn->net.forward(outs, out_names);
 
-			generate_output(mrcnn, outs);
+			generate_output(mrcnn, outs, next_frame);
 
 			shared_memory_buffer_release_r(mrcnn->v_src_in->smb, next_frame);
 			last_frame = next_frame;

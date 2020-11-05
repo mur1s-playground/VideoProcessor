@@ -69,6 +69,7 @@ DWORD* gpu_gaussian_blur_loop(LPVOID args) {
 			gpu_memory_buffer_try_r(mb->vs_in->gmb, next_gpu_id, true, 8);
 
 			gaussian_blur_kernel_launch(mb->vs_in->gmb->p_device + (next_gpu_id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels), mb->gmb_out->p_device + (next_gpu_out_id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels), mb->vs_in->video_width, mb->vs_in->video_height, mb->vs_in->video_channels, mb->kernel_size, mb->device_kernel, mb->norm_kernel);
+			gpu_memory_buffer_set_time(mb->gmb_out, next_gpu_out_id, gpu_memory_buffer_get_time(mb->vs_in->gmb, next_gpu_id));
 
 			gpu_memory_buffer_release_r(mb->vs_in->gmb, next_gpu_id);
 			

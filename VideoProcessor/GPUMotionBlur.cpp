@@ -45,8 +45,13 @@ DWORD* gpu_motion_blur_loop(LPVOID args) {
 
 				motion_blur_kernel_launch(&mb->vs_in->gmb->p_device[id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels], &mb->gmb_out->p_device[next_gpu_out_id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels], mb->vs_in->video_width, mb->vs_in->video_height, mb->vs_in->video_channels, mb->frame_count, frame_counter, true);
 
+				if (i == next_gpu_id) {
+					gpu_memory_buffer_set_time(mb->gmb_out, next_gpu_out_id, gpu_memory_buffer_get_time(mb->vs_in->gmb, id));
+				}
+
 				gpu_memory_buffer_release_r(mb->vs_in->gmb, id);
 
+				
 				frame_counter++;
 			}
 

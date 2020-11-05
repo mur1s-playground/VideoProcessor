@@ -6,11 +6,13 @@
 #include "VideoSource.h"
 
 struct gpu_edge_filter {
+	float amplify;
+
 	struct video_source* vs_in;
 	struct gpu_memory_buffer* gmb_out;
 };
 
-void gpu_edge_filter_init(struct gpu_edge_filter* gef);
+void gpu_edge_filter_init(struct gpu_edge_filter* gef, float amplify);
 DWORD* gpu_edge_filter_loop(LPVOID args);
 
 void gpu_edge_filter_externalise(struct application_graph_node* agn, string& out_str);

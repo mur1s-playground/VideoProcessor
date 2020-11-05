@@ -44,7 +44,17 @@ DWORD* gpu_composer_loop(LPVOID args) {
 	struct application_graph_node* agn = (struct application_graph_node*)args;
 	struct gpu_composer* gc = (struct gpu_composer*)agn->component;
 
+	int prio_id = 0;
+	for (int ic = 0; ic < gc->gce_ins.size(); ic++) {
+		struct gpu_composer_element* current_gce = gc->gce_ins[ic];
+		if (current_gce->delay == 1) {
+			prio_id = ic;
+			break;
+		}
+	}
+
 	int next_frame_out = -1;
+	unsigned long long sync_time = 0;
 	while (agn->process_run) {
 		application_graph_tps_balancer_timer_start(agn);
 
@@ -54,22 +64,47 @@ DWORD* gpu_composer_loop(LPVOID args) {
 		
 		compose_kernel_set_zero_launch(gc->vs_out->gmb->p_device + (next_frame_out * gc->vs_out->video_width * gc->vs_out->video_height * gc->vs_out->video_channels), gc->vs_out->video_width, gc->vs_out->video_height, gc->vs_out->video_channels);
 
+		//prio
+		struct gpu_composer_element* current_gce = gc->gce_ins[prio_id];
+		struct video_source* current_vs = current_gce->vs_in;
+
+		gpu_memory_buffer_try_r(current_vs->gmb, current_vs->gmb->slots, true, 8);
+		int prio_input_id = current_vs->gmb->p_rw[2 * (current_vs->gmb->slots + 1)];
+		gpu_memory_buffer_release_r(current_vs->gmb, current_vs->gmb->slots);
+
+		gpu_memory_buffer_try_r(current_vs->gmb, prio_input_id, true, 8);
+		sync_time = gpu_memory_buffer_get_time(current_vs->gmb, prio_input_id);
+
 		for (int ic = 0; ic < gc->gce_ins.size(); ic++) {
-			struct gpu_composer_element* current_gce = gc->gce_ins[ic];
-			struct video_source* current_vs = current_gce->vs_in;
+			current_gce = gc->gce_ins[ic];
+			current_vs = current_gce->vs_in;
 
-			current_gce->width = (int)round((current_gce->crop_x2 - current_gce->crop_x1)*current_gce->scale);
-			current_gce->height = (int)round((current_gce->crop_y2 - current_gce->crop_y1)*current_gce->scale);
+			current_gce->width = (int)round((current_gce->crop_x2 - current_gce->crop_x1) * current_gce->scale);
+			current_gce->height = (int)round((current_gce->crop_y2 - current_gce->crop_y1) * current_gce->scale);
 
-			gpu_memory_buffer_try_r(current_vs->gmb, current_vs->gmb->slots, true, 8);
-			int current_input_id = current_vs->gmb->p_rw[2 * (current_vs->gmb->slots + 1)];
-			gpu_memory_buffer_release_r(current_vs->gmb, current_vs->gmb->slots);
+			int current_input_id = 0;
+			if (ic == prio_id) {
+				current_input_id = prio_input_id;
+			} else {
+				gpu_memory_buffer_try_r(current_vs->gmb, current_vs->gmb->slots, true, 8);
+				current_input_id = current_vs->gmb->p_rw[2 * (current_vs->gmb->slots + 1)];
+				gpu_memory_buffer_release_r(current_vs->gmb, current_vs->gmb->slots);
 
-			gpu_memory_buffer_try_r(current_vs->gmb, current_input_id, true, 8);
+				for (int td = 0; td < current_vs->gmb->slots; td++) {
+					int tmp_id = current_input_id - td;
+					if (tmp_id < 0) tmp_id += current_vs->gmb->slots;
+					gpu_memory_buffer_try_r(current_vs->gmb, tmp_id, true, 8);
+					if (gpu_memory_buffer_get_time(current_vs->gmb, tmp_id) <= sync_time) {
+						current_input_id = tmp_id;
+						break;
+					}
+					gpu_memory_buffer_release_r(current_vs->gmb, tmp_id);
+				}
+			}
 			compose_kernel_launch(current_vs->gmb->p_device + (current_input_id * current_vs->video_width * current_vs->video_height * current_vs->video_channels), current_vs->video_width, current_vs->video_height, current_vs->video_channels, current_gce->dx, current_gce->dy, current_gce->crop_x1, current_gce->crop_x2, current_gce->crop_y1, current_gce->crop_y2, current_gce->width, current_gce->height, gc->vs_out->gmb->p_device + (next_frame_out * gc->vs_out->video_width * gc->vs_out->video_height * gc->vs_out->video_channels), gc->vs_out->video_width, gc->vs_out->video_height, gc->vs_out->video_channels);
 			gpu_memory_buffer_release_r(current_vs->gmb, current_input_id);
 		}
-
+		gpu_memory_buffer_set_time(gc->vs_out->gmb, next_frame_out, sync_time);
 		gpu_memory_buffer_release_rw(gc->vs_out->gmb, next_frame_out);
 
 		gpu_memory_buffer_try_rw(gc->vs_out->gmb, gc->vs_out->gmb->slots, true, 8);

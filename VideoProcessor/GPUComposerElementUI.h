@@ -12,6 +12,8 @@ class GPUComposerElementFrame : public wxFrame {
 	int node_id;
 
 public:
+	wxTextCtrl* tc_delay;
+
 	wxTextCtrl* tc_dx;
 	wxTextCtrl* tc_dy;
 

@@ -8,7 +8,9 @@
 #include <sstream>
 #include <fstream>
 
-void gpu_edge_filter_init(struct gpu_edge_filter* gef) {
+void gpu_edge_filter_init(struct gpu_edge_filter* gef, float amplify) {
+	gef->amplify = amplify;
+
 	gef->vs_in = nullptr;
 	gef->gmb_out = nullptr;
 }
@@ -33,7 +35,8 @@ DWORD* gpu_edge_filter_loop(LPVOID args) {
 			gpu_memory_buffer_try_r(gef->vs_in->gmb, next_gpu_id, true, 8);
 			gpu_memory_buffer_try_rw(gef->gmb_out, next_gpu_out_id, true, 8);
 
-			edge_filter_kernel_launch(&gef->vs_in->gmb->p_device[next_gpu_id * gef->vs_in->video_channels * gef->vs_in->video_width * gef->vs_in->video_height], &gef->gmb_out->p_device[next_gpu_out_id * gef->vs_in->video_channels * gef->vs_in->video_width * gef->vs_in->video_height], gef->vs_in->video_width, gef->vs_in->video_height, gef->vs_in->video_channels);
+			edge_filter_kernel_launch(&gef->vs_in->gmb->p_device[next_gpu_id * gef->vs_in->video_channels * gef->vs_in->video_width * gef->vs_in->video_height], &gef->gmb_out->p_device[next_gpu_out_id * gef->vs_in->video_width * gef->vs_in->video_height], gef->vs_in->video_width, gef->vs_in->video_height, gef->vs_in->video_channels, gef->amplify);
+			gpu_memory_buffer_set_time(gef->gmb_out, next_gpu_out_id, gpu_memory_buffer_get_time(gef->vs_in->gmb, next_gpu_id));
 
 			gpu_memory_buffer_release_rw(gef->gmb_out, next_gpu_out_id);
 			gpu_memory_buffer_release_r(gef->vs_in->gmb, next_gpu_id);
@@ -55,7 +58,7 @@ void gpu_edge_filter_externalise(struct application_graph_node* agn, string& out
 	struct gpu_edge_filter* gef = (struct gpu_edge_filter*)agn->component;
 
 	stringstream s_out;
-	s_out << " " << std::endl;
+	s_out << gef->amplify << std::endl;
 
 	out_str = s_out.str();
 }
@@ -63,6 +66,7 @@ void gpu_edge_filter_externalise(struct application_graph_node* agn, string& out
 void gpu_edge_filter_load(struct gpu_edge_filter* gef, ifstream& in_f) {
 	std::string line;
 	std::getline(in_f, line);
+	gef->amplify = stof(line);
 
 	gef->vs_in = nullptr;
 	gef->gmb_out = nullptr;

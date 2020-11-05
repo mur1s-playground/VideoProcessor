@@ -184,6 +184,7 @@ DWORD* gpu_palette_filter_loop(LPVOID args) {
 			gpu_memory_buffer_try_r(mb->vs_in->gmb, next_gpu_id, true, 8);
 
 			palette_filter_kernel_launch(mb->vs_in->gmb->p_device + (next_gpu_id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels), mb->gmb_out->p_device + (next_gpu_out_id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels), mb->vs_in->video_width, mb->vs_in->video_height, mb->vs_in->video_channels, mb->device_palette[mb->device_palette_switch], mb->palette_size[mb->device_palette_switch]);
+			gpu_memory_buffer_set_time(mb->gmb_out, next_gpu_out_id, gpu_memory_buffer_get_time(mb->vs_in->gmb, next_gpu_id));
 
 			gpu_memory_buffer_release_r(mb->vs_in->gmb, next_gpu_id);
 
