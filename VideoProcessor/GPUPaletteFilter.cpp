@@ -24,7 +24,7 @@ void gpu_palette_filter_init(struct gpu_palette_filter* gpf, float palette_auto_
 	cudaMalloc((void**)&gpf->device_palette[!gpf->device_palette_switch], 3 * sizeof(float));
 	gpf->palette_size[!gpf->device_palette_switch] = 1;
 
-	if (gpf->palette_auto_time == 0) {
+	if (gpf->palette_auto_time < 0.01) {
 		gpf->palette_size[gpf->device_palette_switch] = gpf->palette.size() / 3;
 
 		cudaMalloc((void**)&gpf->device_palette[gpf->device_palette_switch], 3 * gpf->palette_size[gpf->device_palette_switch] * sizeof(float));
@@ -39,12 +39,14 @@ void gpu_palette_filter_init(struct gpu_palette_filter* gpf, float palette_auto_
 	gpf->gmb_out = nullptr;
 }
 
-void gpu_palette_filter_edit(struct gpu_palette_filter* gpf, float palette_auto_time, int palette_auto_size) {
+void gpu_palette_filter_edit(struct gpu_palette_filter* gpf, float palette_auto_time, int palette_auto_size, int palette_auto_bucket_count, int palette_auto_quantization_size) {
 	gpf->palette_auto_time = palette_auto_time;
 	gpf->palette_auto_size = palette_auto_size;
+	gpf->palette_auto_bucket_count = palette_auto_bucket_count;
+	gpf->palette_auto_quantization_size = palette_auto_quantization_size;
 	gpf->palette_auto_timer = 0.0f;
 
-	if (gpf->palette_auto_time == 0) {
+	if (gpf->palette_auto_time < 0.01) {
 
 		gpf->palette_size[!gpf->device_palette_switch] = gpf->palette.size() / 3;
 
@@ -162,11 +164,13 @@ DWORD* gpu_palette_filter_loop(LPVOID args) {
 	int last_gpu_id = -1;
 
 	while (agn->process_run) {
-		if (mb->palette_auto_timer <= 0.0f) {
-			gpu_palette_auto_build(mb);
-			mb->palette_auto_timer = mb->palette_auto_time;
-		} else {
-			mb->palette_auto_timer -= (33.0f / 180000.0f);
+		if (mb->palette_auto_time > 0.01) {
+			if (mb->palette_auto_timer <= 0.0f) {
+				gpu_palette_auto_build(mb);
+				mb->palette_auto_timer = mb->palette_auto_time;
+			} else {
+				mb->palette_auto_timer -= (33.0f / 180000.0f);
+			}
 		}
 
 		application_graph_tps_balancer_timer_start(agn);

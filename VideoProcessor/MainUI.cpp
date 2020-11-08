@@ -212,6 +212,7 @@ void BasicDrawPane::OnShowContextMenu(wxMouseEvent& event) {
         menu->Append(MENU_ID_GPU_COMPOSER_ELEMENT, wxT("GPU Composer Element"));
         menu->Append(MENU_ID_GPU_EDGE_FILTER, wxT("GPU Edge Filter"));
         menu->Append(MENU_ID_GPU_PALETTE_FILTER, wxT("GPU Palette Filter"));
+        menu->Append(MENU_ID_GPU_AUDIOVISUAL, wxT("GPU AudioVisual"));
     }
     PopupMenu(menu);
 }
@@ -256,6 +257,9 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
         break;
     case MENU_ID_GPU_PALETTE_FILTER:
         ui_manager_show_frame(AGCT_GPU_PALETTE_FILTER, application_graph_active_id);
+        break;
+    case MENU_ID_GPU_AUDIOVISUAL:
+        ui_manager_show_frame(AGCT_GPU_AUDIOVISUAL, application_graph_active_id);
         break;
     case MENU_ID_START_NODE:
         application_graph_start_stop_node(application_graph_active_id, application_graph_hovering_node_id);
@@ -313,6 +317,10 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
                 }
                 case AGCT_GPU_PALETTE_FILTER: {
                     ui_manager_show_frame(AGCT_GPU_PALETTE_FILTER, application_graph_active_id, application_graph_hovering_node_id);
+                    break;
+                }
+                case AGCT_GPU_AUDIOVISUAL: {
+                    ui_manager_show_frame(AGCT_GPU_AUDIOVISUAL, application_graph_active_id, application_graph_hovering_node_id);
                     break;
                 }
             }

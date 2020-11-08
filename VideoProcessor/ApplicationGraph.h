@@ -38,7 +38,8 @@ enum application_graph_component_type {
 	AGCT_GPU_MOTION_BLUR,
 	AGCT_GPU_GAUSSIAN_BLUR,
 	AGCT_GPU_EDGE_FILTER,
-	AGCT_GPU_PALETTE_FILTER
+	AGCT_GPU_PALETTE_FILTER,
+	AGCT_GPU_AUDIOVISUAL
 };
 
 #define application_graph_component void *

@@ -168,7 +168,8 @@ void GPUPaletteFilterFrame::OnGPUPaletteFilterFrameButtonOk(wxCommandEvent& even
     int palette_auto_bucket_count = stoi(string(tc_palette_auto_bucket_count->GetValue()));
     int palette_auto_quantization_size = stoi(string(tc_palette_auto_quantization_size->GetValue()));
 
-    if (palette_auto_time == 0.0f) {
+    if (palette_auto_time < 0.01f) {
+        gpf->palette.clear();
         wxString classes_l = tc_palette->GetValue();
         int start = 0;
         int end = classes_l.find_first_of(",", start);
@@ -192,6 +193,7 @@ void GPUPaletteFilterFrame::OnGPUPaletteFilterFrameButtonOk(wxCommandEvent& even
         gpf->palette_auto_bucket_count = palette_auto_bucket_count;
         gpf->palette_auto_quantization_size = palette_auto_quantization_size;
         gpf->palette_auto_timer = 0.0f;
+        gpu_palette_filter_edit(gpf, palette_auto_time, palette_auto_size, palette_auto_bucket_count, palette_auto_quantization_size);
     }
     myApp->drawPane->Refresh();
 }

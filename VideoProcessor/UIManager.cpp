@@ -14,6 +14,7 @@
 #include "ApplicationGraphNodeSettingsUI.h"
 #include "GPUEdgeFilterUI.h"
 #include "GPUPaletteFilterUI.h"
+#include "GPUAudioVisualUI.h"
 
 #include "MainUI.h"
 
@@ -136,6 +137,14 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 				}
 				break;
 			}
+			case AGCT_GPU_AUDIOVISUAL: {
+				GPUAudioVisualFrame* mbf = (GPUAudioVisualFrame*)ui_manager_frame_store[i].second;
+				if (!mbf->IsShownOnScreen()) {
+					mbf->Show(node_graph_id, node_id);
+					return;
+				}
+				break;
+			}
 			default:
 
 				break;
@@ -241,6 +250,13 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 			mbf->Show(node_graph_id, node_id);
 			return;
 			break;
+	}
+	case AGCT_GPU_AUDIOVISUAL: {
+		GPUAudioVisualFrame* mbf = new GPUAudioVisualFrame((wxWindow*)myApp->frame);
+		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_GPU_AUDIOVISUAL, (void*)mbf));
+		mbf->Show(node_graph_id, node_id);
+		return;
+		break;
 	}
 	default:
 		break;

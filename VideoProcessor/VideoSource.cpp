@@ -88,6 +88,11 @@ DWORD* video_source_loop(LPVOID args) {
 
 	if (vs->smb == nullptr) return NULL;
 
+	if (vs->read_video_capture && !vs->is_open) {
+		vs->video_capture.open(vs->name);
+		vs->is_open = vs->video_capture.isOpened();
+	}
+
 	if (vs->direction_smb_to_gmb) {
 			int last_id = -1;
 			while (agn->process_run) {

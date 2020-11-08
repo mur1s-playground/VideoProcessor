@@ -152,6 +152,8 @@
     <ClCompile Include="ApplicationGraphNodeSettingsUI.cpp" />
     <ClCompile Include="Clock.cpp" />
     <ClCompile Include="CUDAStreamHandler.cpp" />
+    <ClCompile Include="GPUAudioVisual.cpp" />
+    <ClCompile Include="GPUAudioVisualUI.cpp" />
     <ClCompile Include="GPUComposer.cpp" />
     <ClCompile Include="GPUComposerElement.cpp" />
     <ClCompile Include="GPUComposerElementUI.cpp" />
@@ -185,10 +187,13 @@
   <ItemGroup>
     <ClInclude Include="ApplicationGraph.h" />
     <ClInclude Include="ApplicationGraphNodeSettingsUI.h" />
+    <ClInclude Include="AudioVisualKernel.h" />
     <ClInclude Include="ComposeKernel.h" />
     <ClInclude Include="CUDAStreamHandler.h" />
     <ClInclude Include="EdgeFilterKernel.h" />
     <ClInclude Include="GaussianBlur.h" />
+    <ClInclude Include="GPUAudioVisual.h" />
+    <ClInclude Include="GPUAudioVisualUI.h" />
     <ClInclude Include="GPUComposer.h" />
     <ClInclude Include="GPUComposerElement.h" />
     <ClInclude Include="GPUComposerElementUI.h" />
@@ -224,6 +229,7 @@
     <ClInclude Include="VideoSourceUI.h" />
   </ItemGroup>
   <ItemGroup>
+    <CudaCompile Include="AudioVisualKernel.cu" />
     <CudaCompile Include="ComposeKernel.cu" />
     <CudaCompile Include="EdgeFilterKernel.cu" />
     <CudaCompile Include="GaussianBlur.cu" />

@@ -132,6 +132,12 @@
     <ClCompile Include="GPUPaletteFilterUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="GPUAudioVisual.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="GPUAudioVisualUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -251,6 +257,15 @@
     <ClInclude Include="PaletteFilterKernel.h">
       <Filter>Headerdateien\Kernel</Filter>
     </ClInclude>
+    <ClInclude Include="GPUAudioVisual.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="GPUAudioVisualUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioVisualKernel.h">
+      <Filter>Headerdateien\Kernel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="NLMeansKernel.cu">
@@ -269,6 +284,9 @@
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
     <CudaCompile Include="PaletteFilterKernel.cu">
+      <Filter>Quelldateien\Kernel</Filter>
+    </CudaCompile>
+    <CudaCompile Include="AudioVisualKernel.cu">
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
   </ItemGroup>
