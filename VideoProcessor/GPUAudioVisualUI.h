@@ -10,6 +10,10 @@ class GPUAudioVisualFrame : public wxFrame {
 
 public:
 	wxTextCtrl* tc_name;
+	wxTextCtrl* tc_dft_size;
+	wxTextCtrl* tc_amplify;
+	wxTextCtrl* tc_fps_target;
+	wxTextCtrl* tc_frame_names;
 
 	GPUAudioVisualFrame(wxWindow* parent);
 

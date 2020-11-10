@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 
+const string TEXT_AUDIO_SOURCE_IN = "Audio Source In";
 const string TEXT_VIDEO_SOURCE_OUT = "Video Source Out";
 const string TEXT_GPU_MEMORY_BUFFER_IN = "GPU Memory Buffer In";
 
@@ -24,25 +25,13 @@ void gpu_audiovisual_ui_graph_init(struct application_graph_node* agn, applicati
     struct gpu_audiovisual* gav = (struct gpu_audiovisual*)agn->component;
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
-    /*
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&gpf->palette_auto_time));
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_auto_size));
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_auto_bucket_count));
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_auto_quantization_size));
-    */
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
-    /*
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_BOOL, (void*)&gpf->device_palette_switch));
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_size[0]));
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&gpf->palette_size[1]));
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&gpf->palette_auto_timer));
-    */
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
-    /*
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING_LIST, (void*)&gpf->palette));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
-    */
+    
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_AUDIO_SOURCE_IN));
+    pair<enum application_graph_component_type, void*> audio_in = pair<enum application_graph_component_type, void*>(AGCT_AUDIO_SOURCE, (void*)&gav->audio_source_in);
+    agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, audio_in));
+
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_GPU_MEMORY_BUFFER_IN));
     pair<enum application_graph_component_type, void*> gmb_in = pair<enum application_graph_component_type, void*>(AGCT_GPU_MEMORY_BUFFER, (void*)&gav->gmb_in);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, gmb_in));
@@ -83,7 +72,62 @@ GPUAudioVisualFrame::GPUAudioVisualFrame(wxWindow* parent) : wxFrame(parent, -1,
 
     vbox->Add(hbox_fc, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
+    wxBoxSizer* hbox_dft = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_dft = new wxStaticText(panel, -1, wxT("DFT Size"));
+    hbox_dft->Add(st_dft, 0, wxRIGHT, 8);
+
+    tc_dft_size = new wxTextCtrl(panel, -1, wxT("21"));
+    hbox_dft->Add(tc_dft_size, 1);
+
+    vbox->Add(hbox_dft, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
     vbox->Add(-1, 10);
+
+    wxBoxSizer* hbox_amp = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_amp = new wxStaticText(panel, -1, wxT("Amplify"));
+    hbox_amp->Add(st_amp, 0, wxRIGHT, 8);
+
+    tc_amplify = new wxTextCtrl(panel, -1, wxT("300.0"));
+    hbox_amp->Add(tc_amplify, 1);
+
+    vbox->Add(hbox_amp, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    vbox->Add(-1, 10);
+
+    wxBoxSizer* hbox_fps = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_fps = new wxStaticText(panel, -1, wxT("FPS Target"));
+    hbox_fps->Add(st_fps, 0, wxRIGHT, 8);
+
+    tc_fps_target = new wxTextCtrl(panel, -1, wxT("30"));
+    hbox_fps->Add(tc_fps_target, 1);
+
+    vbox->Add(hbox_fps, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    vbox->Add(-1, 10);
+
+
+    wxBoxSizer* hbox_fn = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_fn = new wxStaticText(panel, wxID_ANY,
+        wxT("Frames paths"));
+
+    hbox_fn->Add(st_fn, 0);
+    vbox->Add(hbox_fn, 0, wxLEFT | wxTOP, 10);
+
+    vbox->Add(-1, 10);
+
+    wxBoxSizer* hbox_fn_t = new wxBoxSizer(wxHORIZONTAL);
+    tc_frame_names = new wxTextCtrl(panel, wxID_ANY, wxString(""),
+        wxPoint(-1, -1), wxSize(-1, -1), wxTE_MULTILINE);
+    tc_frame_names->SetMinSize(wxSize(200, 200));
+
+    vbox->Add(-1, 10);
+
+    hbox_fn_t->Add(tc_frame_names, 1, wxEXPAND);
+    vbox->Add(hbox_fn_t, 1, wxLEFT | wxRIGHT | wxEXPAND, 10);
+
 
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
 
@@ -113,31 +157,47 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event) {
     }
 
     wxString str = tc_name->GetValue();
+    int dft_size = stoi(tc_dft_size->GetValue().c_str().AsChar());
+
+    wxString ampl = tc_amplify->GetValue();
+    gav->amplify = stof(ampl.c_str().AsChar());
+
+    wxString fps = tc_fps_target->GetValue();
+    gav->fps_target = stoi(fps.c_str().AsChar());
+
+    stringstream line_ss;
+    line_ss << tc_frame_names->GetValue();
+    string line = line_ss.str();
+    int start = 0;
+    int end = line.find_first_of(",", start);
+    while (end != std::string::npos) {
+        gav->frame_names.push_back(line.substr(start, end - start).c_str());
+        start = end + 1;
+        end = line.find_first_of(",", start);
+    }
+    gav->frame_names.push_back(line.substr(start, end - start).c_str());
     
     if (node_id == -1) {
         vector<string> av_tmp;
-        gpu_audiovisual_init(gav, tc_name->GetValue().c_str().AsChar(), av_tmp);
+        gpu_audiovisual_init(gav, tc_name->GetValue().c_str().AsChar(), dft_size);
 
         application_graph_node* agn = new application_graph_node();
         agn->n_id = ags[node_graph_id]->nodes.size();
         gpu_audiovisual_ui_graph_init(agn, (application_graph_component)gav, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
         ags[node_graph_id]->nodes.push_back(agn);
     } else {
-        /*
-        gpf->palette_auto_time = palette_auto_time;
-        gpf->palette_auto_size = palette_auto_size;
-        gpf->palette_auto_bucket_count = palette_auto_bucket_count;
-        gpf->palette_auto_quantization_size = palette_auto_quantization_size;
-        gpf->palette_auto_timer = 0.0f;
-        gpu_palette_filter_edit(gpf, palette_auto_time, palette_auto_size, palette_auto_bucket_count, palette_auto_quantization_size);
-        */
+        //TODO: gpu_audiovisual_edit
     }
     myApp->drawPane->Refresh();
 }
 
 void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonClose(wxCommandEvent& event) {
     this->Hide();
-    tc_name->SetValue("audiovis");
+    tc_name->SetValue(wxT("audiovis"));
+    tc_dft_size->SetValue(wxT("21"));
+    tc_amplify->SetValue(wxT("300.0"));
+    tc_fps_target->SetValue(wxT("30"));
+    tc_frame_names->SetValue(wxT(""));
 }
 
 void GPUAudioVisualFrame::Show(int node_graph_id, int node_id) {
@@ -150,6 +210,27 @@ void GPUAudioVisualFrame::Show(int node_graph_id, int node_id) {
         wxString name;
         name << gav->name;
         tc_name->SetValue(name);
+
+        wxString dft_size;
+        dft_size << gav->dft_size;
+        tc_dft_size->SetValue(dft_size);
+
+        wxString amplify;
+        amplify << gav->amplify;
+        tc_amplify->SetValue(amplify);
+
+        wxString fps;
+        fps << gav->fps_target;
+        tc_fps_target->SetValue(fps);
+
+        wxString files_names;
+        for (int i = 0; i < gav->frame_names.size(); i++) {
+            files_names << gav->frame_names[i];
+            if (i + 1 < gav->frame_names.size()) {
+                files_names << ",";
+            }
+        }
+        tc_frame_names->SetValue(files_names);
     }
     wxFrame::Show(true);
 }

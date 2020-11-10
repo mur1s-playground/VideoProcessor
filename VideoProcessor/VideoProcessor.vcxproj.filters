@@ -138,6 +138,12 @@
     <ClCompile Include="GPUAudioVisualUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="AudioSource.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="AudioSourceUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -265,6 +271,12 @@
     </ClInclude>
     <ClInclude Include="AudioVisualKernel.h">
       <Filter>Headerdateien\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioSource.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioSourceUI.h">
+      <Filter>Headerdateien\UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

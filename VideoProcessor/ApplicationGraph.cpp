@@ -39,6 +39,12 @@
 #include "GPUPaletteFilter.h"
 #include "GPUPaletteFilterUI.h"
 
+#include "GPUAudioVisual.h"
+#include "GPUAudioVisualUI.h"
+
+#include "AudioSource.h"
+#include "AudioSourceUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -181,6 +187,10 @@ void application_graph_add_edge_intl(int id, int closest_nid_1, int closest_nid_
     else if (current_node->inputs[closest_id_2].second.first == AGCT_GPU_COMPOSER_ELEMENT) {
         struct gpu_composer_element** input_target_ptr_t = (struct gpu_composer_element**)input_target_ptr;
         *input_target_ptr_t = (struct gpu_composer_element*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
+    }
+    else if (current_node->inputs[closest_id_2].second.first == AGCT_AUDIO_SOURCE) {
+        struct audio_source** input_target_ptr_t = (struct audio_source**)input_target_ptr;
+        *input_target_ptr_t = (struct audio_source*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
     }
 
     if (current_node->on_input_connect != nullptr) {
@@ -704,6 +714,18 @@ void application_graph_load(string base_dir, string name) {
                     struct gpu_palette_filter* gpf = new gpu_palette_filter();
                     gpu_palette_filter_load(gpf, g_infile);
                     gpu_palette_filter_ui_graph_init(agn, (application_graph_component)gpf, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_GPU_AUDIOVISUAL: {
+                    struct gpu_audiovisual* gav = new gpu_audiovisual();
+                    gpu_audiovisual_load(gav, g_infile);
+                    gpu_audiovisual_ui_graph_init(agn, (application_graph_component)gav, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_AUDIO_SOURCE: {
+                    struct audio_source* gas = new audio_source();
+                    audio_source_load(gas, g_infile);
+                    audio_source_ui_graph_init(agn, (application_graph_component)gas, pos_x, pos_y);
                     break;
                 }
             }
