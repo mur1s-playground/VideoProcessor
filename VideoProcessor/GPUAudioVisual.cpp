@@ -127,9 +127,9 @@ DWORD* gpu_audiovisual_loop(LPVOID args) {
 				gpu_memory_buffer_try_rw(gav->vs_out->gmb, next_gpu_out_id, true, 8);
 
 				if (!gav->audio_source_in->copy_to_gmb) {
-					gpu_audiovisual_kernel_launch(gav->gmb_in->p_device, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, gav->vs_out->video_channels, false, values[0], values[1], values[2], values[3], values[4], values[5], values[6], nullptr, gav->dft_size);
+					gpu_audiovisual_kernel_launch(gav->gmb_in->p_device, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, false, values[0], values[1], values[2], values[3], values[4], values[5], values[6], nullptr, gav->dft_size);
 				} else {
-					gpu_audiovisual_kernel_launch(gav->gmb_in->p_device, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, gav->vs_out->video_channels, true, values[0], values[1], values[2], values[3], values[4], values[5], values[6], gav->dft_out->p_device, gav->dft_size);
+					gpu_audiovisual_kernel_launch(gav->gmb_in->p_device, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, true, values[0], values[1], values[2], values[3], values[4], values[5], values[6], gav->dft_out->p_device, gav->dft_size);
 				}
 				gpu_memory_buffer_set_time(gav->vs_out->gmb, next_gpu_out_id, gpu_memory_buffer_get_time(gav->audio_source_in->gmb, next_audio_id));
 
