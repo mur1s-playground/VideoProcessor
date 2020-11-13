@@ -3,6 +3,8 @@
 cudaStream_t cuda_streams[5];
 
 void cuda_stream_handler_init() {
+	cudaSetDeviceFlags(cudaDeviceBlockingSync);
+
 	for (int i = 0; i < 5; i++) {
 		cudaStreamCreate(&cuda_streams[i]);
 	}

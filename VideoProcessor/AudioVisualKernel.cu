@@ -30,8 +30,8 @@ __global__ void gpu_audiovisual_dft_kernel(const unsigned char* last_audio, cons
 void gpu_audiovisual_dft_kernel_launch(const unsigned char* last_audio, const unsigned char* next_audio, unsigned char* dft_out, const unsigned int frame_offset, const unsigned int hz, const unsigned int fps, const unsigned int fft_size, const float amplify) {
 	int threadsPerBlock = 256;
 	int blocksPerGrid = (fft_size + threadsPerBlock - 1) / threadsPerBlock;
-	gpu_audiovisual_dft_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[1] >> > (last_audio, next_audio, dft_out, frame_offset, hz, fps, fft_size, amplify);
-	cudaStreamSynchronize(cuda_streams[1]);
+	gpu_audiovisual_dft_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[2] >> > (last_audio, next_audio, dft_out, frame_offset, hz, fps, fft_size, amplify);
+	//cudaStreamSynchronize(cuda_streams[2]);
 }
 
 __global__ void gpu_audiovisual_dft_sum_kernel(unsigned char* dft_out, unsigned int dft_size) {
@@ -49,8 +49,8 @@ __global__ void gpu_audiovisual_dft_sum_kernel(unsigned char* dft_out, unsigned 
 void gpu_audiovisual_dft_sum_kernel_launch(unsigned char* dft_out, unsigned int dft_size) {
 	int threadsPerBlock = 256;
 	int blocksPerGrid = (7 + threadsPerBlock - 1) / threadsPerBlock;
-	gpu_audiovisual_dft_sum_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[1] >> > (dft_out, dft_size);
-	cudaStreamSynchronize(cuda_streams[1]);
+	gpu_audiovisual_dft_sum_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[2] >> > (dft_out, dft_size);
+	//cudaStreamSynchronize(cuda_streams[2]);
 }
 
 __global__ void gpu_audiovisual_kernel(const unsigned char* src, unsigned char* dst, const int src_width, const int src_height, const int src_channels, const int dst_channels, bool gmb, const float value1, const float value2, const float value3, const float value4, const float value5, const float value6, const float value7, const unsigned char* dft_in, const unsigned int dft_size) {
@@ -138,6 +138,6 @@ __global__ void gpu_audiovisual_kernel(const unsigned char* src, unsigned char* 
 void gpu_audiovisual_kernel_launch(const unsigned char* src, unsigned char* dst, const int src_width, const int src_height, const int src_channels, const int dst_channels, const bool gmb, const float value1, const float value2, const float value3, const float value4, const float value5, const float value6, const float value7, const unsigned char* dft_in, const unsigned int dft_size) {
 	int threadsPerBlock = 256;
 	int blocksPerGrid = (src_width * src_height * dst_channels + threadsPerBlock - 1) / threadsPerBlock;
-	gpu_audiovisual_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[1] >> > (src, dst, src_width, src_height, src_channels, dst_channels, gmb, value1, value2, value3, value4, value5, value6, value7, dft_in, dft_size);
-	cudaStreamSynchronize(cuda_streams[1]);
+	gpu_audiovisual_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[2] >> > (src, dst, src_width, src_height, src_channels, dst_channels, gmb, value1, value2, value3, value4, value5, value6, value7, dft_in, dft_size);
+	cudaStreamSynchronize(cuda_streams[2]);
 }

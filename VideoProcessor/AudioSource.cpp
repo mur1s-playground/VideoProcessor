@@ -154,7 +154,7 @@ void audio_source_load(struct audio_source* as, ifstream& in_f) {
 	std::getline(in_f, line);
 	int bits_per_sample = stoi(line);
 	std::getline(in_f, line);
-	bool copy_to_gmb = stoi(line) == 1;
+	bool copy_to_gmb = (stoi(line) == 1);
 
 	audio_source_init(as, device_id, channels, samples_per_sec, bits_per_sample, copy_to_gmb);
 }
