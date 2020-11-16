@@ -12,14 +12,31 @@ class VideoSourceFrame : public wxFrame {
 	int node_id;
 
 public:
+	wxBoxSizer* vbox;
+
+	wxChoice* ch_source_type;
+
+	wxBoxSizer* hbox_devices;
+	wxChoice* ch_devices;
+	wxArrayString devices_choices;
+
+	wxBoxSizer* hbox_path;
 	wxTextCtrl* tc;
 
+	wxBoxSizer* hbox_width;
 	wxTextCtrl* tc_width;
+
+	wxBoxSizer* hbox_height;
 	wxTextCtrl* tc_height;
+
+	wxBoxSizer* hbox_channels;
 	wxTextCtrl* tc_channels;
+
 	wxChoice* ch_direction;
 
 	VideoSourceFrame(wxWindow *parent);
+
+	void OnSourceTypeChange(wxCommandEvent& event);
 
 	void OnVideoSourceFrameButtonOk(wxCommandEvent& event);
 	void OnVideoSourceFrameButtonClose(wxCommandEvent& event);

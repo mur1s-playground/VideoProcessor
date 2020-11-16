@@ -70,71 +70,85 @@ VideoSourceFrame::VideoSourceFrame(wxWindow *parent) : wxFrame(parent, -1, wxT("
 
     wxPanel* panel = new wxPanel(this, -1);
 
-    wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
+    vbox = new wxBoxSizer(wxVERTICAL);
 
-    wxBoxSizer* hbox_path = new wxBoxSizer(wxHORIZONTAL);
+    //Video Source Type
+    wxBoxSizer* hbox_type = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_type = new wxStaticText(panel, -1, wxT("Video Source Type"));
+    hbox_type->Add(st_type, 0, wxRight, 8);
+    wxArrayString type_choices;
+    type_choices.Add("Device");
+    type_choices.Add("Path");
+    type_choices.Add("Dummy");
+    type_choices.Add("Desktop");
+    ch_source_type = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, type_choices);
+    ch_source_type->SetSelection(0);
+    hbox_type->Add(ch_source_type, 1);
+    ch_source_type->Bind(wxEVT_COMMAND_CHOICE_SELECTED, &VideoSourceFrame::OnSourceTypeChange, this);
+    vbox->Add(hbox_type, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
+    //Devices
+    hbox_devices = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_devices = new wxStaticText(panel, -1, wxT("Devices"));
+    hbox_devices->Add(st_devices, 0, wxRight, 8);
+    wxArrayString devices_choices;
+    devices_choices.Add("dev 0");
+    ch_devices = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, devices_choices);
+    ch_devices->SetSelection(0);
+    hbox_devices->Add(ch_devices, 1);
+    vbox->Add(hbox_devices, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    //Path
+    hbox_path = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_path = new wxStaticText(panel, -1, wxT("DeviceId/Path"));
     hbox_path->Add(st_path, 0, wxRIGHT, 8);
-
     tc = new wxTextCtrl(panel, -1, wxT(""));
     hbox_path->Add(tc, 1);
-
+    hbox_path->Show(false);
+    hbox_path->Layout();
     vbox->Add(hbox_path, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
-
     
-    wxBoxSizer* hbox_width = new wxBoxSizer(wxHORIZONTAL);
-
+    //Width
+    hbox_width = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_width = new wxStaticText(panel, -1, wxT("Width"));
     hbox_width->Add(st_width, 0, wxRIGHT, 8);
-
     tc_width = new wxTextCtrl(panel, -1, wxT(""));
     hbox_width->Add(tc_width, 1);
-
     vbox->Add(hbox_width, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
-
-    wxBoxSizer* hbox_height = new wxBoxSizer(wxHORIZONTAL);
-
+    //Height
+    hbox_height = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_height = new wxStaticText(panel, -1, wxT("Height"));
     hbox_height->Add(st_height, 0, wxRIGHT, 8);
-
     tc_height = new wxTextCtrl(panel, -1, wxT(""));
     hbox_height->Add(tc_height, 1);
-
     vbox->Add(hbox_height, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
-
-    wxBoxSizer* hbox_channels = new wxBoxSizer(wxHORIZONTAL);
-
+    //Channels
+    hbox_channels = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_channels = new wxStaticText(panel, -1, wxT("Channels"));
     hbox_channels->Add(st_channels, 0, wxRIGHT, 8);
-
     tc_channels = new wxTextCtrl(panel, -1, wxT(""));
     hbox_channels->Add(tc_channels, 1);
-
     vbox->Add(hbox_channels, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
+    //Copying direction
     wxBoxSizer* hbox_direction = new wxBoxSizer(wxHORIZONTAL);
-
     wxStaticText* st_direction = new wxStaticText(panel, -1, wxT("Copy Buffer?"));
     hbox_direction->Add(st_direction, 0, wxRIGHT, 8);
-
     wxArrayString choices;
     choices.Add("no");
     choices.Add("Host->GPU");
     choices.Add("GPU->Host");
-
     ch_direction = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, choices);
     ch_direction->SetSelection(0);
     hbox_direction->Add(ch_direction, 1);
-
     vbox->Add(hbox_direction, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
     vbox->Add(-1, 10);
 
+    //Buttons
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
-
     wxButton* ok_button = new wxButton(panel, -1, wxT("Ok"), wxDefaultPosition, wxSize(70, 30));
     ok_button->Bind(wxEVT_BUTTON, &VideoSourceFrame::OnVideoSourceFrameButtonOk, this);
     hbox_buttons->Add(ok_button, 0);
@@ -148,18 +162,110 @@ VideoSourceFrame::VideoSourceFrame(wxWindow *parent) : wxFrame(parent, -1, wxT("
     panel->SetSizer(vbox);
 }
 
+void VideoSourceFrame::OnSourceTypeChange(wxCommandEvent& event) {
+    int selection = ch_source_type->GetSelection();
+    if (selection == 0) {
+        //Device
+        hbox_devices->Show(true);
+        hbox_devices->Layout();
+        
+        hbox_path->Show(false);
+        hbox_path->Layout();
+
+        hbox_width->Show(true);
+        hbox_width->Layout();
+        
+        hbox_height->Show(true);
+        hbox_height->Layout();
+        
+        hbox_channels->Show(true);
+        hbox_channels->Layout();
+    } else if (selection == 1) {
+        //Path
+        hbox_devices->Show(false);
+        hbox_devices->Layout();
+
+        hbox_path->Show(true);
+        hbox_path->Layout();
+
+        hbox_width->Show(false);
+        hbox_width->Layout();
+
+        hbox_height->Show(false);
+        hbox_height->Layout();
+
+        hbox_channels->Show(false);
+        hbox_channels->Layout();
+    } else if (selection == 2) {
+        //Dummy
+        hbox_devices->Show(false);
+        hbox_devices->Layout();
+
+        hbox_path->Show(false);
+        hbox_path->Layout();
+
+        hbox_width->Show(true);
+        hbox_width->Layout();
+
+        hbox_height->Show(true);
+        hbox_height->Layout();
+
+        hbox_channels->Show(true);
+        hbox_channels->Layout();
+    } else if (selection == 3) {
+        //Desktop
+        hbox_devices->Show(false);
+        hbox_devices->Layout();
+
+        hbox_path->Show(false);
+        hbox_path->Layout();
+
+        hbox_width->Show(true);
+        hbox_width->Layout();
+
+        hbox_height->Show(true);
+        hbox_height->Layout();
+
+        hbox_channels->Show(false);
+        hbox_channels->Layout();
+    }
+    vbox->Layout();
+}
+
 //TODO: complete
 void VideoSourceFrame::OnVideoSourceFrameButtonOk(wxCommandEvent& event) {
     this->Hide();
+
+    int source_type = ch_source_type->GetSelection();
+
+    int source_id = ch_devices->GetSelection();
+
+    if (source_type == 2) {
+        tc->SetValue(wxT("dummy"));
+    } else if (source_type == 3) {
+        tc->SetValue(wxT("desktop"));
+    }
+
     wxString str = tc->GetValue();
     tc->SetValue(wxT(""));
+
     struct video_source* vs;
     if (node_id == -1) {
         vs = new video_source();
-        video_source_init(vs, str.c_str().AsChar());
+        vs->smb = nullptr;
+        vs->gmb = nullptr;
+        vs->mats = nullptr;
     } else {
         struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
         vs = (struct video_source*)agn->component;
+
+        video_source_close(vs);
+    }
+
+    if (source_type == 0) {
+        video_source_init(vs, source_id);
+    } else {
+        video_source_init(vs, str.c_str().AsChar());
     }
 
     wxString str_width = tc_width->GetValue();
@@ -205,6 +311,7 @@ void VideoSourceFrame::OnVideoSourceFrameButtonOk(wxCommandEvent& event) {
 
 void VideoSourceFrame::OnVideoSourceFrameButtonClose(wxCommandEvent& event) {
     this->Hide();
+    ch_source_type->SetSelection(0);
     tc->SetValue(wxT(""));
     tc_width->SetValue(wxT(""));
     tc_height->SetValue(wxT(""));
@@ -218,6 +325,7 @@ void VideoSourceFrame::Show(int node_graph_id, int node_id) {
     if (node_id > -1) {
         struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
         struct video_source* vs = (struct video_source*)agn->component;
+        ch_source_type->SetSelection(vs->source_type);
 
         tc->SetValue(wxString(vs->name));
 

@@ -9,6 +9,8 @@ using namespace cv;
 using namespace std;
 
 struct video_source {
+	int source_type;
+
 	VideoCapture video_capture;
 	HWND hwnd_desktop;
 	string name;
@@ -37,6 +39,8 @@ struct video_source {
 //void video_source_set_meta(struct video_source* vs);
 void video_source_init(struct video_source* vs, int device_id);
 void video_source_init(struct video_source* vs, const char* path);
+
+void video_source_close(struct video_source* vs);
 
 void video_source_on_input_connect(struct application_graph_node* agn, int input_id);
 DWORD* video_source_loop(LPVOID args);

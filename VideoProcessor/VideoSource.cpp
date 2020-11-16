@@ -13,6 +13,24 @@
 
 #include "Logger.h"
 
+void video_source_init_mats(struct video_source* vs) {
+	if (vs->smb == nullptr) return;
+	vs->mats = new Mat[vs->smb->slots];
+	for (int i = 0; i < vs->smb->slots; i++) {
+		if (vs->video_channels == 1) {
+			vs->mats[i] = Mat(vs->video_height, vs->video_width, CV_8UC1, &vs->smb->p_buf_c[i * vs->video_channels * vs->video_height * vs->video_width]);
+		}
+		else if (vs->video_channels == 3) {
+			vs->mats[i] = Mat(vs->video_height, vs->video_width, CV_8UC3, &vs->smb->p_buf_c[i * vs->video_channels * vs->video_height * vs->video_width]);
+		}
+		else if (vs->video_channels == 4) {
+			vs->mats[i] = Mat(vs->video_height, vs->video_width, CV_8UC4, &vs->smb->p_buf_c[i * vs->video_channels * vs->video_height * vs->video_width]);
+		}
+	}
+	vs->smb_last_used_id = vs->smb->slots - 1;
+	vs->smb_framecount = vs->smb->slots;
+}
+
 void video_source_set_meta(struct video_source* vs) {
 	if (vs->is_open) {
 		vs->video_width = vs->video_capture.get(cv::CAP_PROP_FRAME_WIDTH);
@@ -20,12 +38,11 @@ void video_source_set_meta(struct video_source* vs) {
 		vs->video_channels = 3;
 		vs->smb_size_req = vs->video_width * vs->video_height * vs->video_channels;
 	}
-	vs->smb = nullptr;
-	vs->gmb = nullptr;
-	vs->mats = nullptr;
 }
 
 void video_source_init(struct video_source* vs, int device_id) {
+	vs->source_type = 0;
+
 	stringstream ss_name;
 	ss_name << device_id;
 	vs->name = ss_name.str();
@@ -33,6 +50,7 @@ void video_source_init(struct video_source* vs, int device_id) {
 	vs->video_capture.open(device_id);
 	vs->is_open = vs->video_capture.isOpened();
 	video_source_set_meta(vs);
+	video_source_init_mats(vs);
 }
 
 void video_source_init(struct video_source* vs, const char* path) {
@@ -44,18 +62,37 @@ void video_source_init(struct video_source* vs, const char* path) {
 	vs->read_hwnd = false;
 	
 	if (strstr(str, "dummy") == str) {
+		vs->source_type = 2;
+
 		vs->read_video_capture = false;
 	} else {
 		if (strstr(str, "desktop") == str) {
+			vs->source_type = 3;
+
 			vs->hwnd_desktop = GetDesktopWindow();
+			RECT windowsize;
+			GetClientRect(vs->hwnd_desktop, &windowsize);
+			vs->video_width = windowsize.right;
+			vs->video_height = windowsize.bottom;
+			vs->video_channels = 4;
+
 			vs->read_hwnd = true;
 			vs->read_video_capture = false;
 		} else {
+			vs->source_type = 1;
+
 			vs->read_video_capture = true;
 			vs->video_capture.open(path);
 			vs->is_open = vs->video_capture.isOpened();
 			video_source_set_meta(vs);
 		}
+	}
+	video_source_init_mats(vs);
+}
+
+void video_source_close(struct video_source* vs) {
+	if (vs->source_type < 2 && vs->video_capture.isOpened()) {
+		vs->video_capture.release();
 	}
 }
 
@@ -63,22 +100,7 @@ void video_source_on_input_connect(struct application_graph_node *agn, int input
 	if (input_id == 0) {
 		struct video_source* vs = (struct video_source*)agn->component;
 
-		if (vs->mats == nullptr) {
-			vs->mats = new Mat[vs->smb->slots];
-			for (int i = 0; i < vs->smb->slots; i++) {
-				if (vs->video_channels == 1) {
-					vs->mats[i] = Mat(vs->video_height, vs->video_width, CV_8UC1, &vs->smb->p_buf_c[i * vs->video_channels * vs->video_height * vs->video_width]);
-				}
-				else if (vs->video_channels == 3) {
-					vs->mats[i] = Mat(vs->video_height, vs->video_width, CV_8UC3, &vs->smb->p_buf_c[i * vs->video_channels * vs->video_height * vs->video_width]);
-				}
-				else if (vs->video_channels == 4) {
-					vs->mats[i] = Mat(vs->video_height, vs->video_width, CV_8UC4, &vs->smb->p_buf_c[i * vs->video_channels * vs->video_height * vs->video_width]);
-				}
-			}
-			vs->smb_last_used_id = vs->smb->slots - 1;
-			vs->smb_framecount = vs->smb->slots;
-		}
+		video_source_init_mats(vs);
 	}
 }
 
@@ -124,8 +146,16 @@ DWORD* video_source_loop(LPVOID args) {
 
 					srcheight = windowsize.bottom;
 					srcwidth = windowsize.right;
-					height = vs->video_height;  //change this to whatever size you want to resize to
-					width = vs->video_width;
+					if (vs->video_height == 0) {
+						height = srcheight;
+					} else {
+						height = vs->video_height;  //change this to whatever size you want to resize to
+					}
+					if (vs->video_width == 0) {
+						width = srcwidth;
+					} else {
+						width = vs->video_width;
+					}
 
 					hbwindow = CreateCompatibleBitmap(hwindowDC, width, height);
 					bi.biSize = sizeof(BITMAPINFOHEADER);    //http://msdn.microsoft.com/en-us/library/windows/window/dd183402%28v=vs.85%29.aspx

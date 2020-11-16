@@ -43,6 +43,7 @@ DWORD* im_show_loop(LPVOID args) {
 		int sleep_time = application_graph_tps_balancer_get_sleep_ms(agn);
 		if (sleep_time > 0) cv::waitKey(sleep_time);
 	}
+	destroyWindow(is->name.c_str());
 	agn->process_run = false;
 	myApp->drawPane->Refresh();
 	return NULL;
