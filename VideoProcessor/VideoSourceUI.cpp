@@ -348,6 +348,8 @@ void VideoSourceFrame::Show(int node_graph_id, int node_id) {
         } else if (vs->do_copy && !vs->direction_smb_to_gmb) {
             ch_direction->SetSelection(2);
         }
+        wxCommandEvent dummy;
+        VideoSourceFrame::OnSourceTypeChange(dummy);
     }
     wxFrame::Show(true);
 }

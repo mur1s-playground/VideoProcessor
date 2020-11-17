@@ -75,52 +75,46 @@ __global__ void gpu_audiovisual_kernel(const unsigned char* src, unsigned char* 
 			float weights[7];
 			for (int dims = 1; dims < 8; dims++) {
 				const unsigned char* dim = &src[dims * src_width * src_height * src_channels];
-				if (value < 4) {
+				if (abs(value) < 1) {
 					weights[dims - 1] = 0;
-				}
-				else {
+				} else {
 					weights[dims - 1] = ((float)dim[src_i] - (float)src[src_i]) / value;
 				}
 				weight_norm += weights[dims - 1];
 			}
 
-			if (weight_norm > 0) {
+			if (weight_norm > 0.01) {
 				float total_weight = 0.0f;
 				for (int dims = 1; dims < 8; dims++) {
 					weights[dims - 1] /= weight_norm;
+					
 					if (gmb) {
 						const float* dft = (const float*)dft_in;
 						float d_val = dft[(dims - 1) * (dft_size) / 7];
 						if (d_val < 0) d_val = 0.0f;
 						if (d_val > 1) d_val = 1.0f;
 						weights[dims - 1] *= d_val;
-					}
-					else {
+					} else {
 						if (dims == 1) {
 							weights[dims - 1] *= value1;
-						}
-						else if (dims == 2) {
+						} else if (dims == 2) {
 							weights[dims - 1] *= value2;
-						}
-						else if (dims == 3) {
+						} else if (dims == 3) {
 							weights[dims - 1] *= value3;
-						}
-						else if (dims == 4) {
+						} else if (dims == 4) {
 							weights[dims - 1] *= value4;
-						}
-						else if (dims == 5) {
+						} else if (dims == 5) {
 							weights[dims - 1] *= value5;
-						}
-						else if (dims == 6) {
+						} else if (dims == 6) {
 							weights[dims - 1] *= value6;
-						}
-						else if (dims == 7) {
+						} else if (dims == 7) {
 							weights[dims - 1] *= value7;
 						}
 					}
 					total_weight += weights[dims - 1];
 				}
-
+				if (total_weight < 0) total_weight = 0.0f;
+				if (total_weight > 1) total_weight = 1.0f;
 				float result = (float)src[src_i] + total_weight * value;
 				if (result > 255.0f) result = 255.0f;
 				if (result < 0) result = 0.0f;
