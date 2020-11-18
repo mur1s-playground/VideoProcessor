@@ -12,9 +12,21 @@ class GPUMotionBlurFrame : public wxFrame {
 	int node_id;
 
 public:
+	wxBoxSizer* vbox;
+
 	wxTextCtrl* tc_fc;
 
+	wxChoice* ch_dt;
+
+	wxBoxSizer* hbox_wc;
+	wxTextCtrl* tc_wc;
+
+	wxBoxSizer* hbox_c;
+	wxTextCtrl* tc_c;
+
 	GPUMotionBlurFrame(wxWindow* parent);
+
+	void OnWeightDistChange(wxCommandEvent& event);
 
 	void OnGPUMotionBlurFrameButtonOk(wxCommandEvent& event);
 	void OnGPUMotionBlurFrameButtonClose(wxCommandEvent& event);

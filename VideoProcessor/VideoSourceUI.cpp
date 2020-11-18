@@ -104,8 +104,6 @@ VideoSourceFrame::VideoSourceFrame(wxWindow *parent) : wxFrame(parent, -1, wxT("
     hbox_path->Add(st_path, 0, wxRIGHT, 8);
     tc = new wxTextCtrl(panel, -1, wxT(""));
     hbox_path->Add(tc, 1);
-    hbox_path->Show(false);
-    hbox_path->Layout();
     vbox->Add(hbox_path, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
     
     //Width
@@ -348,8 +346,8 @@ void VideoSourceFrame::Show(int node_graph_id, int node_id) {
         } else if (vs->do_copy && !vs->direction_smb_to_gmb) {
             ch_direction->SetSelection(2);
         }
-        wxCommandEvent dummy;
-        VideoSourceFrame::OnSourceTypeChange(dummy);
     }
+    wxCommandEvent dummy;
+    VideoSourceFrame::OnSourceTypeChange(dummy);
     wxFrame::Show(true);
 }

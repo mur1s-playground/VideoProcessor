@@ -9,10 +9,36 @@
 
 #include "MainUI.h"
 
-void gpu_motion_blur_init(struct gpu_motion_blur* mb, int frame_count) {
+void gpu_motion_blur_init(struct gpu_motion_blur* mb, int frame_count, int weight_dist_type, float frame_id_weight_center, float center_weight) {
 	mb->frame_count = frame_count;
+	mb->weight_dist_type = weight_dist_type;
+	mb->frame_id_weight_center = frame_id_weight_center;
+	mb->c = center_weight;
 	mb->vs_in = nullptr;
 	mb->gmb_out = nullptr;
+}
+
+void gpu_motion_blur_calculate_weights(struct gpu_motion_blur* mb) {
+	if (mb->weight_dist_type == 0) { // even
+		mb->a = 0.0f;
+		mb->b = 0.0f;
+		mb->c = 1.0f / mb->frame_count;
+	} else if (mb->weight_dist_type == 1) { // linear roof //TODO: port -> wc float
+		mb->a = (1.0f - mb->frame_count*mb->c);
+
+		if (mb->frame_id_weight_center == 0) {
+			mb->b = -mb->a / ((mb->frame_count)*(mb->frame_count-1)/2.0f);
+			mb->a = 0.0f;
+		} else if (mb->frame_id_weight_center == mb->frame_count) {
+			mb->a /= ((mb->frame_count) * (mb->frame_count - 1) / 2.0f);
+			mb->b = 0.0f;
+		} else {
+			float tmp_0 = -((mb->frame_id_weight_center - 1) * (mb->frame_id_weight_center - 2) / 2.0f);
+			float tmp_1 = -(mb->frame_count - mb->frame_id_weight_center) / mb->frame_id_weight_center * ((mb->frame_count)*(mb->frame_count-1)/2.0f - (mb->frame_id_weight_center)*(mb->frame_id_weight_center-1)/2.0f);
+			mb->a /= (tmp_0 + tmp_1);
+			mb->b = mb->a * (mb->frame_count - mb->frame_id_weight_center) / mb->frame_id_weight_center;
+		}	
+	}
 }
 
 DWORD* gpu_motion_blur_loop(LPVOID args) {
@@ -43,14 +69,13 @@ DWORD* gpu_motion_blur_loop(LPVOID args) {
 				}
 				gpu_memory_buffer_try_r(mb->vs_in->gmb, id, true, 8);
 
-				motion_blur_kernel_launch(&mb->vs_in->gmb->p_device[id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels], &mb->gmb_out->p_device[next_gpu_out_id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels], mb->vs_in->video_width, mb->vs_in->video_height, mb->vs_in->video_channels, mb->frame_count, frame_counter, true);
+				motion_blur_kernel_launch(&mb->vs_in->gmb->p_device[id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels], &mb->gmb_out->p_device[next_gpu_out_id * mb->vs_in->video_width * mb->vs_in->video_height * mb->vs_in->video_channels], mb->vs_in->video_width, mb->vs_in->video_height, mb->vs_in->video_channels, mb->frame_count, frame_counter, mb->weight_dist_type, mb->frame_id_weight_center, mb->a, mb->b, mb->c, true);
 
 				if (i == next_gpu_id) {
 					gpu_memory_buffer_set_time(mb->gmb_out, next_gpu_out_id, gpu_memory_buffer_get_time(mb->vs_in->gmb, id));
 				}
 
 				gpu_memory_buffer_release_r(mb->vs_in->gmb, id);
-
 				
 				frame_counter++;
 			}
@@ -75,6 +100,9 @@ void gpu_motion_blur_externalise(struct application_graph_node* agn, string& out
 
 	stringstream s_out;
 	s_out << mb->frame_count << std::endl;
+	s_out << mb->weight_dist_type << std::endl;
+	s_out << mb->frame_id_weight_center << std::endl;
+	s_out << mb->c << std::endl;
 	
 	out_str = s_out.str();
 }
@@ -83,9 +111,16 @@ void gpu_motion_blur_load(struct gpu_motion_blur* mb, ifstream& in_f) {
 	std::string line;
 	std::getline(in_f, line);
 	mb->frame_count = stoi(line);
+	std::getline(in_f, line);
+	mb->weight_dist_type = stoi(line);
+	std::getline(in_f, line);
+	mb->frame_id_weight_center = stof(line);
+	std::getline(in_f, line);
+	mb->c = stof(line);
 	
 	mb->vs_in = nullptr;
 	mb->gmb_out = nullptr;
+	gpu_motion_blur_calculate_weights(mb);
 }
 
 void gpu_motion_blur_destroy(struct application_graph_node* agn) {

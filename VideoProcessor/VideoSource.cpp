@@ -108,12 +108,15 @@ DWORD* video_source_loop(LPVOID args) {
 	struct application_graph_node* agn = (struct application_graph_node*)args;
 	struct video_source* vs = (struct video_source*)agn->component;
 
-	if (vs->smb == nullptr) return NULL;
+	if (vs->smb == nullptr) {
+		return NULL;
+	}
 
 	if (vs->read_video_capture && !vs->is_open) {
 		vs->video_capture.open(vs->name);
 		vs->is_open = vs->video_capture.isOpened();
 	}
+	
 
 	if (vs->direction_smb_to_gmb) {
 			int last_id = -1;

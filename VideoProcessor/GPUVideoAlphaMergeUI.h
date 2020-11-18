@@ -12,8 +12,10 @@ class GPUVideoAlphaMergeFrame : public wxFrame {
 	int node_id;
 
 public:
-	wxTextCtrl* tc;
-	wxTextCtrl* tc_d;
+	wxChoice* ch_sync_prio;
+
+	wxTextCtrl* tc_alpha_id;
+	wxTextCtrl* tc_tps;
 
 	GPUVideoAlphaMergeFrame(wxWindow* parent);
 
