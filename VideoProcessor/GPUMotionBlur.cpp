@@ -7,6 +7,8 @@
 #include <sstream>
 #include <fstream>
 
+#include "Logger.h"
+
 #include "MainUI.h"
 
 void gpu_motion_blur_init(struct gpu_motion_blur* mb, int frame_count, int weight_dist_type, float frame_id_weight_center, float center_weight) {
@@ -19,25 +21,55 @@ void gpu_motion_blur_init(struct gpu_motion_blur* mb, int frame_count, int weigh
 }
 
 void gpu_motion_blur_calculate_weights(struct gpu_motion_blur* mb) {
+	mb->calc_err = false;
 	if (mb->weight_dist_type == 0) { // even
 		mb->a = 0.0f;
 		mb->b = 0.0f;
 		mb->c = 1.0f / mb->frame_count;
-	} else if (mb->weight_dist_type == 1) { // linear roof //TODO: port -> wc float
-		mb->a = (1.0f - mb->frame_count*mb->c);
-
-		if (mb->frame_id_weight_center == 0) {
-			mb->b = -mb->a / ((mb->frame_count)*(mb->frame_count-1)/2.0f);
-			mb->a = 0.0f;
-		} else if (mb->frame_id_weight_center == mb->frame_count) {
-			mb->a /= ((mb->frame_count) * (mb->frame_count - 1) / 2.0f);
-			mb->b = 0.0f;
-		} else {
-			float tmp_0 = -((mb->frame_id_weight_center - 1) * (mb->frame_id_weight_center - 2) / 2.0f);
-			float tmp_1 = -(mb->frame_count - mb->frame_id_weight_center) / mb->frame_id_weight_center * ((mb->frame_count)*(mb->frame_count-1)/2.0f - (mb->frame_id_weight_center)*(mb->frame_id_weight_center-1)/2.0f);
-			mb->a /= (tmp_0 + tmp_1);
-			mb->b = mb->a * (mb->frame_count - mb->frame_id_weight_center) / mb->frame_id_weight_center;
-		}	
+	} else if (mb->weight_dist_type == 1) { // linear roof
+		float value = 0.0f;
+		float err = 1.0f;
+		mb->a = 0.0f;
+		mb->b = 0.0f;
+		while (abs(err) > 0.01f && !mb->calc_err) {
+			value = 0.0f;
+			for (int i = 0; i < mb->frame_count; i++) {
+				float tmp_val = mb->c;
+				if (i < mb->frame_id_weight_center) {
+					tmp_val += mb->a * (i - mb->frame_id_weight_center);
+				} else if (i > mb->frame_id_weight_center) {
+					tmp_val += mb->b * (i - mb->frame_id_weight_center);
+				}
+				if (tmp_val < 0) {
+					mb->calc_err = true;
+					break;
+				}
+				value += tmp_val;
+			}
+			err = 1.0f - value;
+			if (mb->frame_id_weight_center == 0) {
+				mb->a = 0.0f;
+				if (err > 0.01) {
+					mb->b += 0.001;
+				} else if (err < -0.01) {
+					mb->b -= 0.001;
+				}
+			} else if (mb->frame_id_weight_center == mb->frame_count - 1) {
+				mb->b = 0.0f;
+				if (err > 0.01) {
+					mb->a -= 0.001;
+				} else if (err < -0.01) {
+					mb->a += 0.001;
+				}
+			} else {
+				if (err > 0.01) {
+					mb->a -= 0.001;
+				} else if (err < -0.01) {
+					mb->a += 0.001;
+				}
+				mb->b = -mb->a * (mb->frame_count - 1 - mb->frame_id_weight_center) / (mb->frame_id_weight_center);
+			}
+		}
 	}
 }
 

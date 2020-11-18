@@ -10,7 +10,7 @@ __global__ void motion_blur_kernel(const unsigned char* src, unsigned char* dst,
 	if (i < width * height * channels) {
 		float weight = 0.0f;
 		if (weight_dist_type <= 1) { //even or linear hat
-			weight = c + a * (frame_id_weight_center - frame_id) * (frame_id < frame_id_weight_center) + b * (frame_id_weight_center - frame_id) * (frame_id > frame_id_weight_center);
+			weight = c + a * (frame_id - frame_id_weight_center) * (frame_id < frame_id_weight_center) + b * (frame_id - frame_id_weight_center) * (frame_id > frame_id_weight_center);
 		} else if (weight_dist_type == 2) { //other...
 
 		}

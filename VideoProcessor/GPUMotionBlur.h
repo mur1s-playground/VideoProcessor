@@ -8,6 +8,8 @@ struct gpu_motion_blur {
 	float frame_id_weight_center;
 	float a, b, c;
 	
+	bool calc_err;
+
 	struct video_source* vs_in;
 	struct gpu_memory_buffer* gmb_out;
 };
