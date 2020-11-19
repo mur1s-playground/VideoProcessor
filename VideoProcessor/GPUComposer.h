@@ -14,6 +14,8 @@ struct gpu_composer {
 	string name;
 
 	vector<struct gpu_composer_element*> gce_ins;
+	vector<unsigned long long> last_sync_time;
+	vector<int> last_input_id;
 
 	struct gpu_composer_element* gce_in_connector;
 

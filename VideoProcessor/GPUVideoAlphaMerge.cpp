@@ -24,15 +24,15 @@ DWORD* gpu_video_alpha_merge_loop(LPVOID args) {
 	struct application_graph_node* agn = (struct application_graph_node*)args;
 	struct gpu_video_alpha_merge* vam = (struct gpu_video_alpha_merge*)agn->component;
 
-	int last_frame_rgb = -1;
+	int last_frame_rgb = 0;
 	unsigned long long last_frame_rgb_sync_time = 0;
 	unsigned long long second_last_frame_rgb_sync_time = 0;
 
-	int last_frame_alpha = -1;
+	int last_frame_alpha = 0;
 	unsigned long long last_frame_alpha_sync_time = 0;
 	unsigned long long second_last_frame_alpha_sync_time = 0;
 
-	int current_out_frame = -1;
+	int current_out_frame = 0;
 	unsigned long long sync_time = 0;
 	unsigned long long last_sync_time = 0;
 
