@@ -12,6 +12,7 @@ struct vector3uc {
 struct gpu_palette_filter {
 	int palette_size[2];
 	float* device_palette[2];
+	int* device_palette_c[2];
 	bool device_palette_switch;
 
 	vector<float> palette;
@@ -32,6 +33,8 @@ struct gpu_palette_filter {
 void gpu_palette_filter_init(struct gpu_palette_filter* gpf, float palette_auto_time, int palette_auto_size, int palette_auto_bucket_count, int palette_auto_quantization_size);
 void gpu_palette_filter_edit(struct gpu_palette_filter* gpf, float palette_auto_time, int palette_auto_size, int palette_auto_bucket_count, int palette_auto_quantization_size);
 DWORD* gpu_palette_filter_loop(LPVOID args);
+
+void gpu_palette_auto_build(struct gpu_palette_filter* mb, bool image_source);
 
 void gpu_palette_filter_externalise(struct application_graph_node* agn, string& out_str);
 void gpu_palette_filter_load(struct gpu_palette_filter* gpf, ifstream& in_f);
