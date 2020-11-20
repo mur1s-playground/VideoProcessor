@@ -4,6 +4,7 @@
 #include <fstream>
 
 void gpu_composer_element_init(struct gpu_composer_element* gce) {
+	gce->sync_prio = false;
 	gce->delay = 0;
 	gce->dx = 0;
 	gce->dy = 0;
@@ -24,6 +25,11 @@ void gpu_composer_element_externalise(struct application_graph_node* agn, string
 	struct gpu_composer_element* gce = (struct gpu_composer_element*)agn->component;
 
 	stringstream s_out;
+	if (gce->sync_prio) {
+		s_out << 1 << std::endl;
+	} else {
+		s_out << 0 << std::endl;
+	}
 	s_out << gce->delay << std::endl;
 
 	s_out << gce->dx << std::endl;
@@ -41,6 +47,8 @@ void gpu_composer_element_externalise(struct application_graph_node* agn, string
 
 void gpu_composer_element_load(struct gpu_composer_element *gce, ifstream &in_f) {
 	std::string line;
+	std::getline(in_f, line);
+	gce->sync_prio = (stoi(line) == 0);
 	std::getline(in_f, line);
 	gce->delay = stoi(line);
 	std::getline(in_f, line);

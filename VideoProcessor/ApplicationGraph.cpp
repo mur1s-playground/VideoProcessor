@@ -551,6 +551,19 @@ void application_graph_delete_node(int application_graph_id, int node_id) {
     myApp->drawPane->Refresh();
 }
 
+void application_graph_node_settings_externalise(struct application_graph_node *agn, string& out_str) {
+    stringstream s_out;
+    s_out << agn->process_tps_balancer.tps_target << std::endl;
+
+    out_str = s_out.str();
+}
+
+void application_graph_node_settings_load(struct application_graph_node *agn, ifstream& in_f) {
+    std::string line;
+    std::getline(in_f, line);
+    agn->process_tps_balancer.tps_target = stoi(line);
+}
+
 void application_graph_save(string base_dir, string name) {
     std::ofstream outfile;
 
@@ -566,10 +579,21 @@ void application_graph_save(string base_dir, string name) {
         g_fullpath << base_dir << "/" << name << "_" << ags[ag_id]->name << ".agns";
         std::ofstream g_outfile;
         g_outfile.open(g_fullpath.str().c_str(), std::ios_base::out);
+
+        stringstream ns_fullpath;
+        ns_fullpath << base_dir << "/" << name << "_" << ags[ag_id]->name << ".node_settings";
+        std::ofstream ns_outfile;
+        ns_outfile.open(ns_fullpath.str().c_str(), std::ios_base::out);
+
         for (int n_id = 0; n_id < ags[ag_id]->nodes.size(); n_id++) {
             struct application_graph_node* agn = ags[ag_id]->nodes[n_id];
 
             if (agn == nullptr) continue;
+            ns_outfile << agn->n_id << std::endl;
+            string ns_out_str;
+            application_graph_node_settings_externalise(agn, ns_out_str);
+            ns_outfile << ns_out_str;
+
             g_outfile << agn->n_id << std::endl;
 
             g_outfile << agn->pos_x << std::endl;
@@ -751,6 +775,19 @@ void application_graph_load(string base_dir, string name) {
             std::getline(e_infile, e_line);
             int to_id = stoi(e_line);
             application_graph_add_edge_intl(ags.size()-1, from_nid, to_nid, from_id, to_id);
+        }
+        
+        stringstream ns_fullpath;
+        ns_fullpath << base_dir << "/" << name << "_" << i_line << ".node_settings";
+        std::ifstream ns_infile;
+        ns_infile.open(ns_fullpath.str().c_str(), std::ios_base::in);
+        string ns_line;
+        while (std::getline(ns_infile, ns_line)) {
+            if (strlen(ns_line.c_str()) == 0) break;
+            int n_id = stoi(ns_line);
+
+            struct application_graph_node *agn = ags[ag_c]->nodes[n_id];
+            application_graph_node_settings_load(agn, ns_infile);
         }
     }
     myApp->drawPane->Refresh();

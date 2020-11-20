@@ -98,14 +98,6 @@ GPUAudioVisualFrame::GPUAudioVisualFrame(wxWindow* parent) : wxFrame(parent, -1,
 
     wxBoxSizer* hbox_fps = new wxBoxSizer(wxHORIZONTAL);
 
-    wxStaticText* st_fps = new wxStaticText(panel, -1, wxT("FPS Target"));
-    hbox_fps->Add(st_fps, 0, wxRIGHT, 8);
-
-    tc_fps_target = new wxTextCtrl(panel, -1, wxT("30"));
-    hbox_fps->Add(tc_fps_target, 1);
-
-    vbox->Add(hbox_fps, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
-
     vbox->Add(-1, 10);
 
 
@@ -162,9 +154,6 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event) {
     wxString ampl = tc_amplify->GetValue();
     gav->amplify = stof(ampl.c_str().AsChar());
 
-    wxString fps = tc_fps_target->GetValue();
-    gav->fps_target = stoi(fps.c_str().AsChar());
-
     stringstream line_ss;
     line_ss << tc_frame_names->GetValue();
     string line = line_ss.str();
@@ -196,7 +185,6 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonClose(wxCommandEvent& event
     tc_name->SetValue(wxT("audiovis"));
     tc_dft_size->SetValue(wxT("21"));
     tc_amplify->SetValue(wxT("300.0"));
-    tc_fps_target->SetValue(wxT("30"));
     tc_frame_names->SetValue(wxT(""));
 }
 
@@ -218,10 +206,6 @@ void GPUAudioVisualFrame::Show(int node_graph_id, int node_id) {
         wxString amplify;
         amplify << gav->amplify;
         tc_amplify->SetValue(amplify);
-
-        wxString fps;
-        fps << gav->fps_target;
-        tc_fps_target->SetValue(fps);
 
         wxString files_names;
         for (int i = 0; i < gav->frame_names.size(); i++) {

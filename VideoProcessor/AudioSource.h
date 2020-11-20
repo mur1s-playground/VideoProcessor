@@ -4,6 +4,14 @@
 #include "SharedMemoryBuffer.h"
 #include "GPUMemoryBuffer.h"
 
+#include <vector>
+
+struct audio_device {
+	int id;
+	char* name;
+	int channels;
+};
+
 struct audio_source {
 	int device_id;
 	bool copy_to_gmb;
@@ -30,3 +38,7 @@ DWORD* audio_source_loop(LPVOID args);
 void audio_source_externalise(struct application_graph_node* agn, string& out_str);
 void audio_source_load(struct audio_source* as, ifstream& in_f);
 void audio_source_destory(struct application_graph_node* agn);
+
+void audio_source_init_available_devices();
+
+extern vector<struct audio_device> audio_source_devices;

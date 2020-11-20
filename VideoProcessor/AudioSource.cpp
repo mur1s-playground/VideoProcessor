@@ -10,6 +10,36 @@
 #include "cuda_runtime.h"
 #include "CUDAStreamHandler.h"
 
+#include "comdef.h"
+
+vector<struct audio_device> audio_source_devices;
+
+void audio_source_init_available_devices() {
+	audio_source_devices.clear();
+
+	unsigned int num_devices = waveInGetNumDevs();
+
+	for (int i = 0; i < num_devices; i++) {
+		struct audio_device ad;
+
+		WAVEINCAPS device_capabilities = {};
+		waveInGetDevCaps(i, &device_capabilities, sizeof(device_capabilities));
+		ad.id = i;
+
+		_bstr_t b(device_capabilities.szPname);
+		const char* name = b;
+
+		ad.name = new char[strlen(name) + 1];
+		snprintf(ad.name, strlen(name) + 1, "%s", name);
+
+		_bstr_t c(device_capabilities.wChannels);
+		const char* channels = c;
+		ad.channels = stoi(channels);
+
+		audio_source_devices.push_back(ad);
+	}
+}
+
 void CALLBACK audio_source_process_callback(
 	HWAVEIN   hwi,
 	UINT      uMsg,

@@ -66,57 +66,47 @@ AudioSourceFrame::AudioSourceFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("
 
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
 
-    wxBoxSizer* hbox_path = new wxBoxSizer(wxHORIZONTAL);
-
-    wxStaticText* st_path = new wxStaticText(panel, -1, wxT("DeviceId"));
-    hbox_path->Add(st_path, 0, wxRIGHT, 8);
-
-    tc_device_id = new wxTextCtrl(panel, -1, wxT("0"));
-    hbox_path->Add(tc_device_id, 1);
-
-    vbox->Add(hbox_path, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
-
+    //Audio Devices
+    wxBoxSizer* hbox_as = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_as = new wxStaticText(panel, -1, wxT("Audio Device"));
+    hbox_as->Add(st_as, 0, wxRight, 8);
+    ch_device = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, device_choices);
+    this->InitAudioDevices();
+    hbox_as->Add(ch_device, 1);
+    ch_device->Bind(wxEVT_COMMAND_CHOICE_SELECTED, &AudioSourceFrame::OnAudioSourceDeviceChange, this);
+    vbox->Add(hbox_as, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
     wxBoxSizer* hbox_channels = new wxBoxSizer(wxHORIZONTAL);
-
     wxStaticText* st_channels = new wxStaticText(panel, -1, wxT("Channels"));
     hbox_channels->Add(st_channels, 0, wxRIGHT, 8);
-
-    tc_channels = new wxTextCtrl(panel, -1, wxT("2"));
-    hbox_channels->Add(tc_channels, 1);
-
+    ch_channels = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, channels_choices);;
+    this->UpdateAvailableAudioChannels(ch_device->GetSelection());
+    hbox_channels->Add(ch_channels, 1);
     vbox->Add(hbox_channels, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
-
-
+    
     wxBoxSizer* hbox_sps = new wxBoxSizer(wxHORIZONTAL);
-
     wxStaticText* st_sps = new wxStaticText(panel, -1, wxT("Samples per Sec"));
     hbox_sps->Add(st_sps, 0, wxRIGHT, 8);
-
-    tc_samples_per_sec = new wxTextCtrl(panel, -1, wxT("44100"));
-    hbox_sps->Add(tc_samples_per_sec, 1);
-
+    sps_choices.Add(wxT("11.025 kHz"));
+    sps_choices.Add(wxT("22.05 kHz"));
+    sps_choices.Add(wxT("44.1 kHz"));
+    ch_samples_per_sec = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, sps_choices);
+    ch_samples_per_sec->SetSelection(ch_samples_per_sec->GetCount() -1);
+    hbox_sps->Add(ch_samples_per_sec, 1);
     vbox->Add(hbox_sps, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
-
     
     wxBoxSizer* hbox_bps = new wxBoxSizer(wxHORIZONTAL);
-
     wxStaticText* st_bps = new wxStaticText(panel, -1, wxT("Bits per Sample"));
     hbox_bps->Add(st_bps, 0, wxRIGHT, 8);
-
     tc_bits_per_sample = new wxTextCtrl(panel, -1, wxT("8"));
     hbox_bps->Add(tc_bits_per_sample, 1);
-
     vbox->Add(hbox_bps, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
     wxBoxSizer* hbox_copy = new wxBoxSizer(wxHORIZONTAL);
-
     wxStaticText* st_copy = new wxStaticText(panel, -1, wxT("Copy to GPU"));
     hbox_copy->Add(st_copy, 0, wxRIGHT, 8);
-
     tc_copy_to_gmb = new wxTextCtrl(panel, -1, wxT("1"));
     hbox_copy->Add(tc_copy_to_gmb, 1);
-
     vbox->Add(hbox_copy, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
     vbox->Add(-1, 10);
@@ -136,12 +126,57 @@ AudioSourceFrame::AudioSourceFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("
     panel->SetSizer(vbox);
 }
 
+void AudioSourceFrame::InitAudioDevices() {
+    audio_source_init_available_devices();
+    
+    device_choices.clear();
+    for (int i = 0; i < audio_source_devices.size(); i++) {
+        struct audio_device ad = audio_source_devices[i];
+        for (int j = i; j < ad.id; j++) {
+            device_choices.Add("");
+        }
+        device_choices.Add(ad.name);
+    }   
+    ch_device->Clear();
+    ch_device->Append(device_choices);
+    ch_device->SetSelection(0);
+}
+
+void AudioSourceFrame::OnAudioSourceDeviceChange(wxCommandEvent& event) {
+    AudioSourceFrame::UpdateAvailableAudioChannels(ch_device->GetSelection());
+}
+
+void AudioSourceFrame::UpdateAvailableAudioChannels(int device_id) {
+    channels_choices.clear();
+    for (int i = 0; i < audio_source_devices.size(); i++) {
+        struct audio_device ad = audio_source_devices[i];
+        if (ad.id == device_id) {
+            for (int c = 1; c <= ad.channels; c++) {
+                stringstream s_channels;
+                s_channels << c;
+                channels_choices.Add(s_channels.str());
+            }
+        }
+    }
+    ch_channels->Clear();
+    ch_channels->Append(channels_choices);
+    ch_channels->SetSelection(ch_channels->GetCount()-1);
+}
+
 void AudioSourceFrame::OnAudioSourceFrameButtonOk(wxCommandEvent& event) {
     this->Hide();
 
-    int device_id = stoi(tc_device_id->GetValue().c_str().AsChar());
-    int channels = stoi(tc_channels->GetValue().c_str().AsChar());
-    int samples_per_sec = stoi(tc_samples_per_sec->GetValue().c_str().AsChar());
+    int device_id = ch_device->GetSelection();
+    int channels = ch_channels->GetSelection() + 1;
+
+    int samples_per_sec = 44100;
+    int sps_id = ch_samples_per_sec->GetSelection();
+    if (sps_id == 0) {
+        samples_per_sec = 11025;
+    } else if (sps_id == 1) {
+        samples_per_sec = 22050;
+    }
+
     int bits_per_sample = stoi(tc_bits_per_sample->GetValue().c_str().AsChar());
     bool copy_to_gmb = stoi(tc_copy_to_gmb->GetValue().c_str().AsChar()) == 1;
    
@@ -164,9 +199,9 @@ void AudioSourceFrame::OnAudioSourceFrameButtonOk(wxCommandEvent& event) {
 
 void AudioSourceFrame::OnAudioSourceFrameButtonClose(wxCommandEvent& event) {
     this->Hide();
-    tc_device_id->SetValue(wxT("0"));
-    tc_channels->SetValue(wxT("2"));
-    tc_samples_per_sec->SetValue(wxT("44100"));
+    ch_device->SetSelection(0);
+    ch_channels->SetSelection(0);
+    ch_samples_per_sec->SetSelection(0);
     tc_bits_per_sample->SetValue(wxT("8"));
     tc_copy_to_gmb->SetValue(wxT("1"));
 }
@@ -178,17 +213,22 @@ void AudioSourceFrame::Show(int node_graph_id, int node_id) {
         struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
         struct audio_source* as = (struct audio_source*)agn->component;
 
-        stringstream s_device_id;
-        s_device_id << as->device_id;
-        tc_device_id->SetValue(wxString(s_device_id.str()));
+        if (as->device_id < ch_device->GetCount()) {
+            ch_device->SetSelection(as->device_id);
+        }
+        
+        if (((int)as->wave_format.nChannels) - 1 < ch_channels->GetCount()) {
+            ch_channels->SetSelection(((int)as->wave_format.nChannels) - 1);
+        }
 
-        stringstream s_channels;
-        s_channels << as->wave_format.nChannels;
-        tc_channels->SetValue(wxString(s_channels.str()));
-
-        stringstream s_samples_per_sec;
-        s_samples_per_sec << as->wave_format.nSamplesPerSec;
-        tc_samples_per_sec->SetValue(wxString(s_samples_per_sec.str()));
+        int sps = (int)as->wave_format.nSamplesPerSec;
+        if (sps == 11025) {
+            ch_samples_per_sec->SetSelection(0);
+        } else if (sps == 22050) {
+            ch_samples_per_sec->SetSelection(1);
+        } else {
+            ch_samples_per_sec->SetSelection(2);
+        }
 
         stringstream s_bits_per_sample;
         s_bits_per_sample << as->wave_format.wBitsPerSample;

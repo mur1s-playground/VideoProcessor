@@ -12,14 +12,24 @@ class AudioSourceFrame : public wxFrame {
 	int node_id;
 
 public:
-	wxTextCtrl* tc_device_id;
-	wxTextCtrl* tc_channels;
-	wxTextCtrl* tc_samples_per_sec;
+	wxChoice* ch_device;
+	wxArrayString device_choices;
+
+	wxChoice* ch_channels;
+	wxArrayString channels_choices;
+
+	wxChoice* ch_samples_per_sec;
+	wxArrayString sps_choices;
+
 	wxTextCtrl* tc_bits_per_sample;
 	wxTextCtrl* tc_copy_to_gmb;
 
+	void InitAudioDevices();
+	void UpdateAvailableAudioChannels(int device_id);
 
 	AudioSourceFrame(wxWindow* parent);
+
+	void OnAudioSourceDeviceChange(wxCommandEvent& event);
 
 	void OnAudioSourceFrameButtonOk(wxCommandEvent& event);
 	void OnAudioSourceFrameButtonClose(wxCommandEvent& event);

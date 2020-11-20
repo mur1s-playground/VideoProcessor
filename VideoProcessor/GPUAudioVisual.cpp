@@ -53,9 +53,7 @@ DWORD* gpu_audiovisual_loop(LPVOID args) {
 	cudaStreamSynchronize(cuda_streams[0]);
 
 	int last_audio_id = 0;
-	int fps = gav->fps_target;
 	int hz = (int)gav->audio_source_in->wave_format.nAvgBytesPerSec;
-	agn->process_tps_balancer.tps_target = fps;
 
 	while (agn->process_run) {
 		int next_audio_id = 0;
@@ -78,6 +76,7 @@ DWORD* gpu_audiovisual_loop(LPVOID args) {
 				gpu_memory_buffer_try_r(gav->audio_source_in->gmb, next_audio_id, true, 8);
 			}
 			
+			int fps = agn->process_tps_balancer.tps_target;
 			for (int frame = 0; frame < fps; frame++) {
 				application_graph_tps_balancer_timer_start(agn);
 
@@ -166,7 +165,6 @@ void gpu_audiovisual_externalise(struct application_graph_node* agn, string& out
 	s_out << gav->name << std::endl;
 	s_out << gav->dft_size << std::endl;
 	s_out << gav->amplify << std::endl;
-	s_out << gav->fps_target << std::endl;
 	for (int i = 0; i < gav->frame_names.size(); i++) {
 		s_out << gav->frame_names[i];
 		if (i + 1 < gav->frame_names.size()) s_out << ",";
@@ -184,8 +182,6 @@ void gpu_audiovisual_load(struct gpu_audiovisual* gav, ifstream& in_f) {
 	int dft_size = stoi(line.c_str());
 	std::getline(in_f, line);
 	gav->amplify = stof(line.c_str());
-	std::getline(in_f, line);
-	gav->fps_target = stoi(line.c_str());
 
 	std::getline(in_f, line);
 	int start = 0;

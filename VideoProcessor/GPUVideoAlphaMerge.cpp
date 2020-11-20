@@ -9,13 +9,12 @@
 #include <sstream>
 #include <fstream>
 
-void gpu_video_alpha_merge_init(struct gpu_video_alpha_merge* vam, bool sync_prio_rgb, int alpha_id, int tps_target) {
+void gpu_video_alpha_merge_init(struct gpu_video_alpha_merge* vam, bool sync_prio_rgb, int alpha_id) {
 	vam->vs_rgb = nullptr;
 	
 	vam->sync_prio_rgb = sync_prio_rgb;
 	vam->vs_alpha = nullptr;
 	vam->channel_id = alpha_id;
-	vam->tps_target = tps_target;
 
 	vam->vs_out = nullptr;
 }
@@ -35,8 +34,6 @@ DWORD* gpu_video_alpha_merge_loop(LPVOID args) {
 	int current_out_frame = 0;
 	unsigned long long sync_time = 0;
 	unsigned long long last_sync_time = 0;
-
-	agn->process_tps_balancer.tps_target = vam->tps_target;
 
 	while (agn->process_run) {
 		application_graph_tps_balancer_timer_start(agn);
@@ -174,7 +171,6 @@ void gpu_video_alpha_merge_externalise(struct application_graph_node* agn, strin
 		s_out << 0 << std::endl;
 	}
 	s_out << vam->channel_id << std::endl;
-	s_out << vam->tps_target << std::endl;
 	
 	out_str = s_out.str();
 }
@@ -185,11 +181,8 @@ void gpu_video_alpha_merge_load(struct gpu_video_alpha_merge* vam, ifstream& in_
 	bool sync_prio_rgb = (stoi(line) == 1);
 	std::getline(in_f, line);
 	int alpha_id = stoi(line);
-	std::getline(in_f, line);
-	int tps = stoi(line);
 	
-	gpu_video_alpha_merge_init(vam, sync_prio_rgb, alpha_id, tps);
-	vam->tps_target = tps;
+	gpu_video_alpha_merge_init(vam, sync_prio_rgb, alpha_id);
 }
 
 void gpu_video_alpha_merge_destroy(struct application_graph_node* agn) {

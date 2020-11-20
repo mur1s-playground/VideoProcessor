@@ -51,7 +51,7 @@ DWORD* gpu_composer_loop(LPVOID args) {
 	int prio_id = 0;
 	for (int ic = 0; ic < gc->gce_ins.size(); ic++) {
 		struct gpu_composer_element* current_gce = gc->gce_ins[ic];
-		if (current_gce->delay == 1) {
+		if (current_gce->sync_prio) {
 			prio_id = ic;
 			break;
 		}
@@ -79,7 +79,7 @@ DWORD* gpu_composer_loop(LPVOID args) {
 		gpu_memory_buffer_release_r(current_vs->gmb, current_vs->gmb->slots);
 
 		gpu_memory_buffer_try_r(current_vs->gmb, prio_input_id, true, 8);
-		sync_time = gpu_memory_buffer_get_time(current_vs->gmb, prio_input_id);
+		sync_time = gpu_memory_buffer_get_time(current_vs->gmb, prio_input_id) + current_gce->delay;
 
 		for (int ic = 0; ic < gc->gce_ins.size(); ic++) {
 			current_gce = gc->gce_ins[ic];
@@ -103,7 +103,7 @@ DWORD* gpu_composer_loop(LPVOID args) {
 					int tmp_id = current_input_id - td;
 					if (tmp_id < 0) tmp_id += current_vs->gmb->slots;
 					gpu_memory_buffer_try_r(current_vs->gmb, tmp_id, true, 8);
-					unsigned long long tmp_sync_time = gpu_memory_buffer_get_time(current_vs->gmb, tmp_id);
+					unsigned long long tmp_sync_time = gpu_memory_buffer_get_time(current_vs->gmb, tmp_id) + current_gce->delay;
 
 					if (tmp_sync_time <= sync_time && tmp_sync_time > gc->last_sync_time[ic] && (tmp_sync_time > second_last_sync_time || td == 0)) {
 						candidate_id = tmp_id;
@@ -121,23 +121,6 @@ DWORD* gpu_composer_loop(LPVOID args) {
 					current_input_id = gc->last_input_id[ic];
 				}
 				gpu_memory_buffer_try_r(current_vs->gmb, current_input_id, true, 8);
-
-				/*
-				gpu_memory_buffer_try_r(current_vs->gmb, current_vs->gmb->slots, true, 8);
-				current_input_id = current_vs->gmb->p_rw[2 * (current_vs->gmb->slots + 1)];
-				gpu_memory_buffer_release_r(current_vs->gmb, current_vs->gmb->slots);
-
-				for (int td = 0; td < current_vs->gmb->slots; td++) {
-					int tmp_id = current_input_id - td;
-					if (tmp_id < 0) tmp_id += current_vs->gmb->slots;
-					gpu_memory_buffer_try_r(current_vs->gmb, tmp_id, true, 8);
-					if (gpu_memory_buffer_get_time(current_vs->gmb, tmp_id) <= sync_time) {
-						current_input_id = tmp_id;
-						break;
-					}
-					gpu_memory_buffer_release_r(current_vs->gmb, tmp_id);
-				}
-				*/
 			}
 			compose_kernel_launch(current_vs->gmb->p_device + (current_input_id * current_vs->video_width * current_vs->video_height * current_vs->video_channels), current_vs->video_width, current_vs->video_height, current_vs->video_channels, current_gce->dx, current_gce->dy, current_gce->crop_x1, current_gce->crop_x2, current_gce->crop_y1, current_gce->crop_y2, current_gce->width, current_gce->height, gc->vs_out->gmb->p_device + (next_frame_out * gc->vs_out->video_width * gc->vs_out->video_height * gc->vs_out->video_channels), gc->vs_out->video_width, gc->vs_out->video_height, gc->vs_out->video_channels);
 			gpu_memory_buffer_release_r(current_vs->gmb, current_input_id);

@@ -15,7 +15,6 @@ public:
 	wxChoice* ch_sync_prio;
 
 	wxTextCtrl* tc_alpha_id;
-	wxTextCtrl* tc_tps;
 
 	GPUVideoAlphaMergeFrame(wxWindow* parent);
 
