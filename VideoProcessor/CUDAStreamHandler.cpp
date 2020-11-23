@@ -9,3 +9,5 @@ void cuda_stream_handler_init() {
 		cudaStreamCreate(&cuda_streams[i]);
 	}
 }
+
+//TODO: 

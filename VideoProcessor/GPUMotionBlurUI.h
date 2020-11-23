@@ -24,6 +24,9 @@ public:
 	wxBoxSizer* hbox_c;
 	wxTextCtrl* tc_c;
 
+	wxBoxSizer* hbox_p;
+	wxTextCtrl* tc_p;
+
 	GPUMotionBlurFrame(wxWindow* parent);
 
 	void OnWeightDistChange(wxCommandEvent& event);

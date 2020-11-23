@@ -22,11 +22,14 @@ void gpu_motion_blur_ui_graph_init(struct application_graph_node* agn, applicati
     struct gpu_motion_blur* mb = (struct gpu_motion_blur*)agn->component;
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&mb->frame_count));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_BOOL, (void*)&mb->calc_err));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&mb->frame_count));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&mb->a));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&mb->b));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&mb->c));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&mb->precision));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_VIDEO_SOURCE));
@@ -93,6 +96,13 @@ GPUMotionBlurFrame::GPUMotionBlurFrame(wxWindow* parent) : wxFrame(parent, -1, w
     hbox_c->Add(tc_c, 1);
     vbox->Add(hbox_c, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
+    hbox_p = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_p = new wxStaticText(panel, -1, wxT("Precision"));
+    hbox_p->Add(st_p, 0, wxRIGHT, 8);
+    tc_p = new wxTextCtrl(panel, -1, wxT("0.0001"));
+    hbox_p->Add(tc_p, 1);
+    vbox->Add(hbox_p, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
     vbox->Add(-1, 10);
 
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
@@ -119,6 +129,9 @@ void GPUMotionBlurFrame::OnWeightDistChange(wxCommandEvent& event) {
 
         hbox_c->Show(false);
         hbox_c->Layout();
+
+        hbox_p->Show(false);
+        hbox_p->Layout();
     } else if (selection == 1) {
         //Linear Roof
         hbox_wc->Show(true);
@@ -126,6 +139,9 @@ void GPUMotionBlurFrame::OnWeightDistChange(wxCommandEvent& event) {
 
         hbox_c->Show(true);
         hbox_c->Layout();
+
+        hbox_p->Show(true);
+        hbox_p->Layout();
     }
     vbox->Layout();
 }
@@ -140,10 +156,11 @@ void GPUMotionBlurFrame::OnGPUMotionBlurFrameButtonOk(wxCommandEvent& event) {
 
     float weight_center = stof(tc_wc->GetValue().c_str().AsChar());
     float center_weight = stof(tc_c->GetValue().c_str().AsChar());
+    float precision = stof(tc_p->GetValue().c_str().AsChar());
 
     if (node_id == -1) {
         struct gpu_motion_blur* mb = new gpu_motion_blur();
-        gpu_motion_blur_init(mb, stoi(str.c_str().AsChar()), dt_type, weight_center, center_weight);
+        gpu_motion_blur_init(mb, stoi(str.c_str().AsChar()), dt_type, weight_center, center_weight, precision);
         gpu_motion_blur_calculate_weights(mb);
 
         struct application_graph_node* agn = new application_graph_node();
@@ -157,6 +174,7 @@ void GPUMotionBlurFrame::OnGPUMotionBlurFrameButtonOk(wxCommandEvent& event) {
         mb->weight_dist_type = dt_type;
         mb->frame_id_weight_center = weight_center;
         mb->c = center_weight;
+        mb->precision = precision;
         gpu_motion_blur_calculate_weights(mb);
     }
     
@@ -169,6 +187,7 @@ void GPUMotionBlurFrame::OnGPUMotionBlurFrameButtonClose(wxCommandEvent& event) 
     ch_dt->SetSelection(0);
     tc_wc->SetValue(wxT("0"));
     tc_c->SetValue(wxT("0.25"));
+    tc_p->SetValue(wxT("0.0001"));
 }
 
 void GPUMotionBlurFrame::Show(int node_graph_id, int node_id) {
@@ -189,6 +208,10 @@ void GPUMotionBlurFrame::Show(int node_graph_id, int node_id) {
         stringstream s_c;
         s_c << mb->c;
         tc_c->SetValue(wxString(s_c.str()));
+
+        stringstream s_p;
+        s_p << mb->precision;
+        tc_p->SetValue(wxString(s_p.str()));
     }
     wxCommandEvent dummy;
     GPUMotionBlurFrame::OnWeightDistChange(dummy);

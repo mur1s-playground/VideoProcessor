@@ -37,6 +37,7 @@ void video_source_set_meta(struct video_source* vs) {
 		vs->video_height = vs->video_capture.get(cv::CAP_PROP_FRAME_HEIGHT);
 		vs->video_channels = 3;
 		vs->smb_size_req = vs->video_width * vs->video_height * vs->video_channels;
+		vs->frame_count = vs->video_capture.get(cv::CAP_PROP_FRAME_COUNT);
 	}
 }
 
@@ -112,11 +113,12 @@ DWORD* video_source_loop(LPVOID args) {
 		return NULL;
 	}
 
+	int frame_counter = 0;
+
 	if (vs->read_video_capture && !vs->is_open) {
 		vs->video_capture.open(vs->name);
 		vs->is_open = vs->video_capture.isOpened();
 	}
-	
 
 	if (vs->direction_smb_to_gmb) {
 			int last_id = -1;
@@ -127,6 +129,12 @@ DWORD* video_source_loop(LPVOID args) {
 					next_id = (vs->smb_last_used_id + 1) % vs->smb_framecount;
 					shared_memory_buffer_try_rw(vs->smb, next_id, true, 8);
 					vs->video_capture >> vs->mats[next_id];
+					frame_counter++;
+					if (vs->frame_count > 0 && frame_counter == vs->frame_count) {
+						vs->video_capture.set(cv::CAP_PROP_POS_FRAMES, 0);
+						frame_counter = 0;
+						if (!vs->loop) agn->process_run = false;
+					}
 					shared_memory_buffer_set_time(vs->smb, next_id, application_graph_tps_balancer_get_time());
 					shared_memory_buffer_release_rw(vs->smb, next_id);
 					if (vs->mats[next_id].empty()) {
@@ -258,6 +266,7 @@ void video_source_externalise(struct application_graph_node* agn, string& out_st
 	s_out << vs->video_height << std::endl;
 	s_out << vs->video_channels << std::endl;
 	s_out << vs->read_video_capture << std::endl;
+	s_out << vs->loop << std::endl;
 	s_out << vs->read_hwnd << std::endl;
 	s_out << vs->do_copy << std::endl;
 	s_out << vs->direction_smb_to_gmb << std::endl;
@@ -278,6 +287,8 @@ void video_source_load(struct video_source* vs, ifstream& in_f) {
 	vs->video_channels = stoi(line);
 	std::getline(in_f, line);
 	vs->read_video_capture = stoi(line) == 1;
+	std::getline(in_f, line);
+	vs->loop = stoi(line) == 1;
 	std::getline(in_f, line);
 	vs->read_hwnd = stoi(line) == 1;
 	std::getline(in_f, line);

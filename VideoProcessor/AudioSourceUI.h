@@ -22,7 +22,8 @@ public:
 	wxArrayString sps_choices;
 
 	wxTextCtrl* tc_bits_per_sample;
-	wxTextCtrl* tc_copy_to_gmb;
+
+	wxChoice* ch_copy_to_gmb;
 
 	void InitAudioDevices();
 	void UpdateAvailableAudioChannels(int device_id);

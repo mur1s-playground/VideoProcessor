@@ -18,6 +18,8 @@ struct video_source {
 	int video_width;
 	int video_height;
 	int video_channels;
+	int frame_count;
+	bool loop;
 
 	bool is_open;
 	bool read_hwnd;

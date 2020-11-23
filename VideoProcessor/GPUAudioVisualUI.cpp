@@ -7,6 +7,7 @@
 #include <sstream>
 
 const string TEXT_AUDIO_SOURCE_IN = "Audio Source In";
+const string TEXT_VIDEO_SOURCE_TRANSITION = "Video Source Transition";
 const string TEXT_VIDEO_SOURCE_OUT = "Video Source Out";
 const string TEXT_GPU_MEMORY_BUFFER_IN = "GPU Memory Buffer In";
 
@@ -36,6 +37,11 @@ void gpu_audiovisual_ui_graph_init(struct application_graph_node* agn, applicati
     pair<enum application_graph_component_type, void*> gmb_in = pair<enum application_graph_component_type, void*>(AGCT_GPU_MEMORY_BUFFER, (void*)&gav->gmb_in);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, gmb_in));
 
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_VIDEO_SOURCE_TRANSITION));
+
+    pair<enum application_graph_component_type, void*> inner_t = pair<enum application_graph_component_type, void*>(AGCT_VIDEO_SOURCE, (void*)&gav->vs_transition);
+    agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_t));
+
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_VIDEO_SOURCE_OUT));
 
     pair<enum application_graph_component_type, void*> inner_in = pair<enum application_graph_component_type, void*>(AGCT_VIDEO_SOURCE, (void*)&gav->vs_out);
@@ -49,7 +55,7 @@ void gpu_audiovisual_ui_graph_init(struct application_graph_node* agn, applicati
 
     agn->process = gpu_audiovisual_loop;
     agn->process_run = false;
-    agn->on_input_connect = nullptr;
+    agn->on_input_connect = gpu_audiovisual_on_input_connect;
     agn->on_input_disconnect = nullptr;
     agn->on_input_edit = nullptr;
     agn->on_delete = gpu_audiovisual_destroy;
@@ -63,41 +69,55 @@ GPUAudioVisualFrame::GPUAudioVisualFrame(wxWindow* parent) : wxFrame(parent, -1,
     wxBoxSizer* vbox = new wxBoxSizer(wxVERTICAL);
 
     wxBoxSizer* hbox_fc = new wxBoxSizer(wxHORIZONTAL);
-
     wxStaticText* st_fc = new wxStaticText(panel, -1, wxT("Name"));
     hbox_fc->Add(st_fc, 0, wxRIGHT, 8);
-
     tc_name = new wxTextCtrl(panel, -1, wxT("audiovis"));
     hbox_fc->Add(tc_name, 1);
 
     vbox->Add(hbox_fc, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
     wxBoxSizer* hbox_dft = new wxBoxSizer(wxHORIZONTAL);
-
     wxStaticText* st_dft = new wxStaticText(panel, -1, wxT("DFT Size"));
     hbox_dft->Add(st_dft, 0, wxRIGHT, 8);
-
     tc_dft_size = new wxTextCtrl(panel, -1, wxT("21"));
     hbox_dft->Add(tc_dft_size, 1);
-
     vbox->Add(hbox_dft, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
     vbox->Add(-1, 10);
 
     wxBoxSizer* hbox_amp = new wxBoxSizer(wxHORIZONTAL);
-
     wxStaticText* st_amp = new wxStaticText(panel, -1, wxT("Amplify"));
     hbox_amp->Add(st_amp, 0, wxRIGHT, 8);
-
     tc_amplify = new wxTextCtrl(panel, -1, wxT("300.0"));
     hbox_amp->Add(tc_amplify, 1);
-
     vbox->Add(hbox_amp, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
     vbox->Add(-1, 10);
 
-    wxBoxSizer* hbox_fps = new wxBoxSizer(wxHORIZONTAL);
+    wxBoxSizer* hbox_active_theme = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_active_theme = new wxStaticText(panel, -1, wxT("Active Theme"));
+    hbox_active_theme->Add(st_active_theme, 0, wxRIGHT, 8);
+    wxArrayString choices;
+    ch_active_theme = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, choices);
+    hbox_active_theme->Add(ch_active_theme, 1);
+    vbox->Add(hbox_active_theme, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
+    vbox->Add(-1, 10);
+
+    wxBoxSizer* hbox_t_theme = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_t_theme = new wxStaticText(panel, -1, wxT("Transition Theme"));
+    hbox_t_theme->Add(st_t_theme, 0, wxRIGHT, 8);
+    ch_transition_theme = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, choices);
+    hbox_t_theme->Add(ch_transition_theme, 1);
+    vbox->Add(hbox_t_theme, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+    
+    wxBoxSizer* hbox_fade = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_fade = new wxStaticText(panel, -1, wxT("Transition Fade Framecount"));
+    hbox_fade->Add(st_fade, 0, wxRIGHT, 8);
+    tc_transition_fade = new wxTextCtrl(panel, -1, wxT("15"));
+    hbox_fade->Add(tc_transition_fade, 1);
+    vbox->Add(hbox_fade, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+    
     vbox->Add(-1, 10);
 
 
@@ -154,6 +174,7 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event) {
     wxString ampl = tc_amplify->GetValue();
     gav->amplify = stof(ampl.c_str().AsChar());
 
+    gav->frame_names.clear();
     stringstream line_ss;
     line_ss << tc_frame_names->GetValue();
     string line = line_ss.str();
@@ -165,6 +186,8 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event) {
         end = line.find_first_of(",", start);
     }
     gav->frame_names.push_back(line.substr(start, end - start).c_str());
+
+    gav->transition_fade = stoi(tc_transition_fade->GetValue().c_str().AsChar());
     
     if (node_id == -1) {
         vector<string> av_tmp;
@@ -176,6 +199,10 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event) {
         ags[node_graph_id]->nodes.push_back(agn);
     } else {
         //TODO: gpu_audiovisual_edit
+
+        gav->active_theme = ch_active_theme->GetSelection();
+        gav->transition_theme_id = ch_transition_theme->GetSelection();
+        gav->theme_count = gav->frame_names.size() / 9;
     }
     myApp->drawPane->Refresh();
 }
@@ -186,6 +213,9 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonClose(wxCommandEvent& event
     tc_dft_size->SetValue(wxT("21"));
     tc_amplify->SetValue(wxT("300.0"));
     tc_frame_names->SetValue(wxT(""));
+    ch_active_theme->SetSelection(0);
+    ch_transition_theme->SetSelection(0);
+    tc_transition_fade->SetValue(wxT("15"));
 }
 
 void GPUAudioVisualFrame::Show(int node_graph_id, int node_id) {
@@ -208,13 +238,27 @@ void GPUAudioVisualFrame::Show(int node_graph_id, int node_id) {
         tc_amplify->SetValue(amplify);
 
         wxString files_names;
+        wxArrayString choices;
         for (int i = 0; i < gav->frame_names.size(); i++) {
+            if (i % 9 == 0) choices.Add(gav->frame_names[i]);
             files_names << gav->frame_names[i];
             if (i + 1 < gav->frame_names.size()) {
                 files_names << ",";
             }
         }
         tc_frame_names->SetValue(files_names);
+
+        ch_active_theme->Clear();
+        ch_active_theme->Append(choices);
+        ch_active_theme->SetSelection(gav->active_theme);
+
+        ch_transition_theme->Clear();
+        ch_transition_theme->Append(choices);
+        ch_transition_theme->SetSelection(gav->transition_theme_id);
+
+        wxString transition_fade;
+        transition_fade << gav->transition_fade;
+        tc_transition_fade->SetValue(transition_fade);
     }
     wxFrame::Show(true);
 }

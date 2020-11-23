@@ -7,6 +7,7 @@ struct gpu_motion_blur {
 	int weight_dist_type;
 	float frame_id_weight_center;
 	float a, b, c;
+	float precision;
 	
 	bool calc_err;
 
@@ -14,7 +15,7 @@ struct gpu_motion_blur {
 	struct gpu_memory_buffer* gmb_out;
 };
 
-void gpu_motion_blur_init(struct gpu_motion_blur* mb, int frame_count, int weight_dist_type, float frame_id_weight_center, float center_weight);
+void gpu_motion_blur_init(struct gpu_motion_blur* mb, int frame_count, int weight_dist_type, float frame_id_weight_center, float center_weight, float precision);
 DWORD* gpu_motion_blur_loop(LPVOID args);
 
 void gpu_motion_blur_calculate_weights(struct gpu_motion_blur* mb);

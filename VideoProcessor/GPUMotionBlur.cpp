@@ -11,11 +11,12 @@
 
 #include "MainUI.h"
 
-void gpu_motion_blur_init(struct gpu_motion_blur* mb, int frame_count, int weight_dist_type, float frame_id_weight_center, float center_weight) {
+void gpu_motion_blur_init(struct gpu_motion_blur* mb, int frame_count, int weight_dist_type, float frame_id_weight_center, float center_weight, float precision) {
 	mb->frame_count = frame_count;
 	mb->weight_dist_type = weight_dist_type;
 	mb->frame_id_weight_center = frame_id_weight_center;
 	mb->c = center_weight;
+	mb->precision = precision;
 	mb->vs_in = nullptr;
 	mb->gmb_out = nullptr;
 }
@@ -31,7 +32,9 @@ void gpu_motion_blur_calculate_weights(struct gpu_motion_blur* mb) {
 		float err = 1.0f;
 		mb->a = 0.0f;
 		mb->b = 0.0f;
-		while (abs(err) > 0.01f && !mb->calc_err) {
+		float factor = mb->precision * 10.0f;
+
+		while (abs(err) > mb->precision && !mb->calc_err) {
 			value = 0.0f;
 			for (int i = 0; i < mb->frame_count; i++) {
 				float tmp_val = mb->c;
@@ -49,25 +52,28 @@ void gpu_motion_blur_calculate_weights(struct gpu_motion_blur* mb) {
 			err = 1.0f - value;
 			if (mb->frame_id_weight_center == 0) {
 				mb->a = 0.0f;
-				if (err > 0.01) {
-					mb->b += 0.001;
-				} else if (err < -0.01) {
-					mb->b -= 0.001;
+				if (err > factor*10) {
+					mb->b += factor;
+				} else if (err < -factor*10) {
+					mb->b -= factor;
 				}
 			} else if (mb->frame_id_weight_center == mb->frame_count - 1) {
 				mb->b = 0.0f;
-				if (err > 0.01) {
-					mb->a -= 0.001;
-				} else if (err < -0.01) {
-					mb->a += 0.001;
+				if (err > factor * 10) {
+					mb->a -= factor;
+				} else if (err < -factor * 10) {
+					mb->a += factor;
 				}
 			} else {
-				if (err > 0.01) {
-					mb->a -= 0.001;
-				} else if (err < -0.01) {
-					mb->a += 0.001;
+				if (err > factor * 10) {
+					mb->a -= factor;
+				} else if (err < -factor * 10) {
+					mb->a += factor;
 				}
 				mb->b = -mb->a * (mb->frame_count - 1 - mb->frame_id_weight_center) / (mb->frame_id_weight_center);
+			}
+			if (abs(err) < factor * 10) {
+				factor /= 10.0f;
 			}
 		}
 	}
@@ -135,6 +141,7 @@ void gpu_motion_blur_externalise(struct application_graph_node* agn, string& out
 	s_out << mb->weight_dist_type << std::endl;
 	s_out << mb->frame_id_weight_center << std::endl;
 	s_out << mb->c << std::endl;
+	s_out << mb->precision << std::endl;
 	
 	out_str = s_out.str();
 }
@@ -149,7 +156,9 @@ void gpu_motion_blur_load(struct gpu_motion_blur* mb, ifstream& in_f) {
 	mb->frame_id_weight_center = stof(line);
 	std::getline(in_f, line);
 	mb->c = stof(line);
-	
+	std::getline(in_f, line);
+	mb->precision = stof(line);
+
 	mb->vs_in = nullptr;
 	mb->gmb_out = nullptr;
 	gpu_motion_blur_calculate_weights(mb);

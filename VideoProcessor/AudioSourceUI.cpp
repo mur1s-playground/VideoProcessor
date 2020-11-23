@@ -102,11 +102,16 @@ AudioSourceFrame::AudioSourceFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("
     hbox_bps->Add(tc_bits_per_sample, 1);
     vbox->Add(hbox_bps, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
+
     wxBoxSizer* hbox_copy = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_copy = new wxStaticText(panel, -1, wxT("Copy to GPU"));
     hbox_copy->Add(st_copy, 0, wxRIGHT, 8);
-    tc_copy_to_gmb = new wxTextCtrl(panel, -1, wxT("1"));
-    hbox_copy->Add(tc_copy_to_gmb, 1);
+    wxArrayString sp_choices;
+    sp_choices.Add("Yes");
+    sp_choices.Add("No");
+    ch_copy_to_gmb = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, sp_choices);
+    ch_copy_to_gmb->SetSelection(0);
+    hbox_copy->Add(ch_copy_to_gmb, 1);
     vbox->Add(hbox_copy, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
     vbox->Add(-1, 10);
@@ -178,7 +183,7 @@ void AudioSourceFrame::OnAudioSourceFrameButtonOk(wxCommandEvent& event) {
     }
 
     int bits_per_sample = stoi(tc_bits_per_sample->GetValue().c_str().AsChar());
-    bool copy_to_gmb = stoi(tc_copy_to_gmb->GetValue().c_str().AsChar()) == 1;
+    bool copy_to_gmb = (ch_copy_to_gmb->GetSelection() == 0);
    
     struct audio_source* as;
     if (node_id == -1) {
@@ -203,7 +208,7 @@ void AudioSourceFrame::OnAudioSourceFrameButtonClose(wxCommandEvent& event) {
     ch_channels->SetSelection(0);
     ch_samples_per_sec->SetSelection(0);
     tc_bits_per_sample->SetValue(wxT("8"));
-    tc_copy_to_gmb->SetValue(wxT("1"));
+    ch_copy_to_gmb->SetSelection(0);
 }
 
 void AudioSourceFrame::Show(int node_graph_id, int node_id) {
@@ -235,9 +240,9 @@ void AudioSourceFrame::Show(int node_graph_id, int node_id) {
         tc_bits_per_sample->SetValue(wxString(s_bits_per_sample.str()));
 
         if (as->copy_to_gmb) {
-            tc_copy_to_gmb->SetValue(wxString("1"));
+            ch_copy_to_gmb->SetSelection(0);
         } else {
-            tc_copy_to_gmb->SetValue(wxString("0"));
+            ch_copy_to_gmb->SetSelection(1);
         }
     }
     wxFrame::Show(true);

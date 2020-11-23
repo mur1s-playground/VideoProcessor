@@ -105,7 +105,18 @@ VideoSourceFrame::VideoSourceFrame(wxWindow *parent) : wxFrame(parent, -1, wxT("
     tc = new wxTextCtrl(panel, -1, wxT(""));
     hbox_path->Add(tc, 1);
     vbox->Add(hbox_path, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
-    
+
+    //Loop
+    hbox_loop = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_loop = new wxStaticText(panel, -1, wxT("Loop"));
+    hbox_loop->Add(st_loop, 0, wxRIGHT, 8);
+    wxArrayString loop_choices;
+    loop_choices.Add("Yes");
+    loop_choices.Add("No");
+    ch_loop = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, loop_choices);
+    hbox_loop->Add(ch_loop, 1);
+    vbox->Add(hbox_loop, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
     //Width
     hbox_width = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_width = new wxStaticText(panel, -1, wxT("Width"));
@@ -170,6 +181,9 @@ void VideoSourceFrame::OnSourceTypeChange(wxCommandEvent& event) {
         hbox_path->Show(false);
         hbox_path->Layout();
 
+        hbox_loop->Show(false);
+        hbox_loop->Layout();
+
         hbox_width->Show(true);
         hbox_width->Layout();
         
@@ -185,6 +199,9 @@ void VideoSourceFrame::OnSourceTypeChange(wxCommandEvent& event) {
 
         hbox_path->Show(true);
         hbox_path->Layout();
+
+        hbox_loop->Show(true);
+        hbox_loop->Layout();
 
         hbox_width->Show(false);
         hbox_width->Layout();
@@ -202,6 +219,9 @@ void VideoSourceFrame::OnSourceTypeChange(wxCommandEvent& event) {
         hbox_path->Show(false);
         hbox_path->Layout();
 
+        hbox_loop->Show(false);
+        hbox_loop->Layout();
+
         hbox_width->Show(true);
         hbox_width->Layout();
 
@@ -217,6 +237,9 @@ void VideoSourceFrame::OnSourceTypeChange(wxCommandEvent& event) {
 
         hbox_path->Show(false);
         hbox_path->Layout();
+
+        hbox_loop->Show(false);
+        hbox_loop->Layout();
 
         hbox_width->Show(true);
         hbox_width->Layout();
@@ -284,6 +307,7 @@ void VideoSourceFrame::OnVideoSourceFrameButtonOk(wxCommandEvent& event) {
         vs->video_channels = stoi(str_channels.c_str().AsChar());
     }
     vs->smb_size_req = vs->video_width * vs->video_height * vs->video_channels;
+    vs->loop = (ch_loop->GetSelection() == 0);
 
     wxString str_direction = ch_direction->GetStringSelection();
     ch_direction->SetSelection(0);
@@ -326,6 +350,13 @@ void VideoSourceFrame::Show(int node_graph_id, int node_id) {
         ch_source_type->SetSelection(vs->source_type);
 
         tc->SetValue(wxString(vs->name));
+
+        if (vs->loop) {
+            ch_loop->SetSelection(0);
+        } else {
+            ch_loop->SetSelection(1);
+        }
+        
 
         stringstream s_w;
         s_w << vs->video_width;

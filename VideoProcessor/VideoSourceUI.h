@@ -23,6 +23,9 @@ public:
 	wxBoxSizer* hbox_path;
 	wxTextCtrl* tc;
 
+	wxBoxSizer* hbox_loop;
+	wxChoice* ch_loop;
+
 	wxBoxSizer* hbox_width;
 	wxTextCtrl* tc_width;
 

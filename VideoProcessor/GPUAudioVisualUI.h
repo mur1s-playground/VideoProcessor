@@ -14,6 +14,11 @@ public:
 	wxTextCtrl* tc_amplify;
 	wxTextCtrl* tc_frame_names;
 
+	wxChoice*	ch_active_theme;
+
+	wxChoice*	ch_transition_theme;
+	wxTextCtrl* tc_transition_fade;
+
 	GPUAudioVisualFrame(wxWindow* parent);
 
 	void OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event);

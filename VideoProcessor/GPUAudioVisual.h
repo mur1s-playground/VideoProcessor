@@ -21,7 +21,16 @@ struct gpu_audiovisual {
 
 	struct audio_source* audio_source_in;
 	struct gpu_memory_buffer* dft_out;
+
 	struct gpu_memory_buffer* gmb_in;
+	int theme_count;
+	int active_theme;
+
+	struct video_source* vs_transition;
+	int transition_total;
+	int transition_theme_id;
+	int transition_fade;
+
 	struct video_source* vs_out;
 
 	struct gpu_audiovisual_dft dft;

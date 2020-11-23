@@ -27,17 +27,24 @@ void gpu_audiovisual_init(struct gpu_audiovisual* gav, const char *name, int dft
 		gav->mats_in[i] = cv::imread(gav->frame_names[i], IMREAD_COLOR);
 	}
 
+	gav->theme_count = gav->frame_names.size() / 9;
+
 	struct gpu_memory_buffer* dft_out = new gpu_memory_buffer();
 
 	gpu_memory_buffer_init(dft_out, name, gav->dft_size * sizeof(float), 1, sizeof(int));
 
 	gav->dft_out = dft_out;
 	gav->gmb_in = nullptr;
+	gav->vs_transition = nullptr;
 	gav->vs_out = nullptr;
 }
 
 void gpu_audiovisual_on_input_connect(struct application_graph_node* agn, int input_id) {
 	struct gpu_audiovisual* gav = (struct gpu_audiovisual*)agn->component;
+
+	if (input_id == 2) {
+		gav->transition_total = gav->vs_transition->frame_count;
+	}
 }
 
 DWORD* gpu_audiovisual_loop(LPVOID args) {
@@ -51,6 +58,14 @@ DWORD* gpu_audiovisual_loop(LPVOID args) {
 		cudaMemcpyAsync(gav->gmb_in->p_device + (i * gav->gmb_in->size), gav->mats_in[i].data, gav->gmb_in->size, cudaMemcpyHostToDevice, cuda_streams[0]);
 	}
 	cudaStreamSynchronize(cuda_streams[0]);
+	
+	int transition_total = gav->transition_total;
+	bool transition_started = false;
+	bool transition_switched = false;
+	int transition_inactive_counter = 0;
+	int last_transition_frame_id = 0;
+	int next_transition_frame_id = 0;
+	int transition_frame = 0;
 
 	int last_audio_id = 0;
 	int hz = (int)gav->audio_source_in->wave_format.nAvgBytesPerSec;
@@ -119,16 +134,59 @@ DWORD* gpu_audiovisual_loop(LPVOID args) {
 					gpu_audiovisual_dft_sum_kernel_launch(gav->dft_out->p_device, gav->dft_size);
 				}
 
+				if (gav->vs_transition != nullptr) {
+					gpu_memory_buffer_try_r(gav->vs_transition->gmb, gav->vs_transition->gmb->slots, true, 8);
+					next_transition_frame_id = gav->vs_transition->gmb->p_rw[(gav->vs_transition->gmb->slots + 1) * 2];
+					gpu_memory_buffer_release_r(gav->vs_transition->gmb, gav->vs_transition->gmb->slots);
+					if (next_transition_frame_id != last_transition_frame_id) {
+						int transition_frame_diff = next_transition_frame_id - last_transition_frame_id;
+						if (transition_frame_diff < 0) transition_frame_diff += gav->vs_transition->gmb->slots;
+						transition_frame += transition_frame_diff;
+						transition_inactive_counter = 0;
+						transition_started = true;
+						if (transition_frame > transition_total / 2 && !transition_switched) {
+							gav->active_theme = (gav->active_theme + 1) % gav->theme_count;
+							if (gav->active_theme == gav->transition_theme_id) gav->active_theme = (gav->active_theme + 1) % gav->theme_count;
+							transition_switched = true;
+						}
+						last_transition_frame_id = next_transition_frame_id;
+						if (transition_frame >= gav->transition_total) {
+							transition_frame -= gav->transition_total;
+							transition_switched = false;
+						}
+					} else {
+						if (transition_inactive_counter < 10) {
+							transition_inactive_counter++;
+						} else {
+							transition_frame = 0;
+							transition_switched = false;
+							transition_started = false;
+						}
+					}
+				}
+
 				gpu_memory_buffer_try_r(gav->vs_out->gmb, gav->vs_out->gmb->slots, true, 8);
 				int next_gpu_out_id = (gav->vs_out->gmb->p_rw[2 * (gav->vs_out->gmb->slots + 1)] + 1) % gav->vs_out->gmb->slots;
 				gpu_memory_buffer_release_r(gav->vs_out->gmb, gav->vs_out->gmb->slots);
 
 				gpu_memory_buffer_try_rw(gav->vs_out->gmb, next_gpu_out_id, true, 8);
 
+				const unsigned char* src = gav->gmb_in->p_device + (gav->active_theme * 9 * gav->gmb_in->size);
+				const unsigned char* src_2 = gav->gmb_in->p_device + (gav->transition_theme_id * 9 * gav->gmb_in->size);
+				const unsigned char* src_t = nullptr;
+				if (transition_started) {
+					gpu_memory_buffer_try_r(gav->vs_transition->gmb, next_transition_frame_id, true, 8);
+					src_t = gav->vs_transition->gmb->p_device + (next_transition_frame_id * gav->vs_transition->gmb->size);
+				}
+
 				if (!gav->audio_source_in->copy_to_gmb) {
-					gpu_audiovisual_kernel_launch(gav->gmb_in->p_device, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, false, values[0], values[1], values[2], values[3], values[4], values[5], values[6], nullptr, gav->dft_size);
+					gpu_audiovisual_kernel_launch(src, src_2, src_t, transition_started, transition_frame, transition_total, gav->transition_fade, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, false, values[0], values[1], values[2], values[3], values[4], values[5], values[6], nullptr, gav->dft_size);
 				} else {
-					gpu_audiovisual_kernel_launch(gav->gmb_in->p_device, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, true, values[0], values[1], values[2], values[3], values[4], values[5], values[6], gav->dft_out->p_device, gav->dft_size);
+					gpu_audiovisual_kernel_launch(src, src_2, src_t, transition_started, transition_frame, transition_total, gav->transition_fade, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, true, values[0], values[1], values[2], values[3], values[4], values[5], values[6], gav->dft_out->p_device, gav->dft_size);
+				}
+
+				if (transition_started) {
+					gpu_memory_buffer_release_r(gav->vs_transition->gmb, next_transition_frame_id);
 				}
 				gpu_memory_buffer_set_time(gav->vs_out->gmb, next_gpu_out_id, gpu_memory_buffer_get_time(gav->audio_source_in->gmb, next_audio_id));
 
@@ -165,6 +223,9 @@ void gpu_audiovisual_externalise(struct application_graph_node* agn, string& out
 	s_out << gav->name << std::endl;
 	s_out << gav->dft_size << std::endl;
 	s_out << gav->amplify << std::endl;
+	s_out << gav->active_theme << std::endl;
+	s_out << gav->transition_theme_id << std::endl;
+	s_out << gav->transition_fade << std::endl;
 	for (int i = 0; i < gav->frame_names.size(); i++) {
 		s_out << gav->frame_names[i];
 		if (i + 1 < gav->frame_names.size()) s_out << ",";
@@ -182,6 +243,12 @@ void gpu_audiovisual_load(struct gpu_audiovisual* gav, ifstream& in_f) {
 	int dft_size = stoi(line.c_str());
 	std::getline(in_f, line);
 	gav->amplify = stof(line.c_str());
+	std::getline(in_f, line);
+	gav->active_theme = stoi(line.c_str());
+	std::getline(in_f, line);
+	gav->transition_theme_id = stoi(line.c_str());
+	std::getline(in_f, line);
+	gav->transition_fade = stoi(line.c_str());
 
 	std::getline(in_f, line);
 	int start = 0;
