@@ -27,6 +27,7 @@ void mask_rcnn_init(struct mask_rcnn *mrcnn) {
 
 	mrcnn->net_conf_threshold = 0.5f;
 	mrcnn->net_mask_threshold = 0.3f;
+	mrcnn->scale = 1.0f;
 }
 
 //INTERNAL HELPERS
@@ -111,7 +112,7 @@ DWORD* mask_rcnn_loop(LPVOID args) {
 
 		if (next_frame != last_frame) {
 			shared_memory_buffer_try_r(mrcnn->v_src_in->smb, next_frame, true, 8);
-			blobFromImage(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id], mrcnn->blob, 1.0, Size(mrcnn->v_src_in->video_width, mrcnn->v_src_in->video_height), Scalar(), true, false);
+			blobFromImage(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id], mrcnn->blob, mrcnn->scale, Size(mrcnn->v_src_in->video_width, mrcnn->v_src_in->video_height), Scalar(), true, false);
 			mrcnn->net.setInput(mrcnn->blob);
 			
 			std::vector<String> out_names(2);
@@ -139,6 +140,7 @@ void mask_rcnn_externalise(struct application_graph_node* agn, string& out_str) 
 	stringstream s_out;
 	s_out << mrcnn->net_conf_threshold << std::endl;
 	s_out << mrcnn->net_mask_threshold << std::endl;
+	s_out << mrcnn->scale << std::endl;
 
 	for (int i = 0; i < mrcnn->net_classes_active.size(); i++) {
 		if (i > 0) {
@@ -159,6 +161,8 @@ void mask_rcnn_load(struct mask_rcnn* mrcnn, ifstream& in_f) {
 	mrcnn->net_conf_threshold = stof(line);
 	std::getline(in_f, line);
 	mrcnn->net_mask_threshold = stof(line);
+	std::getline(in_f, line);
+	mrcnn->scale = stof(line);
 
 	std::getline(in_f, line);
 	int start = 0;

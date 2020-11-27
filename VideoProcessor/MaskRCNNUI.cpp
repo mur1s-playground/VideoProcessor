@@ -27,6 +27,7 @@ void mask_rcnn_ui_graph_init(struct application_graph_node* agn, application_gra
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&mrcnn->net_conf_threshold));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&mrcnn->net_mask_threshold));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_FLOAT, (void*)&mrcnn->scale));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING_LIST, (void*)&mrcnn->net_classes_active));
 
@@ -117,6 +118,18 @@ MaskRCNNFrame::MaskRCNNFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("Mask R
 
     vbox->Add(-1, 10);
 
+    wxBoxSizer* hbox_scale = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_scale = new wxStaticText(panel, -1, wxT("Scale"));
+    hbox_scale->Add(st_scale, 0, wxRIGHT, 8);
+
+    tc_scale = new wxTextCtrl(panel, -1, wxT("1.0"));
+    hbox_scale->Add(tc_scale, 1);
+
+    vbox->Add(hbox_scale, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    vbox->Add(-1, 10);
+
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
 
     wxButton* ok_button = new wxButton(panel, -1, wxT("Ok"), wxDefaultPosition, wxSize(70, 30));
@@ -151,6 +164,9 @@ void MaskRCNNFrame::OnMaskRCNNFrameButtonOk(wxCommandEvent& event) {
     wxString maskthres = tc_maskthres->GetValue();
     tc_maskthres->SetValue("0.3");
     mrcnn->net_mask_threshold = stof(maskthres.c_str().AsChar());
+    wxString scale = tc_scale->GetValue();
+    tc_scale->SetValue("1.0");
+    mrcnn->scale = stof(scale.c_str().AsChar());
 
     wxString classes_l = tc_classes->GetValue();
     tc_classes->SetValue(classes);
@@ -177,6 +193,7 @@ void MaskRCNNFrame::OnMaskRCNNFrameButtonClose(wxCommandEvent& event) {
     tc_confthres->SetValue("0.5");
     tc_maskthres->SetValue("0.3");
     tc_classes->SetValue(classes);
+    tc_scale->SetValue("1.0");
 }
 
 void MaskRCNNFrame::Show(int node_graph_id, int node_id) {
@@ -193,6 +210,10 @@ void MaskRCNNFrame::Show(int node_graph_id, int node_id) {
         stringstream s_mt;
         s_mt << mrcnn->net_mask_threshold;
         tc_maskthres->SetValue(wxString(s_mt.str()));
+
+        stringstream s_scale;
+        s_scale << mrcnn->scale;
+        tc_scale->SetValue(wxString(s_scale.str()));
 
         stringstream s_classes;
         for (int i = 0; i < mrcnn->net_classes_active.size(); i++) {

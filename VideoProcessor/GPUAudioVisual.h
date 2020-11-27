@@ -7,12 +7,17 @@ using namespace std;
 
 struct gpu_audiovisual_dft {
 	float norms[1024];
+
+	int d_grid;
+	float* sinf_d;
+	float* cosf_d;
 };
 
 struct gpu_audiovisual {
 	string name;
 	int fps_target;
 	int dft_size;
+	float base_c, base_a;
 	float amplify;
 
 	vector<string> frame_names;

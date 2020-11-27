@@ -33,6 +33,28 @@ void gpu_audiovisual_init(struct gpu_audiovisual* gav, const char *name, int dft
 
 	gpu_memory_buffer_init(dft_out, name, gav->dft_size * sizeof(float), 1, sizeof(int));
 
+	gav->dft.d_grid = 628;
+	
+	cudaMalloc((void**)&gav->dft.sinf_d, gav->dft.d_grid * sizeof(float));
+	cudaMalloc((void**)&gav->dft.cosf_d, gav->dft.d_grid * sizeof(float));
+
+	float* tmp = new float[gav->dft.d_grid];
+	for (int i = 0; i < gav->dft.d_grid; i++) {
+		tmp[i] = sinf(i / (float)gav->dft.d_grid * 2.0f * M_PI);
+	}
+	cudaMemcpyAsync(gav->dft.sinf_d, tmp, gav->dft.d_grid * sizeof(float), cudaMemcpyHostToDevice, cuda_streams[0]);
+	cudaStreamSynchronize(cuda_streams[0]);
+	for (int i = 0; i < gav->dft.d_grid; i++) {
+		tmp[i] = cosf(i / (float)gav->dft.d_grid * 2.0f * M_PI);
+	}
+	cudaMemcpyAsync(gav->dft.cosf_d, tmp, gav->dft.d_grid * sizeof(float), cudaMemcpyHostToDevice, cuda_streams[0]);
+	cudaStreamSynchronize(cuda_streams[0]);
+
+	delete[] tmp;
+
+	gav->base_c = 0.6;
+	gav->base_a = 0.057;
+
 	gav->dft_out = dft_out;
 	gav->gmb_in = nullptr;
 	gav->vs_transition = nullptr;
@@ -130,8 +152,8 @@ DWORD* gpu_audiovisual_loop(LPVOID args) {
 						if (values[p] < 0.0f) values[p] = 0.0f;
 					}
 				} else {
-					gpu_audiovisual_dft_kernel_launch(gav->audio_source_in->gmb->p_device + last_audio_id * gav->audio_source_in->gmb->size, gav->audio_source_in->gmb->p_device + next_audio_id * gav->audio_source_in->gmb->size, gav->dft_out->p_device, frame, hz, fps, gav->dft_size, gav->amplify);
-					gpu_audiovisual_dft_sum_kernel_launch(gav->dft_out->p_device, gav->dft_size);
+					gpu_audiovisual_dft_kernel_launch(gav->audio_source_in->gmb->p_device + last_audio_id * gav->audio_source_in->gmb->size, gav->audio_source_in->gmb->p_device + next_audio_id * gav->audio_source_in->gmb->size, gav->dft_out->p_device, frame, hz, fps, gav->dft_size, gav->amplify, gav->dft.sinf_d, gav->dft.cosf_d);
+					gpu_audiovisual_dft_sum_kernel_launch(gav->dft_out->p_device, gav->dft_size, gav->base_c, gav->base_a);
 				}
 
 				if (gav->vs_transition != nullptr) {
@@ -222,6 +244,8 @@ void gpu_audiovisual_externalise(struct application_graph_node* agn, string& out
 	stringstream s_out;
 	s_out << gav->name << std::endl;
 	s_out << gav->dft_size << std::endl;
+	s_out << gav->base_c << std::endl;
+	s_out << gav->base_a << std::endl;
 	s_out << gav->amplify << std::endl;
 	s_out << gav->active_theme << std::endl;
 	s_out << gav->transition_theme_id << std::endl;
@@ -242,6 +266,10 @@ void gpu_audiovisual_load(struct gpu_audiovisual* gav, ifstream& in_f) {
 	std::getline(in_f, line);
 	int dft_size = stoi(line.c_str());
 	std::getline(in_f, line);
+	float base_c = stof(line.c_str());
+	std::getline(in_f, line);
+	float base_a = stof(line.c_str());
+	std::getline(in_f, line);
 	gav->amplify = stof(line.c_str());
 	std::getline(in_f, line);
 	gav->active_theme = stoi(line.c_str());
@@ -261,6 +289,9 @@ void gpu_audiovisual_load(struct gpu_audiovisual* gav, ifstream& in_f) {
 	gav->frame_names.push_back(line.substr(start, end - start).c_str());
 
 	gpu_audiovisual_init(gav, name.c_str(), dft_size);
+
+	gav->base_c = base_c;
+	gav->base_a = base_a;
 }
 
 void gpu_audiovisual_destroy(struct application_graph_node* agn) {

@@ -20,6 +20,8 @@ public:
 
 	wxTextCtrl* tc_classes;
 
+	wxTextCtrl* tc_scale;
+
 	MaskRCNNFrame(wxWindow* parent);
 
 	void OnMaskRCNNFrameButtonOk(wxCommandEvent& event);

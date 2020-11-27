@@ -18,6 +18,7 @@ struct mask_rcnn {
 
 	float net_conf_threshold;
 	float net_mask_threshold;
+	float scale;
 	
 	struct video_source* v_src_in;
 	struct video_source* v_src_out;

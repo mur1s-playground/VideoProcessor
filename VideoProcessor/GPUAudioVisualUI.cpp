@@ -85,6 +85,24 @@ GPUAudioVisualFrame::GPUAudioVisualFrame(wxWindow* parent) : wxFrame(parent, -1,
 
     vbox->Add(-1, 10);
 
+    wxBoxSizer* hbox_b_c = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_b_c = new wxStaticText(panel, -1, wxT("Transform Const"));
+    hbox_b_c->Add(st_b_c, 0, wxRIGHT, 8);
+    tc_base_c = new wxTextCtrl(panel, -1, wxT("0.6"));
+    hbox_b_c->Add(tc_base_c, 1);
+    vbox->Add(hbox_b_c, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    vbox->Add(-1, 10);
+
+    wxBoxSizer* hbox_b_a = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_b_a = new wxStaticText(panel, -1, wxT("Transform Slope"));
+    hbox_b_a->Add(st_b_a, 0, wxRIGHT, 8);
+    tc_base_a = new wxTextCtrl(panel, -1, wxT("0.057"));
+    hbox_b_a->Add(tc_base_a, 1);
+    vbox->Add(hbox_b_a, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    vbox->Add(-1, 10);
+
     wxBoxSizer* hbox_amp = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_amp = new wxStaticText(panel, -1, wxT("Amplify"));
     hbox_amp->Add(st_amp, 0, wxRIGHT, 8);
@@ -188,6 +206,9 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event) {
     gav->frame_names.push_back(line.substr(start, end - start).c_str());
 
     gav->transition_fade = stoi(tc_transition_fade->GetValue().c_str().AsChar());
+
+    float base_c = stof(tc_base_c->GetValue().c_str().AsChar());
+    float base_a = stof(tc_base_a->GetValue().c_str().AsChar());
     
     if (node_id == -1) {
         vector<string> av_tmp;
@@ -199,11 +220,15 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event) {
         ags[node_graph_id]->nodes.push_back(agn);
     } else {
         //TODO: gpu_audiovisual_edit
-
+        gav->dft_size = dft_size;
         gav->active_theme = ch_active_theme->GetSelection();
         gav->transition_theme_id = ch_transition_theme->GetSelection();
         gav->theme_count = gav->frame_names.size() / 9;
     }
+
+    gav->base_c = base_c;
+    gav->base_a = base_a;
+
     myApp->drawPane->Refresh();
 }
 
@@ -211,6 +236,8 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonClose(wxCommandEvent& event
     this->Hide();
     tc_name->SetValue(wxT("audiovis"));
     tc_dft_size->SetValue(wxT("21"));
+    tc_base_c->SetValue(wxT("0.6"));
+    tc_base_a->SetValue(wxT("0.057"));
     tc_amplify->SetValue(wxT("300.0"));
     tc_frame_names->SetValue(wxT(""));
     ch_active_theme->SetSelection(0);
@@ -232,6 +259,14 @@ void GPUAudioVisualFrame::Show(int node_graph_id, int node_id) {
         wxString dft_size;
         dft_size << gav->dft_size;
         tc_dft_size->SetValue(dft_size);
+
+        wxString base_c;
+        base_c << gav->base_c;
+        tc_base_c->SetValue(base_c);
+
+        wxString base_a;
+        base_a << gav->base_a;
+        tc_base_a->SetValue(base_a);
 
         wxString amplify;
         amplify << gav->amplify;
