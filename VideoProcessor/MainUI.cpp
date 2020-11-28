@@ -138,7 +138,6 @@ void BasicDrawPane::addHotKey(int keycode, int action, int ag_id, int node_id) {
                 return;
             } else {
                 registered = true;
-                break;
             }
         }
     }

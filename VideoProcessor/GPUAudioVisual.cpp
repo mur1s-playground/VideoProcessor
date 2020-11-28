@@ -70,7 +70,7 @@ void gpu_audiovisual_init(struct gpu_audiovisual* gav, const char *name, int dft
 }
 
 void gpu_on_update_ranges(struct gpu_audiovisual* gav) {
-	cudaMemcpyAsync(gav->d_ranges, gav->ranges, 14 * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[2]);
+	cudaMemcpyAsync(gav->d_ranges, gav->ranges, 14 * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[3]);
 }
 
 void gpu_audiovisual_on_input_connect(struct application_graph_node* agn, int input_id) {
