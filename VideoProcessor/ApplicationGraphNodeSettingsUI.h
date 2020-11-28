@@ -12,6 +12,8 @@ class ApplicationGraphNodeSettingsFrame : public wxFrame {
 public:
 	wxTextCtrl* tc_tps_target;
 
+	wxTextCtrl* tc_hotkey;
+
 	ApplicationGraphNodeSettingsFrame(wxWindow* parent);
 
 	void OnApplicationGraphNodeSettingsFrameButtonOk(wxCommandEvent& event);

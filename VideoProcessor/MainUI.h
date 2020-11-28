@@ -23,6 +23,9 @@ public:
     
     BasicDrawPane(wxFrame* parent);
 
+    void addHotKey(int keycode, int action, int ag_id, int node_id);
+    void removeHotKey(int keycode, int action, int ag_id, int node_id);
+
     void paintEvent(wxPaintEvent& evt);
     void paintNow();
 
@@ -44,6 +47,8 @@ public:
 
     void OnShowContextMenu(wxMouseEvent& event);
     void OnContextMenuSelected(wxCommandEvent& event);
+
+    void onHotKey(wxKeyEvent& event);
 
     DECLARE_EVENT_TABLE()
 };

@@ -85,6 +85,14 @@ GPUAudioVisualFrame::GPUAudioVisualFrame(wxWindow* parent) : wxFrame(parent, -1,
 
     vbox->Add(-1, 10);
 
+    wxBoxSizer* hbox_ranges = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_ranges = new wxStaticText(panel, -1, wxT("Ranges"));
+    hbox_ranges->Add(st_ranges, 0, wxRIGHT, 8);
+    tc_ranges = new wxTextCtrl(panel, -1, wxT(""));
+    hbox_ranges->Add(tc_ranges, 1);
+    vbox->Add(hbox_ranges, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+    vbox->Add(-1, 10);
+
     wxBoxSizer* hbox_b_c = new wxBoxSizer(wxHORIZONTAL);
     wxStaticText* st_b_c = new wxStaticText(panel, -1, wxT("Transform Const"));
     hbox_b_c->Add(st_b_c, 0, wxRIGHT, 8);
@@ -229,6 +237,22 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonOk(wxCommandEvent& event) {
     gav->base_c = base_c;
     gav->base_a = base_a;
 
+    stringstream line_ranges;
+    line_ranges << tc_ranges->GetValue();
+    string range_l = line_ranges.str();
+    start = 0;
+    end = range_l.find_first_of(",", start);
+    int ct = 0;
+    while (end != std::string::npos) {
+        gav->ranges[ct] = stoi(range_l.substr(start, end - start).c_str());
+        start = end + 1;
+        end = range_l.find_first_of(",", start);
+        ct++;
+    }
+    gav->ranges[ct] = stoi(range_l.substr(start, end - start).c_str());
+
+    gpu_on_update_ranges(gav);
+
     myApp->drawPane->Refresh();
 }
 
@@ -236,6 +260,7 @@ void GPUAudioVisualFrame::OnGPUAudioVisualFrameButtonClose(wxCommandEvent& event
     this->Hide();
     tc_name->SetValue(wxT("audiovis"));
     tc_dft_size->SetValue(wxT("21"));
+    tc_ranges->SetValue(wxT(""));
     tc_base_c->SetValue(wxT("0.6"));
     tc_base_a->SetValue(wxT("0.057"));
     tc_amplify->SetValue(wxT("300.0"));
@@ -290,6 +315,13 @@ void GPUAudioVisualFrame::Show(int node_graph_id, int node_id) {
         ch_transition_theme->Clear();
         ch_transition_theme->Append(choices);
         ch_transition_theme->SetSelection(gav->transition_theme_id);
+
+        wxString ranges;
+        for (int i = 0; i < 7; i++) {
+            ranges << gav->ranges[2 * i] << "," << gav->ranges[(2 * i) + 1];
+            if (i + 1 < 7) ranges << ",";
+        }
+        tc_ranges->SetValue(ranges);
 
         wxString transition_fade;
         transition_fade << gav->transition_fade;

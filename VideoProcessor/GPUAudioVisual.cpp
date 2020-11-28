@@ -55,10 +55,22 @@ void gpu_audiovisual_init(struct gpu_audiovisual* gav, const char *name, int dft
 	gav->base_c = 0.6;
 	gav->base_a = 0.057;
 
+	gav->ranges = new int[14];
+	for (int i = 0; i < 7; i++) {
+		gav->ranges[2 * i] = (int)(i * (gav->dft_size / 7.0));
+		gav->ranges[2 * i + 1] = (int)((i+1) * (gav->dft_size / 7.0));
+	}
+	cudaMalloc((void**)&gav->d_ranges, 14 * sizeof(int));
+	gpu_on_update_ranges(gav);
+
 	gav->dft_out = dft_out;
 	gav->gmb_in = nullptr;
 	gav->vs_transition = nullptr;
 	gav->vs_out = nullptr;
+}
+
+void gpu_on_update_ranges(struct gpu_audiovisual* gav) {
+	cudaMemcpyAsync(gav->d_ranges, gav->ranges, 14 * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[2]);
 }
 
 void gpu_audiovisual_on_input_connect(struct application_graph_node* agn, int input_id) {
@@ -153,7 +165,7 @@ DWORD* gpu_audiovisual_loop(LPVOID args) {
 					}
 				} else {
 					gpu_audiovisual_dft_kernel_launch(gav->audio_source_in->gmb->p_device + last_audio_id * gav->audio_source_in->gmb->size, gav->audio_source_in->gmb->p_device + next_audio_id * gav->audio_source_in->gmb->size, gav->dft_out->p_device, frame, hz, fps, gav->dft_size, gav->amplify, gav->dft.sinf_d, gav->dft.cosf_d);
-					gpu_audiovisual_dft_sum_kernel_launch(gav->dft_out->p_device, gav->dft_size, gav->base_c, gav->base_a);
+					gpu_audiovisual_dft_sum_kernel_launch(gav->dft_out->p_device, gav->dft_size, gav->base_c, gav->base_a, gav->d_ranges);
 				}
 
 				if (gav->vs_transition != nullptr) {
@@ -202,9 +214,9 @@ DWORD* gpu_audiovisual_loop(LPVOID args) {
 				}
 
 				if (!gav->audio_source_in->copy_to_gmb) {
-					gpu_audiovisual_kernel_launch(src, src_2, src_t, transition_started, transition_frame, transition_total, gav->transition_fade, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, false, values[0], values[1], values[2], values[3], values[4], values[5], values[6], nullptr, gav->dft_size);
+					gpu_audiovisual_kernel_launch(src, src_2, src_t, transition_started, transition_frame, transition_total, gav->transition_fade, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, false, values[0], values[1], values[2], values[3], values[4], values[5], values[6], nullptr, gav->dft_size, gav->d_ranges);
 				} else {
-					gpu_audiovisual_kernel_launch(src, src_2, src_t, transition_started, transition_frame, transition_total, gav->transition_fade, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, true, values[0], values[1], values[2], values[3], values[4], values[5], values[6], gav->dft_out->p_device, gav->dft_size);
+					gpu_audiovisual_kernel_launch(src, src_2, src_t, transition_started, transition_frame, transition_total, gav->transition_fade, gav->vs_out->gmb->p_device + (next_gpu_out_id * gav->vs_out->video_channels * gav->vs_out->video_width * gav->vs_out->video_height), gav->vs_out->video_height, gav->vs_out->video_width, 3, gav->vs_out->video_channels, true, values[0], values[1], values[2], values[3], values[4], values[5], values[6], gav->dft_out->p_device, gav->dft_size, gav->d_ranges);
 				}
 
 				if (transition_started) {
@@ -244,6 +256,13 @@ void gpu_audiovisual_externalise(struct application_graph_node* agn, string& out
 	stringstream s_out;
 	s_out << gav->name << std::endl;
 	s_out << gav->dft_size << std::endl;
+
+	for (int i = 0; i < 7; i++) {
+		s_out << gav->ranges[2 * i] << "," << gav->ranges[(2 * i) + 1];
+		if (i + 1 < 7) s_out << ",";
+	}
+	s_out << std::endl;
+
 	s_out << gav->base_c << std::endl;
 	s_out << gav->base_a << std::endl;
 	s_out << gav->amplify << std::endl;
@@ -265,6 +284,8 @@ void gpu_audiovisual_load(struct gpu_audiovisual* gav, ifstream& in_f) {
 	string name = line;
 	std::getline(in_f, line);
 	int dft_size = stoi(line.c_str());
+	string ranges;
+	std::getline(in_f, ranges);
 	std::getline(in_f, line);
 	float base_c = stof(line.c_str());
 	std::getline(in_f, line);
@@ -292,6 +313,18 @@ void gpu_audiovisual_load(struct gpu_audiovisual* gav, ifstream& in_f) {
 
 	gav->base_c = base_c;
 	gav->base_a = base_a;
+
+	string range_l = ranges;
+	start = 0;
+	end = range_l.find_first_of(",", start);
+	int ct = 0;
+	while (end != std::string::npos) {
+		gav->ranges[ct] = stoi(range_l.substr(start, end - start).c_str());
+		start = end + 1;
+		end = range_l.find_first_of(",", start);
+		ct++;
+	}
+	gav->ranges[ct] = stoi(range_l.substr(start, end - start).c_str());
 }
 
 void gpu_audiovisual_destroy(struct application_graph_node* agn) {

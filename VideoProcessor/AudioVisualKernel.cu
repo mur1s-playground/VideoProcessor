@@ -44,27 +44,27 @@ void gpu_audiovisual_dft_kernel_launch(const unsigned char* last_audio, const un
 	//cudaStreamSynchronize(cuda_streams[2]);
 }
 
-__global__ void gpu_audiovisual_dft_sum_kernel(unsigned char* dft_out, unsigned int dft_size, const float base_c, const float base_a) {
+__global__ void gpu_audiovisual_dft_sum_kernel(unsigned char* dft_out, unsigned int dft_size, const float base_c, const float base_a, const int *ranges) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (i < 7) {
 		float* out = (float*)dft_out;
 
-		for (int j = i * (dft_size) / 7 + 1; j < (i + 1) * (dft_size) / 7; j++) {
-			out[i] += out[j] / ((float)dft_size / (7.0f));
+		for (int j = ranges[2 * i] + 1; j < ranges[(2 * i)+1]; j++) {
+			out[ranges[2 * i]] += out[j] / ((float)dft_size / (7.0f));
 		}
-		out[i] *= (base_c + i * base_a);
+		out[ranges[2 * i]] *= (base_c + i * base_a);
 	}
 }
 
-void gpu_audiovisual_dft_sum_kernel_launch(unsigned char* dft_out, unsigned int dft_size, const float base_c, const float base_a) {
+void gpu_audiovisual_dft_sum_kernel_launch(unsigned char* dft_out, unsigned int dft_size, const float base_c, const float base_a, const int* d_ranges) {
 	int threadsPerBlock = 256;
 	int blocksPerGrid = (7 + threadsPerBlock - 1) / threadsPerBlock;
-	gpu_audiovisual_dft_sum_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (dft_out, dft_size, base_c, base_a);
+	gpu_audiovisual_dft_sum_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (dft_out, dft_size, base_c, base_a, d_ranges);
 	//cudaStreamSynchronize(cuda_streams[2]);
 }
 
-__global__ void gpu_audiovisual_kernel(const unsigned char* src, const unsigned char* src_2, const unsigned char* src_t, bool transition_started, const int transition_frame, const int transition_total, const int transition_fade, unsigned char* dst, const int src_width, const int src_height, const int src_channels, const int dst_channels, bool gmb, const float value1, const float value2, const float value3, const float value4, const float value5, const float value6, const float value7, const unsigned char* dft_in, const unsigned int dft_size) {
+__global__ void gpu_audiovisual_kernel(const unsigned char* src, const unsigned char* src_2, const unsigned char* src_t, bool transition_started, const int transition_frame, const int transition_total, const int transition_fade, unsigned char* dst, const int src_width, const int src_height, const int src_channels, const int dst_channels, bool gmb, const float value1, const float value2, const float value3, const float value4, const float value5, const float value6, const float value7, const unsigned char* dft_in, const unsigned int dft_size, const int *ranges) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (i < src_width * src_height * dst_channels) {
@@ -122,7 +122,7 @@ __global__ void gpu_audiovisual_kernel(const unsigned char* src, const unsigned 
 					
 					if (gmb) {
 						const float* dft = (const float*)dft_in;
-						float d_val = dft[(dims - 1)];
+						float d_val = dft[ranges[2 * (dims - 1)]];
 						if (d_val < 0) d_val = 0.0f;
 						if (d_val > 1) d_val = 1.0f;
 						weights[dims - 1] *= d_val;
@@ -162,7 +162,7 @@ __global__ void gpu_audiovisual_kernel(const unsigned char* src, const unsigned 
 					weights_2[dims - 1] /= weight_norm_2;
 
 					const float* dft = (const float*)dft_in;
-					float d_val = dft[(dims - 1)];
+					float d_val = dft[ranges[2 * (dims - 1)]];
 					if (d_val < 0) d_val = 0.0f;
 					if (d_val > 1) d_val = 1.0f;
 					weights_2[dims - 1] *= d_val;
@@ -196,9 +196,9 @@ __global__ void gpu_audiovisual_kernel(const unsigned char* src, const unsigned 
 	}
 }
 
-void gpu_audiovisual_kernel_launch(const unsigned char* src, const unsigned char* src_2, const unsigned char* src_t, bool transition_started, const int transition_frame, const int transition_total, const int transition_fade, unsigned char* dst, const int src_width, const int src_height, const int src_channels, const int dst_channels, const bool gmb, const float value1, const float value2, const float value3, const float value4, const float value5, const float value6, const float value7, const unsigned char* dft_in, const unsigned int dft_size) {
+void gpu_audiovisual_kernel_launch(const unsigned char* src, const unsigned char* src_2, const unsigned char* src_t, bool transition_started, const int transition_frame, const int transition_total, const int transition_fade, unsigned char* dst, const int src_width, const int src_height, const int src_channels, const int dst_channels, const bool gmb, const float value1, const float value2, const float value3, const float value4, const float value5, const float value6, const float value7, const unsigned char* dft_in, const unsigned int dft_size, const int* d_ranges) {
 	int threadsPerBlock = 256;
 	int blocksPerGrid = (src_width * src_height * dst_channels + threadsPerBlock - 1) / threadsPerBlock;
-	gpu_audiovisual_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (src, src_2, src_t, transition_started, transition_frame, transition_total, transition_fade, dst, src_width, src_height, src_channels, dst_channels, gmb, value1, value2, value3, value4, value5, value6, value7, dft_in, dft_size);
+	gpu_audiovisual_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (src, src_2, src_t, transition_started, transition_frame, transition_total, transition_fade, dst, src_width, src_height, src_channels, dst_channels, gmb, value1, value2, value3, value4, value5, value6, value7, dft_in, dft_size, d_ranges);
 	cudaStreamSynchronize(cuda_streams[3]);
 }

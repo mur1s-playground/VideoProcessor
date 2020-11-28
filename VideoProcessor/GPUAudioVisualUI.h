@@ -13,6 +13,7 @@ public:
 	wxTextCtrl* tc_dft_size;
 	wxTextCtrl* tc_base_a;
 	wxTextCtrl* tc_base_c;
+	wxTextCtrl* tc_ranges;
 
 	wxTextCtrl* tc_amplify;
 	wxTextCtrl* tc_frame_names;

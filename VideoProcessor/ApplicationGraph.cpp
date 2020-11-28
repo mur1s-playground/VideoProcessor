@@ -554,6 +554,7 @@ void application_graph_delete_node(int application_graph_id, int node_id) {
 void application_graph_node_settings_externalise(struct application_graph_node *agn, string& out_str) {
     stringstream s_out;
     s_out << agn->process_tps_balancer.tps_target << std::endl;
+    s_out << agn->start_stop_hotkey << std::endl;
 
     out_str = s_out.str();
 }
@@ -562,6 +563,12 @@ void application_graph_node_settings_load(struct application_graph_node *agn, if
     std::string line;
     std::getline(in_f, line);
     agn->process_tps_balancer.tps_target = stoi(line);
+
+    std::getline(in_f, line);
+    agn->start_stop_hotkey = stoi(line);
+    if (agn->start_stop_hotkey > -1) {
+        myApp->drawPane->addHotKey(agn->start_stop_hotkey, 0, ags.size()-1, agn->n_id);
+    }
 }
 
 void application_graph_save(string base_dir, string name) {
@@ -653,6 +660,7 @@ void application_graph_load(string base_dir, string name) {
         while (std::getline(g_infile, g_line)) {
             if (strlen(g_line.c_str()) == 0) break;
             struct application_graph_node* agn = new application_graph_node();
+            agn->start_stop_hotkey = -1;
             int n_id = stoi(g_line);
             agn->n_id = n_id;
             std::getline(g_infile, g_line);
@@ -789,6 +797,7 @@ void application_graph_load(string base_dir, string name) {
             struct application_graph_node *agn = ags[ag_c]->nodes[n_id];
             application_graph_node_settings_load(agn, ns_infile);
         }
+        ag_c++;
     }
     myApp->drawPane->Refresh();
 }

@@ -20,6 +20,17 @@ ApplicationGraphNodeSettingsFrame::ApplicationGraphNodeSettingsFrame(wxWindow* p
 
     vbox->Add(hbox_tps_target, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
 
+
+    wxBoxSizer* hbox_hotkey_nodeonofftoggle = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_hotkey_nodeonofftoggle = new wxStaticText(panel, -1, wxT("Hotkey Node On/Off Toggle"));
+    hbox_hotkey_nodeonofftoggle->Add(st_hotkey_nodeonofftoggle, 0, wxRIGHT, 8);
+
+    tc_hotkey = new wxTextCtrl(panel, -1, wxT(""));
+    hbox_hotkey_nodeonofftoggle->Add(tc_hotkey, 1);
+
+    vbox->Add(hbox_hotkey_nodeonofftoggle, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
     vbox->Add(-1, 10);
 
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
@@ -45,6 +56,20 @@ void ApplicationGraphNodeSettingsFrame::OnApplicationGraphNodeSettingsFrameButto
 
     struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
     agn->process_tps_balancer.tps_target = stoi(str_d.c_str().AsChar());
+
+    wxString str_hotkey = tc_hotkey->GetValue();
+    if (strlen(str_hotkey.c_str().AsChar()) == 1) {
+        if (agn->start_stop_hotkey > -1) {
+            myApp->drawPane->removeHotKey(agn->start_stop_hotkey, 0, node_graph_id, node_id);
+        }
+        char key = str_hotkey.c_str().AsChar()[0];
+        agn->start_stop_hotkey = key;
+        myApp->drawPane->addHotKey(key, 0, node_graph_id, node_id);
+    } else {
+        char key = agn->start_stop_hotkey;
+        myApp->drawPane->removeHotKey(key, 0, node_graph_id, node_id);
+        agn->start_stop_hotkey = -1;
+    }
     
     myApp->drawPane->Refresh();
 }
@@ -52,6 +77,7 @@ void ApplicationGraphNodeSettingsFrame::OnApplicationGraphNodeSettingsFrameButto
 void ApplicationGraphNodeSettingsFrame::OnApplicationGraphNodeSettingsFrameButtonClose(wxCommandEvent& event) {
     this->Hide();
     tc_tps_target->SetValue(wxT("30"));
+    tc_hotkey->SetValue(wxT("30"));
 }
 
 void ApplicationGraphNodeSettingsFrame::Show(int node_graph_id, int node_id) {
@@ -63,6 +89,15 @@ void ApplicationGraphNodeSettingsFrame::Show(int node_graph_id, int node_id) {
     stringstream s_d;
     s_d << agn->process_tps_balancer.tps_target;
     tc_tps_target->SetValue(wxString(s_d.str()));
+
+    stringstream s_ss_hotkey;
+    char c = agn->start_stop_hotkey;
+    if (c > -1) {
+        s_ss_hotkey << c;
+    } else {
+        s_ss_hotkey << "";
+    }
+    tc_hotkey->SetValue(wxString(s_ss_hotkey.str()));
 
     wxFrame::Show(true);
 }

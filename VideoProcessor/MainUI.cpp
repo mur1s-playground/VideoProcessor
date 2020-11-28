@@ -21,6 +21,9 @@
 
 #include "Logger.h"
 
+int hotkeys_id = 0xBFEE;
+map<int, vector<tuple<int, int, int>>> hotkeys;
+
 MyApp *myApp;
 
 IMPLEMENT_APP(MyApp)
@@ -90,6 +93,7 @@ BEGIN_EVENT_TABLE(BasicDrawPane, wxPanel)
  //EVT_LEAVE_WINDOW(BasicDrawPane::mouseLeftWindow)
  EVT_KEY_DOWN(BasicDrawPane::keyPressed)
  EVT_KEY_UP(BasicDrawPane::keyReleased)
+ EVT_HOTKEY(hotkeys_id, BasicDrawPane::onHotKey)
  /*
  EVT_MOUSEWHEEL(BasicDrawPane::mouseWheelMoved)
  */
@@ -116,6 +120,86 @@ BEGIN_EVENT_TABLE(BasicDrawPane, wxPanel)
     wxPanel(parent)
 {
     Bind(wxEVT_COMMAND_MENU_SELECTED, &BasicDrawPane::OnContextMenuSelected, this, MENU_ID_SHARED_MEMORY_BUFFER, MENU_ID_START_NODE);
+}
+
+void BasicDrawPane::addHotKey(int keycode, int action, int ag_id, int node_id) {
+    int action_, ag_id_, node_id_;
+    bool registered = false;
+
+    map<int, vector<tuple<int, int, int>>>::iterator it;
+    vector<tuple<int, int, int>> *hotkey = nullptr;
+
+    if ((it = hotkeys.find(keycode)) != hotkeys.end()) {
+        registered = true;
+        hotkey = &it->second;
+        for (int i = 0; i < hotkey->size(); i++) {
+            tie(action_, ag_id_, node_id_) = (*hotkey)[i];
+            if (action == action_ && ag_id == ag_id_ && node_id == node_id_) {
+                return;
+            } else {
+                registered = true;
+                break;
+            }
+        }
+    }
+    
+    if (registered) {
+        tuple<int, int, int> new_tuple =  make_tuple(action, ag_id, node_id);
+        (*hotkey).push_back(new_tuple);
+    } else {
+        vector<tuple<int, int, int>> tmp;
+        tmp.push_back(make_tuple(action, ag_id, node_id));
+        hotkeys[keycode] = tmp;
+        this->RegisterHotKey(hotkeys_id, (wxMOD_SHIFT | wxMOD_ALT | wxMOD_CONTROL), keycode);
+    }
+}
+
+void BasicDrawPane::removeHotKey(int keycode, int action, int ag_id, int node_id) {
+    int action_, ag_id_, node_id_;
+    
+    map<int, vector<tuple<int, int, int>>>::iterator it;
+    
+    if ((it = hotkeys.find(keycode)) != hotkeys.end()) {
+        vector<tuple<int, int, int>> *hotkey = &it->second;
+        for (int i = hotkey->size() - 1; i >= 0; i--) {
+            tie(action_, ag_id_, node_id_) = (*hotkey)[i];
+            if (action == action_ && ag_id == ag_id_ && node_id == node_id_) {
+                hotkey->erase(hotkey->begin() + i);
+                break;
+            }
+        }
+        if (hotkey->size() == 0) {
+            //a function to remove a single keycode from the hotkey registration is missing.
+            //this->UnregisterHotKey(hotkeys_id, (wxMOD_SHIFT | wxMOD_ALT | wxMOD_CONTROL), keycode);
+            hotkeys.erase(it);
+        }
+    }
+
+    //workaround
+    this->UnregisterHotKey(hotkeys_id);
+    it = hotkeys.begin();
+    while (it != hotkeys.end()) {
+        int keycode_ = it->first;
+        this->RegisterHotKey(hotkeys_id, (wxMOD_SHIFT | wxMOD_ALT | wxMOD_CONTROL), keycode_);
+        it++;
+    }
+}
+
+void BasicDrawPane::onHotKey(wxKeyEvent& event) {
+    int keycode = event.GetKeyCode();
+    int action_, ag_id_, node_id_;
+
+    map<int, vector<tuple<int, int, int>>>::iterator it;
+    
+    if ((it = hotkeys.find(keycode)) != hotkeys.end()) {
+        vector<tuple<int, int, int>> *hotkey = &it->second;
+        for (int i = hotkey->size() - 1; i >= 0; i--) {
+            tie(action_, ag_id_, node_id_) = (*hotkey)[i];
+            if (action_ == 0) {
+                application_graph_start_stop_node(ag_id_, node_id_);
+            }
+        }
+    }
 }
 
 bool move_node_started = false;

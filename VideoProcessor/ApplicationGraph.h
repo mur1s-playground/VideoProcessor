@@ -75,6 +75,7 @@ struct application_graph_node {
 	void *process;
 	bool process_run;
 	struct application_graph_tps_balancer process_tps_balancer;
+	int	start_stop_hotkey;
 
 	void *on_input_connect;
 	void *on_input_edit;

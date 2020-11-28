@@ -19,6 +19,8 @@ struct gpu_audiovisual {
 	int dft_size;
 	float base_c, base_a;
 	float amplify;
+	int* ranges;
+	int* d_ranges;
 
 	vector<string> frame_names;
 
@@ -42,6 +44,8 @@ struct gpu_audiovisual {
 };
 
 void gpu_audiovisual_init(struct gpu_audiovisual* gav, const char* name, int dft_size);
+
+void gpu_on_update_ranges(struct gpu_audiovisual* gav);
 
 void gpu_audiovisual_on_input_connect(struct application_graph_node* agn, int input_id);
 void gpu_audiovisual_on_input_disconnect(struct application_graph_edge* edge);
