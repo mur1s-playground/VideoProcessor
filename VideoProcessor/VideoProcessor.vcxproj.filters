@@ -144,6 +144,15 @@
     <ClCompile Include="AudioSourceUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="MiniGine.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="BitField.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="MiniGineUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -278,6 +287,27 @@
     <ClInclude Include="AudioSourceUI.h">
       <Filter>Headerdateien\UI</Filter>
     </ClInclude>
+    <ClInclude Include="MiniGine.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="BitField.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="Vector2.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="Vector3.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniGineUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniGineKernel.h">
+      <Filter>Headerdateien\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="MiniGineS.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="NLMeansKernel.cu">
@@ -299,6 +329,9 @@
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
     <CudaCompile Include="AudioVisualKernel.cu">
+      <Filter>Quelldateien\Kernel</Filter>
+    </CudaCompile>
+    <CudaCompile Include="MiniGine.cu">
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
   </ItemGroup>

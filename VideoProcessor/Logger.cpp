@@ -16,6 +16,13 @@ void logger(int i) {
 	outfile << i << std::endl;
 }
 
+void logger(unsigned int i) {
+	std::ofstream outfile;
+
+	outfile.open("test.txt", std::ios_base::app);
+	outfile << i << std::endl;
+}
+
 void logger(float f) {
 	std::ofstream outfile;
 

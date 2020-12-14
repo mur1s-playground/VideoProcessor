@@ -40,7 +40,8 @@ enum application_graph_component_type {
 	AGCT_GPU_EDGE_FILTER,
 	AGCT_GPU_PALETTE_FILTER,
 	AGCT_GPU_AUDIOVISUAL,
-	AGCT_AUDIO_SOURCE
+	AGCT_AUDIO_SOURCE,
+	AGCT_MINI_GINE
 };
 
 #define application_graph_component void *

@@ -136,8 +136,6 @@ void BasicDrawPane::addHotKey(int keycode, int action, int ag_id, int node_id) {
             tie(action_, ag_id_, node_id_) = (*hotkey)[i];
             if (action == action_ && ag_id == ag_id_ && node_id == node_id_) {
                 return;
-            } else {
-                registered = true;
             }
         }
     }
@@ -297,6 +295,7 @@ void BasicDrawPane::OnShowContextMenu(wxMouseEvent& event) {
         menu->Append(MENU_ID_GPU_PALETTE_FILTER, wxT("GPU Palette Filter"));
         menu->Append(MENU_ID_GPU_AUDIOVISUAL, wxT("GPU AudioVisual"));
         menu->Append(MENU_ID_AUDIO_SOURCE, wxT("Audio Source"));
+        menu->Append(MENU_ID_MINI_GINE, wxT("MiniGine"));
     }
     PopupMenu(menu);
 }
@@ -347,6 +346,9 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
         break;
     case MENU_ID_AUDIO_SOURCE:
         ui_manager_show_frame(AGCT_AUDIO_SOURCE, application_graph_active_id);
+        break;
+    case MENU_ID_MINI_GINE:
+        ui_manager_show_frame(AGCT_MINI_GINE, application_graph_active_id);
         break;
     case MENU_ID_START_NODE:
         application_graph_start_stop_node(application_graph_active_id, application_graph_hovering_node_id);
@@ -412,6 +414,10 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
                 }
                 case AGCT_AUDIO_SOURCE: {
                     ui_manager_show_frame(AGCT_AUDIO_SOURCE, application_graph_active_id, application_graph_hovering_node_id);
+                    break;
+                }
+                case AGCT_MINI_GINE: {
+                    ui_manager_show_frame(AGCT_MINI_GINE, application_graph_active_id, application_graph_hovering_node_id);
                     break;
                 }
             }

@@ -45,6 +45,9 @@
 #include "AudioSource.h"
 #include "AudioSourceUI.h"
 
+#include "MiniGine.h"
+#include "MiniGineUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -758,6 +761,12 @@ void application_graph_load(string base_dir, string name) {
                     struct audio_source* gas = new audio_source();
                     audio_source_load(gas, g_infile);
                     audio_source_ui_graph_init(agn, (application_graph_component)gas, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_MINI_GINE: {
+                    struct mini_gine* mg = new mini_gine();
+                    mini_gine_load(mg, g_infile);
+                    mini_gine_ui_graph_init(agn, (application_graph_component)mg, pos_x, pos_y);
                     break;
                 }
             }

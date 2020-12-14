@@ -154,6 +154,7 @@ DWORD* audio_source_loop(LPVOID args) {
 	shared_memory_buffer_release_rw(as->smb, as->smb_last_used_id);
 
 	agn->process_run = false;
+	return NULL;
 }
 
 void audio_source_externalise(struct application_graph_node* agn, string& out_str) {
