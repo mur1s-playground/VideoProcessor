@@ -26,6 +26,7 @@ struct mini_gine {
 	struct bit_field				bf_rw;
 	struct grid						gd;
 
+	struct video_source* v_src_in;
 	struct video_source* v_src_out;
 };
 

@@ -25,6 +25,8 @@ void mini_gine_init(struct mini_gine* mg, const char *config_path) {
 		mg->models_position = 0;
 		mg->entities_position = 0;
 
+		mg->v_src_in = nullptr;
+
 		bit_field_init(&mg->bf_assets, 16, 1024);
 		bit_field_register_device(&mg->bf_assets, 0);
 
@@ -78,72 +80,104 @@ DWORD* mini_gine_loop(LPVOID args) {
 
 		struct mini_gine_model* models = (struct mini_gine_model*)&mg->bf_assets.data[mg->models_position];
 		struct mini_gine_entity* entity = (struct mini_gine_entity *)&mg->bf_rw.data[mg->entities_position];
+
+		int next_id = 0;
+		if (mg->v_src_in != nullptr) {
+			shared_memory_buffer_try_r(mg->v_src_in->smb, mg->v_src_in->smb_framecount, true, 8);
+			next_id = mg->v_src_in->smb->p_buf_c[mg->v_src_in->smb_framecount * mg->v_src_in->video_channels * mg->v_src_in->video_height * mg->v_src_in->video_width + ((mg->v_src_in->smb_framecount + 1) * 2)];
+			shared_memory_buffer_release_r(mg->v_src_in->smb, mg->v_src_in->smb_framecount);
+			shared_memory_buffer_try_r(mg->v_src_in->smb, next_id, true, 8);
+		}
+
 		for (int e = 0; e < mg->entities.size(); e++) {
 			if (models[entity->model_id].model_params > 0) {
-				struct mini_gine_model_params* mgmp = (struct mini_gine_model_params*)&mg->bf_rw.data[entity->model_params_position];
-				for (int p = 0; p < models[entity->model_id].model_params; p++) {
-					/*if (models[entity->model_id].model_params == 14) {
-						if (tick_counter == 0) {
-							if (entity->model_id == 4) {
-								mgmp->r = 0.0;
-								mgmp->g = 255.0;
-								mgmp->b = 0.0;
-							} else {
-								mgmp->r = 255.0;
-								mgmp->g = 0.0;
-								mgmp->b = 0.0;
-							}/*
-							mgmp->r = 255.0 * (e % 3 == 0);
-							mgmp->g = 255.0 * (e % 3 == 1);
-							mgmp->b = 255.0 * (e % 3 == 2);*/
-							//mgmp->r = (rand() / (float)RAND_MAX) * 255.0f;
-							//mgmp->g = (rand() / (float)RAND_MAX) * 255.0f;
-							//mgmp->b = (rand() / (float)RAND_MAX) * 255.0f;
-							//if (p % 2 == 0) mgmp->s = 1.0 * (e % 2 == 0);
-							//if (p % 2 == 1) mgmp->s = 1.0 * (e % 2 == 1);
+				if (mg->v_src_in != nullptr) {
+					struct mini_gine_model_params* mgmp = (struct mini_gine_model_params*)&mg->bf_rw.data[entity->model_params_position];
+					unsigned int* coio = &mg->bf_assets.data[models[entity->model_id].model_params_coi_offset_position];
+					for (int p = 0; p < models[entity->model_id].model_params; p++) {
+						int coio_idx = (((int)entity->orientation / 10 / (36 / models[entity->model_id].model_rotations)) % models[entity->model_id].model_rotations) * models[entity->model_id].model_animation_ticks * (models[entity->model_id].model_params + 2);
 
-							/*
-							if (p < 3) mgmp->s = 1.0 * (e % 2 == 0);
-							if (p >= 3 && p < 6) mgmp->s = 1.0 * (e % 2 == 1);
-							if (p >= 6 && p < 8) mgmp->s = 1.0 *(e % 2 == 0);
-							if (p >= 8 && p < 10) mgmp->s = 1.0 * (e % 2 == 1);
-							if (p >= 10) mgmp->s = 1.0 * (e % 2 == 0);
-							*/
-						//}
-						/*
-						if (tick_counter % 10 == 0) {
-							mgmp->s = !mgmp->s;
-						}*/
-						/*
-						if (tick_counter % (models[entity->model_id].model_params * 10) == (p * 10 + e * 10) % (models[entity->model_id].model_params * 10)) {
-							mgmp->s = 1.0;
-							if (tick_counter > 0) {
-								if (p == 0) {
-									mgmp[models[entity->model_id].model_params - 1].s = 0.0f;
-								} else {
-									mgmp--;
-									mgmp->s = 0.0f;
-									mgmp++;
-								}
-							}
+						int x = entity->position[0] + coio[coio_idx + p * 2] * entity->scale;
+						int y = entity->position[1] + coio[coio_idx + p * 2 + 1] * entity->scale;
+						if (x >= 0 && x < mg->v_src_in->video_width && y >= 0 && y < mg->v_src_in->video_height) {
+							mgmp->b = mg->v_src_in->smb->p_buf_c[next_id * mg->v_src_in->video_channels * mg->v_src_in->video_height * mg->v_src_in->video_width + y * mg->v_src_in->video_channels * mg->v_src_in->video_width + x * mg->v_src_in->video_channels];
+							mgmp->g = mg->v_src_in->smb->p_buf_c[next_id * mg->v_src_in->video_channels * mg->v_src_in->video_height * mg->v_src_in->video_width + y * mg->v_src_in->video_channels * mg->v_src_in->video_width + x * mg->v_src_in->video_channels + 1];
+							mgmp->r = mg->v_src_in->smb->p_buf_c[next_id * mg->v_src_in->video_channels * mg->v_src_in->video_height * mg->v_src_in->video_width + y * mg->v_src_in->video_channels * mg->v_src_in->video_width + x * mg->v_src_in->video_channels + 2];
+							mgmp->s = 1.0f;
+						} else {
+							mgmp->s = 0.0f;
 						}
 						
-					} else {*/
+						mgmp++;
+					}
+				} else {
+					struct mini_gine_model_params* mgmp = (struct mini_gine_model_params*)&mg->bf_rw.data[entity->model_params_position];
+					for (int p = 0; p < models[entity->model_id].model_params; p++) {
+						/*if (models[entity->model_id].model_params == 14) {
+							if (tick_counter == 0) {
+								if (entity->model_id == 4) {
+									mgmp->r = 0.0;
+									mgmp->g = 255.0;
+									mgmp->b = 0.0;
+								} else {
+									mgmp->r = 255.0;
+									mgmp->g = 0.0;
+									mgmp->b = 0.0;
+								}/*
+								mgmp->r = 255.0 * (e % 3 == 0);
+								mgmp->g = 255.0 * (e % 3 == 1);
+								mgmp->b = 255.0 * (e % 3 == 2);*/
+								//mgmp->r = (rand() / (float)RAND_MAX) * 255.0f;
+								//mgmp->g = (rand() / (float)RAND_MAX) * 255.0f;
+								//mgmp->b = (rand() / (float)RAND_MAX) * 255.0f;
+								//if (p % 2 == 0) mgmp->s = 1.0 * (e % 2 == 0);
+								//if (p % 2 == 1) mgmp->s = 1.0 * (e % 2 == 1);
+
+								/*
+								if (p < 3) mgmp->s = 1.0 * (e % 2 == 0);
+								if (p >= 3 && p < 6) mgmp->s = 1.0 * (e % 2 == 1);
+								if (p >= 6 && p < 8) mgmp->s = 1.0 *(e % 2 == 0);
+								if (p >= 8 && p < 10) mgmp->s = 1.0 * (e % 2 == 1);
+								if (p >= 10) mgmp->s = 1.0 * (e % 2 == 0);
+								*/
+								//}
+								/*
+								if (tick_counter % 10 == 0) {
+									mgmp->s = !mgmp->s;
+								}*/
+								/*
+								if (tick_counter % (models[entity->model_id].model_params * 10) == (p * 10 + e * 10) % (models[entity->model_id].model_params * 10)) {
+									mgmp->s = 1.0;
+									if (tick_counter > 0) {
+										if (p == 0) {
+											mgmp[models[entity->model_id].model_params - 1].s = 0.0f;
+										} else {
+											mgmp--;
+											mgmp->s = 0.0f;
+											mgmp++;
+										}
+									}
+								}
+
+							} else {*/
 						if (tick_counter == 0) {
 							mgmp->s = 1.0f;
 							if (entity->model_id == 4) {
 								mgmp->r = 0.0;
 								mgmp->g = 255.0;
 								mgmp->b = 0.0;
-							} else if (entity->model_id == 5){
+							}
+							else if (entity->model_id == 5) {
 								mgmp->r = 255.0;
 								mgmp->g = 0.0;
 								mgmp->b = 0.0;
-							} else if (entity->model_id == 6){
+							}
+							else if (entity->model_id == 6) {
 								mgmp->r = 0.0;
 								mgmp->g = 0.0;
 								mgmp->b = 255.0;
-							} else {
+							}
+							else {
 								mgmp->r = 0;
 								mgmp->g = 0;
 								mgmp->b = 255.0f;
@@ -153,13 +187,16 @@ DWORD* mini_gine_loop(LPVOID args) {
 							if (entity->model_id == 4) {
 								mgmp->r = (mgmp->r == 0) * 255.0f;
 								mgmp->b = (mgmp->b == 0) * 255.0f;
-							} else if (entity->model_id == 5) {
+							}
+							else if (entity->model_id == 5) {
 								mgmp->g = (mgmp->g == 0) * 255.0f;
 								mgmp->b = (mgmp->b == 0) * 255.0f;
-							} else if (entity->model_id == 6) {
+							}
+							else if (entity->model_id == 6) {
 								mgmp->r = (mgmp->r == 0) * 255.0f;
 								mgmp->g = (mgmp->g == 0) * 255.0f;
-							} else {
+							}
+							else {
 								mgmp->r = (mgmp->r == 0) * 255.0f;
 								mgmp->g = (mgmp->g == 0) * 255.0f;
 							}
@@ -173,38 +210,42 @@ DWORD* mini_gine_loop(LPVOID args) {
 						if (tick_counter % 4 == 0) {
 							mgmp->s = (rand() / (float)RAND_MAX < 0.5) * (!mgmp->s);
 						}
-					//}
-					/*
-					if (tick_counter % 30 == (0 + e * 10) % 30) {
-						if (p <= 3) {
-							mgmp->s = 0.5;
-						} else {
-							mgmp->s = 0.0;
+						//}
+						/*
+						if (tick_counter % 30 == (0 + e * 10) % 30) {
+							if (p <= 3) {
+								mgmp->s = 0.5;
+							} else {
+								mgmp->s = 0.0;
+							}
+						} else if (tick_counter % 30 == (10 + e * 10) % 30) {
+							if (p <= 3) {
+								mgmp->s = 0.0;
+							} else if (p <= 6) {
+								mgmp->s = 0.5;
+							} else {
+								mgmp->s = 0.0;
+							}
+						} else if (tick_counter % 30 == (20 + e * 10) % 30){
+							if (p <= 6) {
+								mgmp->s = 0.0;
+							} else {
+								mgmp->s = 0.25;
+							}
 						}
-					} else if (tick_counter % 30 == (10 + e * 10) % 30) {
-						if (p <= 3) {
-							mgmp->s = 0.0;
-						} else if (p <= 6) {
-							mgmp->s = 0.5;
-						} else {
-							mgmp->s = 0.0;
-						}
-					} else if (tick_counter % 30 == (20 + e * 10) % 30){
-						if (p <= 6) {
-							mgmp->s = 0.0;
-						} else {
-							mgmp->s = 0.25;
-						}
+						*/
+						mgmp++;
 					}
-					*/
-					
-					mgmp++;
 				}
 				unsigned int params_size = (unsigned int)ceilf((float)((sizeof(struct mini_gine_model_params)) * models[entity->model_id].model_params) / (float)sizeof(unsigned int));
 				
 				bit_field_invalidate_bulk(&mg->bf_rw, entity->model_params_position, params_size);
 			}
 			entity++;
+		}
+
+		if (mg->v_src_in != nullptr) {
+			shared_memory_buffer_release_r(mg->v_src_in->smb, next_id);
 		}
 
 		bit_field_update_device(&mg->bf_rw, 0);
@@ -355,6 +396,9 @@ unsigned int mini_gine_model_add(struct mini_gine* mg, string model_name) {
 				int count = mgm.model_rotations * mgm.model_animation_ticks;
 				if (mgm.model_params > 0) {
 					count *= (mgm.model_params + 2);
+					mgm.model_params_coi_offset_position = bit_field_add_bulk_zero(&mg->bf_assets, mgm.model_rotations * mgm.model_animation_ticks * mgm.model_params * 2) + 1;
+				} else {
+					mgm.model_params_coi_offset_position = 0;
 				}
 				
 				mgm.model_positions = bit_field_add_bulk_zero(&mg->bf_assets, count) + 1;
@@ -378,6 +422,32 @@ unsigned int mini_gine_model_add(struct mini_gine* mg, string model_name) {
 
 					unsigned int* m_ap = &mg->bf_assets.data[mgm.model_positions];
 					m_ap[k] = img_pos_in_bf;
+				}
+
+				if (mgm.model_params > 0) {
+					unsigned int* coio = &mg->bf_assets.data[mgm.model_params_coi_offset_position];
+					unsigned int* m_ap = &mg->bf_assets.data[mgm.model_positions];
+					for (int r = 0; r < mgm.model_rotations; r++) {
+						for (int a = 0; a < mgm.model_animation_ticks; a++) {
+							for (int p = 0; p < mgm.model_params; p++) {
+								unsigned char* zero = (unsigned char*)&mg->bf_assets.data[m_ap[r * mgm.model_animation_ticks * (mgm.model_params + 2) + a * (mgm.model_params + 2)]];
+								unsigned char* dim = (unsigned char*)&mg->bf_assets.data[m_ap[r * mgm.model_animation_ticks * (mgm.model_params + 2) + a * (mgm.model_params + 2) + 1 + p]];
+								int max_value = -255;
+								for (int row = 0; row < mgm.model_dimensions[0]; row++) {
+									for (int col = 0; col < mgm.model_dimensions[1]; col++) {
+										int cur_base_idx = row * mgm.model_dimensions[0] * 4 + col * 4;
+										for (int ch = 0; ch < 3; ch++) {
+											if ((int)dim[cur_base_idx + ch] - (int)zero[cur_base_idx + ch] > max_value) {
+												max_value = (int)dim[cur_base_idx + ch] - (int)zero[cur_base_idx + ch];
+												coio[r * mgm.model_animation_ticks * mgm.model_params * 2 + a * mgm.model_params * 2 + p * 2] = row;
+												coio[r * mgm.model_animation_ticks * mgm.model_params * 2 + a * mgm.model_params * 2 + p * 2 + 1] = col;
+											}
+										}
+									}
+								}
+							}
+						}
+					}
 				}
 			}
 		}

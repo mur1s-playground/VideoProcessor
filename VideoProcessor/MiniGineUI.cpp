@@ -3,6 +3,7 @@
 
 #include "MainUI.h"
 
+const string TEXT_VIDEO_SOURCE_IN = "Video Source IN";
 const string TEXT_VIDEO_SOURCE_OUT = "Video Source OUT";
 
 void mini_gine_ui_graph_init(struct application_graph_node* agn, application_graph_component agc, int pos_x, int pos_y) {
@@ -16,8 +17,14 @@ void mini_gine_ui_graph_init(struct application_graph_node* agn, application_gra
 
     struct mini_gine* mg = (struct mini_gine*)agc;
     
+    //agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+    //agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&mg->config_path));
+
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
-    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&mg->config_path));
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_VIDEO_SOURCE_IN));
+
+    pair<enum application_graph_component_type, void*> inner_in = pair<enum application_graph_component_type, void*>(AGCT_VIDEO_SOURCE, (void*)&mg->v_src_in);
+    agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_VIDEO_SOURCE_OUT));

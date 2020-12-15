@@ -19,6 +19,8 @@ struct mini_gine_model {
 	unsigned int					model_params;
 
 	unsigned int					model_positions;
+
+	unsigned int					model_params_coi_offset_position;
 };
 
 struct mini_gine_entity {
