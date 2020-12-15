@@ -221,6 +221,7 @@
     <ClInclude Include="GPUMotionBlurUI.h" />
     <ClInclude Include="GPUPaletteFilter.h" />
     <ClInclude Include="GPUPaletteFilterUI.h" />
+    <ClInclude Include="Grid.h" />
     <ClInclude Include="ImShow.h" />
     <ClInclude Include="ImShowUI.h" />
     <ClInclude Include="Logger.h" />

@@ -57,6 +57,20 @@ DWORD* mini_gine_loop(LPVOID args) {
 	unsigned int entities_size_in_bf = (unsigned int)ceilf((float)entities_size_in_mem / (float)sizeof(unsigned int));
 	mg->entities_position = bit_field_add_bulk(&mg->bf_rw, (unsigned int*)mg->entities.data(), entities_size_in_bf, entities_size_in_mem) + 1;
 
+	grid_init(&mg->bf_rw, &mg->gd, struct vector3<float>((float)mg->v_src_out->video_width, (float)mg->v_src_out->video_height, 1.0f), struct vector3<float>(64.0f, 64.0f, 1.0f), struct vector3<float>(0, 0, 0));
+
+	int z_index = 0;
+	while (z_index < 256) {
+		for (int e = 0; e < mg->entities.size(); e++) {
+			struct mini_gine_entity* entity = &mg->entities[e];
+			//unsigned int grid_index = grid_get_index(mg->bf_rw.data, mg->gd.position_in_bf, { entity->position[0], entity->position[1], 0.0f });
+			if (entity->model_z == z_index) {
+				grid_object_add(&mg->bf_rw, mg->bf_rw.data, mg->gd.position_in_bf, { entity->position[0], entity->position[1], 0.0f }, { entity->scale , entity->scale, 1.0f }, { 0.0f, 0.0f, 0.0f }, { (float)(entity->crop_x[1] - entity->crop_x[0]), (float)(entity->crop_y[1] - entity->crop_y[0]), 0.0f }, e);
+			}
+		}
+		z_index++;
+	}
+
 	unsigned int tick_counter = 0;
 
 	while (agn->process_run) {
@@ -68,11 +82,20 @@ DWORD* mini_gine_loop(LPVOID args) {
 			if (models[entity->model_id].model_params > 0) {
 				struct mini_gine_model_params* mgmp = (struct mini_gine_model_params*)&mg->bf_rw.data[entity->model_params_position];
 				for (int p = 0; p < models[entity->model_id].model_params; p++) {
-					if (models[entity->model_id].model_params == 14) {
+					/*if (models[entity->model_id].model_params == 14) {
 						if (tick_counter == 0) {
+							if (entity->model_id == 4) {
+								mgmp->r = 0.0;
+								mgmp->g = 255.0;
+								mgmp->b = 0.0;
+							} else {
+								mgmp->r = 255.0;
+								mgmp->g = 0.0;
+								mgmp->b = 0.0;
+							}/*
 							mgmp->r = 255.0 * (e % 3 == 0);
 							mgmp->g = 255.0 * (e % 3 == 1);
-							mgmp->b = 255.0 * (e % 3 == 2);
+							mgmp->b = 255.0 * (e % 3 == 2);*/
 							//mgmp->r = (rand() / (float)RAND_MAX) * 255.0f;
 							//mgmp->g = (rand() / (float)RAND_MAX) * 255.0f;
 							//mgmp->b = (rand() / (float)RAND_MAX) * 255.0f;
@@ -86,12 +109,12 @@ DWORD* mini_gine_loop(LPVOID args) {
 							if (p >= 8 && p < 10) mgmp->s = 1.0 * (e % 2 == 1);
 							if (p >= 10) mgmp->s = 1.0 * (e % 2 == 0);
 							*/
-						}
+						//}
 						/*
 						if (tick_counter % 10 == 0) {
 							mgmp->s = !mgmp->s;
 						}*/
-						
+						/*
 						if (tick_counter % (models[entity->model_id].model_params * 10) == (p * 10 + e * 10) % (models[entity->model_id].model_params * 10)) {
 							mgmp->s = 1.0;
 							if (tick_counter > 0) {
@@ -105,21 +128,52 @@ DWORD* mini_gine_loop(LPVOID args) {
 							}
 						}
 						
-					} else {
+					} else {*/
 						if (tick_counter == 0) {
-							mgmp->r = 0;
-							mgmp->g = 0;
-							mgmp->b = 255.0f;
 							mgmp->s = 1.0f;
+							if (entity->model_id == 4) {
+								mgmp->r = 0.0;
+								mgmp->g = 255.0;
+								mgmp->b = 0.0;
+							} else if (entity->model_id == 5){
+								mgmp->r = 255.0;
+								mgmp->g = 0.0;
+								mgmp->b = 0.0;
+							} else if (entity->model_id == 6){
+								mgmp->r = 0.0;
+								mgmp->g = 0.0;
+								mgmp->b = 255.0;
+							} else {
+								mgmp->r = 0;
+								mgmp->g = 0;
+								mgmp->b = 255.0f;
+							}
 						}
 						if (tick_counter % 8 == 0) {
+							if (entity->model_id == 4) {
+								mgmp->r = (mgmp->r == 0) * 255.0f;
+								mgmp->b = (mgmp->b == 0) * 255.0f;
+							} else if (entity->model_id == 5) {
+								mgmp->g = (mgmp->g == 0) * 255.0f;
+								mgmp->b = (mgmp->b == 0) * 255.0f;
+							} else if (entity->model_id == 6) {
+								mgmp->r = (mgmp->r == 0) * 255.0f;
+								mgmp->g = (mgmp->g == 0) * 255.0f;
+							} else {
+								mgmp->r = (mgmp->r == 0) * 255.0f;
+								mgmp->g = (mgmp->g == 0) * 255.0f;
+							}
+
+							/*
+
 							mgmp->r = (mgmp->r == 0) * 255.0f;
 							mgmp->g = (mgmp->g == 0) * 255.0f;
+							*/
 						}
 						if (tick_counter % 4 == 0) {
 							mgmp->s = (rand() / (float)RAND_MAX < 0.5) * (!mgmp->s);
 						}
-					}
+					//}
 					/*
 					if (tick_counter % 30 == (0 + e * 10) % 30) {
 						if (p <= 3) {
@@ -162,7 +216,7 @@ DWORD* mini_gine_loop(LPVOID args) {
 		gpu_memory_buffer_try_rw(mg->v_src_out->gmb, next_gpu_out_id, true, 8);
 
 		mini_gine_draw_entities_kernel_launch(mg->bf_assets.device_data[0], mg->models_position,
-			mg->bf_rw.device_data[0], mg->entities_position, mg->entities.size(),
+			mg->bf_rw.device_data[0], mg->entities_position, mg->gd.position_in_bf, mg->gd.data_position_in_bf,
 			&mg->v_src_out->gmb->p_device[next_gpu_out_id * mg->v_src_out->video_channels * mg->v_src_out->video_width * mg->v_src_out->video_height], mg->v_src_out->video_width, mg->v_src_out->video_height, mg->v_src_out->video_channels,
 			tick_counter);
 

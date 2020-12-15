@@ -6,6 +6,7 @@
 #include "Vector2.h"
 #include "Vector3.h"
 #include "BitField.h"
+#include "Grid.h"
 
 #include <map>
 #include <string.h>
@@ -23,6 +24,7 @@ struct mini_gine {
 	unsigned int					entities_position;
 	struct bit_field				bf_assets;
 	struct bit_field				bf_rw;
+	struct grid						gd;
 
 	struct video_source* v_src_out;
 };

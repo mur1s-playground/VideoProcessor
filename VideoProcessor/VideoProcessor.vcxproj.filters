@@ -308,6 +308,9 @@
     <ClInclude Include="MiniGineS.h">
       <Filter>Headerdateien\Nodes</Filter>
     </ClInclude>
+    <ClInclude Include="Grid.h">
+      <Filter>Headerdateien</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="NLMeansKernel.cu">
