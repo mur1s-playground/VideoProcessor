@@ -35,4 +35,6 @@ struct mini_gine_entity {
 	unsigned int					model_animation_offset;
 
 	unsigned int					model_params_position;
+	float							model_params_s_multiplier;
+	float							model_params_s_falloff;
 };

@@ -99,10 +99,6 @@ __global__ void mini_gine_draw_entities_kernel(
             if (entities_iddata_position > 0) {
                 unsigned int entities_count = device_data_rw[entities_iddata_position];
 
-                unsigned int player_z_max = 0;
-                float player_y_max = -1.0f;
-                int player_id_max = -1;
-
                 for (int e = 0; e < entities_count; e++) {
                     unsigned int entity_id = device_data_rw[entities_iddata_position + 1 + e];
                     if (entity_id < UINT_MAX) {
@@ -142,22 +138,27 @@ __global__ void mini_gine_draw_entities_kernel(
 
                                 float weight_norm = 0.0f;
                                 float total_weight = 0.0f;
+                                const unsigned int* coio = &device_data_assets[m->model_params_coi_offset_position];
+                                int coio_idx = ((int)(entities[entity_id].orientation / 10 / (36 / m->model_rotations)) % m->model_rotations) * m->model_animation_ticks * (m->model_params * 2) + animation_tick * (m->model_params * 2);
+                              
                                 for (int dims = 0; dims < m->model_params; dims++) {
                                     const unsigned char* dim = (unsigned char*)&device_data_assets[model_positions_in_bf[model_idx + 1 + dims]];
                                     float weight = 0.0f;
                                     if (abs(value) < 1) {
 
-                                    } else {
+                                    } else {                                       
+                                        float falloff = (entities[entity_id].model_params_s_falloff * sqrtf((coio[coio_idx + dims * 2] - offset_to_model_base_y) * (coio[coio_idx + dims * 2] - offset_to_model_base_y) + (coio[coio_idx + dims * 2 + 1] - offset_to_model_base_x) * (coio[coio_idx + dims * 2 + 1] - offset_to_model_base_x))) + 1;
+
                                         float dim_v = getInterpixel(dim, m->model_dimensions[0], m->model_dimensions[1], 4, offset_to_model_base_x, offset_to_model_base_y, current_channel);
                                         weight = (dim_v - zero) / value;
                                         if (current_channel == 0) {
-                                            total_weight += weight * (mgmp->b / 255.0f) * mgmp->s;
+                                            total_weight += weight * (mgmp->b / 255.0f) * (mgmp->s * (entities[entity_id].model_params_s_multiplier / falloff));
                                         }
                                         else if (current_channel == 1) {
-                                            total_weight += weight * (mgmp->g / 255.0f) * mgmp->s;
+                                            total_weight += weight * (mgmp->g / 255.0f) * (mgmp->s * (entities[entity_id].model_params_s_multiplier / falloff));
                                         }
                                         else if (current_channel == 2) {
-                                            total_weight += weight * (mgmp->r / 255.0f) * mgmp->s;
+                                            total_weight += weight * (mgmp->r / 255.0f) * (mgmp->s * (entities[entity_id].model_params_s_multiplier / falloff));
                                         }
                                     }
                                     weight_norm += weight;
@@ -167,6 +168,8 @@ __global__ void mini_gine_draw_entities_kernel(
                                 if (weight_norm > 0.0f) {
                                     total_weight /= weight_norm;
                                     float output_v = zero + total_weight * value;
+                                    if (output_v > 255.0f) output_v = 255.0f;
+                                    if (output_v < 0.0f) output_v = 0.0f;
                                     if (e == 0) {
                                         output[current_y * (output_width * output_channels) + current_x * output_channels + current_channel] = output_v;
                                     } else {

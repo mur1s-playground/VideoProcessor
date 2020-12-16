@@ -97,8 +97,8 @@ DWORD* mini_gine_loop(LPVOID args) {
 					for (int p = 0; p < models[entity->model_id].model_params; p++) {
 						int coio_idx = (((int)entity->orientation / 10 / (36 / models[entity->model_id].model_rotations)) % models[entity->model_id].model_rotations) * models[entity->model_id].model_animation_ticks * (models[entity->model_id].model_params + 2);
 
-						int x = entity->position[0] + coio[coio_idx + p * 2] * entity->scale;
-						int y = entity->position[1] + coio[coio_idx + p * 2 + 1] * entity->scale;
+						int x = entity->position[0] + coio[coio_idx + p * 2 + 1] * entity->scale;
+						int y = entity->position[1] + coio[coio_idx + p * 2] * entity->scale;
 						if (x >= 0 && x < mg->v_src_in->video_width && y >= 0 && y < mg->v_src_in->video_height) {
 							mgmp->b = mg->v_src_in->smb->p_buf_c[next_id * mg->v_src_in->video_channels * mg->v_src_in->video_height * mg->v_src_in->video_width + y * mg->v_src_in->video_channels * mg->v_src_in->video_width + x * mg->v_src_in->video_channels];
 							mgmp->g = mg->v_src_in->smb->p_buf_c[next_id * mg->v_src_in->video_channels * mg->v_src_in->video_height * mg->v_src_in->video_width + y * mg->v_src_in->video_channels * mg->v_src_in->video_width + x * mg->v_src_in->video_channels + 1];
@@ -166,21 +166,28 @@ DWORD* mini_gine_loop(LPVOID args) {
 								mgmp->r = 0.0;
 								mgmp->g = 255.0;
 								mgmp->b = 0.0;
+								entity->model_params_s_multiplier = 15.0f;
+								entity->model_params_s_falloff = 1.0f;
 							}
 							else if (entity->model_id == 5) {
 								mgmp->r = 255.0;
 								mgmp->g = 0.0;
 								mgmp->b = 0.0;
+								entity->model_params_s_multiplier = 15.0f;
+								entity->model_params_s_falloff = 1.0f;
 							}
 							else if (entity->model_id == 6) {
 								mgmp->r = 0.0;
 								mgmp->g = 0.0;
 								mgmp->b = 255.0;
-							}
-							else {
+								entity->model_params_s_multiplier = 15.0f;
+								entity->model_params_s_falloff = 1.0f;
+							} else {
 								mgmp->r = 0;
 								mgmp->g = 0;
 								mgmp->b = 255.0f;
+								entity->model_params_s_multiplier = 2.0f;
+								entity->model_params_s_falloff = 0.0f;
 							}
 						}
 						if (tick_counter % 8 == 0) {
@@ -432,19 +439,49 @@ unsigned int mini_gine_model_add(struct mini_gine* mg, string model_name) {
 							for (int p = 0; p < mgm.model_params; p++) {
 								unsigned char* zero = (unsigned char*)&mg->bf_assets.data[m_ap[r * mgm.model_animation_ticks * (mgm.model_params + 2) + a * (mgm.model_params + 2)]];
 								unsigned char* dim = (unsigned char*)&mg->bf_assets.data[m_ap[r * mgm.model_animation_ticks * (mgm.model_params + 2) + a * (mgm.model_params + 2) + 1 + p]];
-								int max_value = -255;
-								for (int row = 0; row < mgm.model_dimensions[0]; row++) {
-									for (int col = 0; col < mgm.model_dimensions[1]; col++) {
+								int max_value_min_x = -255;
+								int min_x = mgm.model_dimensions[0];
+								int max_value_max_x = -255;
+								int max_x = 0;
+								int max_value_min_y = -255;
+								int min_y = mgm.model_dimensions[1];
+								int max_value_max_y = -255;
+								int max_y = 0;
+								int thres = 10;
+								//int max_value = -255;
+								for (int row = 0; row < mgm.model_dimensions[1]; row++) {
+									for (int col = 0; col < mgm.model_dimensions[0]; col++) {
 										int cur_base_idx = row * mgm.model_dimensions[0] * 4 + col * 4;
 										for (int ch = 0; ch < 3; ch++) {
+											int diff = (int)dim[cur_base_idx + ch] - (int)zero[cur_base_idx + ch];
+											if (diff > thres && col < min_x) {
+												max_value_min_x = diff;
+												min_x = col;
+											}
+											if (diff > thres && col > max_x) {
+												max_value_max_x = diff;
+												max_x = col;
+											}
+											if (diff > thres && row < min_y) {
+												max_value_min_y = diff;
+												min_y = row;
+											}
+											if (diff > thres && row > max_y) {
+												max_value_max_y = diff;
+												max_y = row;
+											}
+											/*
 											if ((int)dim[cur_base_idx + ch] - (int)zero[cur_base_idx + ch] > max_value) {
 												max_value = (int)dim[cur_base_idx + ch] - (int)zero[cur_base_idx + ch];
 												coio[r * mgm.model_animation_ticks * mgm.model_params * 2 + a * mgm.model_params * 2 + p * 2] = row;
 												coio[r * mgm.model_animation_ticks * mgm.model_params * 2 + a * mgm.model_params * 2 + p * 2 + 1] = col;
 											}
+											*/
 										}
 									}
 								}
+								coio[r * mgm.model_animation_ticks * mgm.model_params * 2 + a * mgm.model_params * 2 + p * 2] = min_y + 0.5*(max_y - min_y);
+								coio[r * mgm.model_animation_ticks * mgm.model_params * 2 + a * mgm.model_params * 2 + p * 2 + 1] = min_x + 0.5*(max_x - min_x);
 							}
 						}
 					}
@@ -512,6 +549,8 @@ void mini_gine_entity_add(struct mini_gine* mg, string i_line) {
 	if (mg->models[mge.model_id].model_params > 0) {
 		unsigned int params_size = (unsigned int)ceilf((float)((sizeof(struct mini_gine_model_params)) * mg->models[mge.model_id].model_params) / (float)sizeof(unsigned int));
 		mge.model_params_position = bit_field_add_bulk_zero(&mg->bf_rw, params_size) + 1;
+		mge.model_params_s_multiplier = 1.0f;
+		mge.model_params_s_falloff = 0.0f;
 	} else {
 		mge.model_params_position = 0;
 	}
