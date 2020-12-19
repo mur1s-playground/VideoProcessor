@@ -10,9 +10,16 @@ class MiniGineFrame : public wxFrame {
 public:
 	wxTextCtrl* tc;
 
+	wxTextCtrl* tc_entity_settings;
+
+	wxTextCtrl* tc_entity_group_settings;
+
 	wxButton* ok_button;
 
 	MiniGineFrame(wxWindow* parent);
+
+	void OnMiniGineFrameButtonApplyEntitySettings(wxCommandEvent& event);
+	void OnMiniGineFrameButtonApplyEntityGroupSettings(wxCommandEvent& event);
 
 	void OnMiniGineFrameButtonOk(wxCommandEvent& event);
 	void OnMiniGineFrameButtonClose(wxCommandEvent& event);
