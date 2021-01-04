@@ -153,6 +153,12 @@
     <ClCompile Include="MiniGineUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="GPUGreenScreen.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="GPUGreenScreenUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -311,6 +317,15 @@
     <ClInclude Include="Grid.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="GPUGreenScreen.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="GreenScreenKernel.h">
+      <Filter>Headerdateien\Kernel</Filter>
+    </ClInclude>
+    <ClInclude Include="GPUGreenScreenUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="NLMeansKernel.cu">
@@ -335,6 +350,9 @@
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
     <CudaCompile Include="MiniGine.cu">
+      <Filter>Quelldateien\Kernel</Filter>
+    </CudaCompile>
+    <CudaCompile Include="GreenScreenKernel.cu">
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
   </ItemGroup>

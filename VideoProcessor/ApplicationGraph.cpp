@@ -48,6 +48,9 @@
 #include "MiniGine.h"
 #include "MiniGineUI.h"
 
+#include "GPUGreenScreen.h"
+#include "GPUGreenScreenUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -314,6 +317,9 @@ void application_graph_draw_nodes(struct application_graph* ag, wxDC& dc) {
             } else if (current_v.first == AGNVT_INT) {
                 int* current_int = (int*)current_v.second;
                 ss << *current_int;
+            } else if (current_v.first == AGNVT_UCHAR) {
+                unsigned char* current_uchar = (unsigned char*)current_v.second;
+                ss << (int)*current_uchar;
             } else if (current_v.first == AGNVT_FLOAT) {
                 ss.precision(2);
                 float* current_float = (float*)current_v.second;
@@ -406,6 +412,9 @@ void application_graph_draw_nodes(struct application_graph* ag, wxDC& dc) {
             } else if (current_v.first == AGNVT_INT) {
                 int* current_int = (int*)current_v.second;
                 ss << *current_int;
+            } else if (current_v.first == AGNVT_UCHAR) {
+                unsigned char* current_uchar = (unsigned char*)current_v.second;
+                ss << (int)*current_uchar;
             } else if (current_v.first == AGNVT_FLOAT) {
                 ss.precision(2);
                 float* current_float = (float*)current_v.second;
@@ -767,6 +776,12 @@ void application_graph_load(string base_dir, string name) {
                     struct mini_gine* mg = new mini_gine();
                     mini_gine_load(mg, g_infile);
                     mini_gine_ui_graph_init(agn, (application_graph_component)mg, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_GPU_GREEN_SCREEN: {
+                    struct gpu_green_screen* mg = new gpu_green_screen();
+                    gpu_green_screen_load(mg, g_infile);
+                    gpu_green_screen_ui_graph_init(agn, (application_graph_component)mg, pos_x, pos_y);
                     break;
                 }
             }

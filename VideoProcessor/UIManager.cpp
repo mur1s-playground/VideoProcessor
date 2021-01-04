@@ -17,6 +17,7 @@
 #include "GPUAudioVisualUI.h"
 #include "AudioSourceUI.h"
 #include "MiniGineUI.h"
+#include "GPUGreenScreenUI.h"
 
 #include "MainUI.h"
 
@@ -141,6 +142,14 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 			}
 			case AGCT_GPU_AUDIOVISUAL: {
 				GPUAudioVisualFrame* mbf = (GPUAudioVisualFrame*)ui_manager_frame_store[i].second;
+				if (!mbf->IsShownOnScreen()) {
+					mbf->Show(node_graph_id, node_id);
+					return;
+				}
+				break;
+			}
+			case AGCT_GPU_GREEN_SCREEN: {
+				GPUGreenScreenFrame* mbf = (GPUGreenScreenFrame*)ui_manager_frame_store[i].second;
 				if (!mbf->IsShownOnScreen()) {
 					mbf->Show(node_graph_id, node_id);
 					return;
@@ -272,6 +281,13 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 	case AGCT_GPU_AUDIOVISUAL: {
 		GPUAudioVisualFrame* mbf = new GPUAudioVisualFrame((wxWindow*)myApp->frame);
 		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_GPU_AUDIOVISUAL, (void*)mbf));
+		mbf->Show(node_graph_id, node_id);
+		return;
+		break;
+	}
+	case AGCT_GPU_GREEN_SCREEN: {
+		GPUGreenScreenFrame* mbf = new GPUGreenScreenFrame((wxWindow*)myApp->frame);
+		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_GPU_GREEN_SCREEN, (void*)mbf));
 		mbf->Show(node_graph_id, node_id);
 		return;
 		break;

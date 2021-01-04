@@ -170,6 +170,8 @@
     <ClCompile Include="GPUEdgeFilterUI.cpp" />
     <ClCompile Include="GPUGaussianBlur.cpp" />
     <ClCompile Include="GPUGaussianBlurUI.cpp" />
+    <ClCompile Include="GPUGreenScreen.cpp" />
+    <ClCompile Include="GPUGreenScreenUI.cpp" />
     <ClCompile Include="GPUMemoryBuffer.cpp" />
     <ClCompile Include="GPUMemoryBufferUI.cpp" />
     <ClCompile Include="GPUMotionBlur.cpp" />
@@ -215,12 +217,15 @@
     <ClInclude Include="GPUEdgeFilterUI.h" />
     <ClInclude Include="GPUGaussianBlur.h" />
     <ClInclude Include="GPUGaussianBlurUI.h" />
+    <ClInclude Include="GPUGreenScreen.h" />
+    <ClInclude Include="GPUGreenScreenUI.h" />
     <ClInclude Include="GPUMemoryBuffer.h" />
     <ClInclude Include="GPUMemoryBufferUI.h" />
     <ClInclude Include="GPUMotionBlur.h" />
     <ClInclude Include="GPUMotionBlurUI.h" />
     <ClInclude Include="GPUPaletteFilter.h" />
     <ClInclude Include="GPUPaletteFilterUI.h" />
+    <ClInclude Include="GreenScreenKernel.h" />
     <ClInclude Include="Grid.h" />
     <ClInclude Include="ImShow.h" />
     <ClInclude Include="ImShowUI.h" />
@@ -251,6 +256,7 @@
     <CudaCompile Include="ComposeKernel.cu" />
     <CudaCompile Include="EdgeFilterKernel.cu" />
     <CudaCompile Include="GaussianBlur.cu" />
+    <CudaCompile Include="GreenScreenKernel.cu" />
     <CudaCompile Include="MiniGine.cu" />
     <CudaCompile Include="MotionBlur.cu" />
     <CudaCompile Include="NLMeansKernel.cu">

@@ -41,7 +41,8 @@ enum application_graph_component_type {
 	AGCT_GPU_PALETTE_FILTER,
 	AGCT_GPU_AUDIOVISUAL,
 	AGCT_AUDIO_SOURCE,
-	AGCT_MINI_GINE
+	AGCT_MINI_GINE,
+	AGCT_GPU_GREEN_SCREEN
 };
 
 #define application_graph_component void *
@@ -52,7 +53,8 @@ enum application_graph_node_vtype {
 	AGNVT_STRING_LIST,
 	AGNVT_INT,
 	AGNVT_FLOAT,
-	AGNVT_BOOL
+	AGNVT_BOOL,
+	AGNVT_UCHAR
 };
 
 struct application_graph_node {
