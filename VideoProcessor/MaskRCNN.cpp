@@ -10,6 +10,8 @@
 #include "ApplicationGraph.h"
 #include "MainUI.h"
 
+#include "Vector2.h"
+
 #include "Logger.h"
 
 void mask_rcnn_init(struct mask_rcnn *mrcnn) {
@@ -27,7 +29,10 @@ void mask_rcnn_init(struct mask_rcnn *mrcnn) {
 
 	mrcnn->net_conf_threshold = 0.5f;
 	mrcnn->net_mask_threshold = 0.3f;
+	mrcnn->draw_box = false;
+	mrcnn->draw_mask = true;
 	mrcnn->scale = 1.0f;
+	mrcnn->smb_det = nullptr;
 }
 
 //INTERNAL HELPERS
@@ -67,6 +72,10 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 	shared_memory_buffer_try_rw(mrcnn->v_src_out->smb, current_frame, true, 8);
 	mrcnn->v_src_out->mats[current_frame].setTo(0);
 	
+	if (mrcnn->smb_det != nullptr) {
+		shared_memory_buffer_try_rw(mrcnn->smb_det, current_frame, true, 8);
+	}
+	int saved_detections_count = 0;
 	for (int i = 0; i < num_detections; ++i) {
 		float score = out_detections.at<float>(i, 2);
 		if (score > mrcnn->net_conf_threshold) {
@@ -82,9 +91,28 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 			bottom = max(0, min(bottom, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows - 1));
 			Rect box = Rect(left, top, right - left + 1, bottom - top + 1);
 
-			Mat object_mask(out_masks.size[2], out_masks.size[3], CV_32F, out_masks.ptr<float>(i, class_id));
-			draw_box(mrcnn, current_frame, class_id, box, object_mask);
+			if (mrcnn->smb_det != nullptr) {
+				int saved_detections_count_total = mrcnn->smb_det->size / (sizeof(struct vector2<int>) * 2);
+				if (saved_detections_count < saved_detections_count_total) {
+					saved_detections_count++;
+					unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * (sizeof(struct vector2<int>) * 2) + i * (sizeof(struct vector2<int>) * 2)];
+					struct vector2<int>* sp = (struct vector2<int>*) start_pos;
+					sp[0] = struct vector2<int>(top, left);
+					sp[1] = struct vector2<int>(bottom, right);
+				}
+			}
+
+			if (mrcnn->draw_box) cv::rectangle(mrcnn->v_src_out->mats[current_frame], box, (255, 255, 255), 3);
+			if (mrcnn->draw_mask) {
+				Mat object_mask(out_masks.size[2], out_masks.size[3], CV_32F, out_masks.ptr<float>(i, class_id));
+				draw_box(mrcnn, current_frame, class_id, box, object_mask);
+			}
 		}
+	}
+
+	if (mrcnn->smb_det != nullptr) {
+		shared_memory_buffer_set_time(mrcnn->smb_det, current_frame, shared_memory_buffer_get_time(mrcnn->v_src_in->smb, in_frame_id));
+		shared_memory_buffer_release_rw(mrcnn->smb_det, current_frame);
 	}
 
 	shared_memory_buffer_set_time(mrcnn->v_src_out->smb, current_frame, shared_memory_buffer_get_time(mrcnn->v_src_in->smb, in_frame_id));

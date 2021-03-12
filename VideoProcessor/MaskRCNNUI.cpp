@@ -8,6 +8,7 @@
 
 const string TEXT_VIDEO_SOURCE_INPUT = "Video Source Input";
 const string TEXT_VIDEO_SOURCE_OUTPUT = "Video Source Output";
+const string TEXT_SHARED_MEMORY_BUFFER_DETECTIONS = "SMB Detections";
 
 void mask_rcnn_ui_graph_init(struct application_graph_node* agn, application_graph_component agc, int pos_x, int pos_y) {
     agn->component = agc;
@@ -34,12 +35,18 @@ void mask_rcnn_ui_graph_init(struct application_graph_node* agn, application_gra
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_VIDEO_SOURCE_INPUT));
-    pair<enum application_graph_component_type, void*> inner_in_1 = pair<enum application_graph_component_type, void*>(AGCT_SHARED_MEMORY_BUFFER, (void*)&mrcnn->v_src_in);
+    pair<enum application_graph_component_type, void*> inner_in_1 = pair<enum application_graph_component_type, void*>(AGCT_VIDEO_SOURCE, (void*)&mrcnn->v_src_in);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in_1));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_VIDEO_SOURCE_OUTPUT));
-    pair<enum application_graph_component_type, void*> inner_in_2 = pair<enum application_graph_component_type, void*>(AGCT_SHARED_MEMORY_BUFFER, (void*)&mrcnn->v_src_out);
+    pair<enum application_graph_component_type, void*> inner_in_2 = pair<enum application_graph_component_type, void*>(AGCT_VIDEO_SOURCE, (void*)&mrcnn->v_src_out);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in_2));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_SHARED_MEMORY_BUFFER_DETECTIONS));
+    pair<enum application_graph_component_type, void*> inner_in_3 = pair<enum application_graph_component_type, void*>(AGCT_SHARED_MEMORY_BUFFER, (void*)&mrcnn->smb_det);
+    agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in_3));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
 
@@ -75,7 +82,7 @@ MaskRCNNFrame::MaskRCNNFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("Mask R
 
     wxBoxSizer* hbox_maskthres = new wxBoxSizer(wxHORIZONTAL);
 
-    wxStaticText* st_maskthres = new wxStaticText(panel, -1, wxT("Size"));
+    wxStaticText* st_maskthres = new wxStaticText(panel, -1, wxT("Mask Confidence Threshold"));
     hbox_maskthres->Add(st_maskthres, 0, wxRIGHT, 8);
 
     tc_maskthres = new wxTextCtrl(panel, -1, wxT("0.3"));
@@ -130,6 +137,25 @@ MaskRCNNFrame::MaskRCNNFrame(wxWindow* parent) : wxFrame(parent, -1, wxT("Mask R
 
     vbox->Add(-1, 10);
 
+    wxBoxSizer* hbox_db = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_db = new wxStaticText(panel, -1, wxT("Draw Box"));
+    hbox_db->Add(st_db, 0, wxRIGHT, 8);
+    wxArrayString loop_choices;
+    loop_choices.Add("Yes");
+    loop_choices.Add("No");
+    ch_draw_box = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, loop_choices);
+    hbox_db->Add(ch_draw_box, 1);
+    vbox->Add(hbox_db, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    wxBoxSizer* hbox_dm = new wxBoxSizer(wxHORIZONTAL);
+    wxStaticText* st_dm = new wxStaticText(panel, -1, wxT("Draw Mask"));
+    hbox_dm->Add(st_dm, 0, wxRIGHT, 8);
+    ch_draw_mask = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, loop_choices);
+    hbox_dm->Add(ch_draw_mask, 1);
+    vbox->Add(hbox_dm, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    vbox->Add(-1, 10);
+
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
 
     wxButton* ok_button = new wxButton(panel, -1, wxT("Ok"), wxDefaultPosition, wxSize(70, 30));
@@ -179,6 +205,9 @@ void MaskRCNNFrame::OnMaskRCNNFrameButtonOk(wxCommandEvent& event) {
     }
     mrcnn->net_classes_active.push_back(string((classes_l.substr(start, end)).c_str().AsChar()));
 
+    mrcnn->draw_box = ch_draw_box->GetSelection() == 0;
+    mrcnn->draw_mask = ch_draw_mask->GetSelection() == 0;
+
     if (node_id == -1) {
         application_graph_node* agn = new application_graph_node();
         agn->n_id = ags[node_graph_id]->nodes.size();
@@ -194,6 +223,8 @@ void MaskRCNNFrame::OnMaskRCNNFrameButtonClose(wxCommandEvent& event) {
     tc_maskthres->SetValue("0.3");
     tc_classes->SetValue(classes);
     tc_scale->SetValue("1.0");
+    ch_draw_box->SetSelection(1);
+    ch_draw_mask->SetSelection(0);
 }
 
 void MaskRCNNFrame::Show(int node_graph_id, int node_id) {
@@ -224,6 +255,19 @@ void MaskRCNNFrame::Show(int node_graph_id, int node_id) {
         }
         
         tc_classes->SetValue(wxString(s_classes.str().c_str()));
+
+        if (mrcnn->draw_box) {
+            ch_draw_box->SetSelection(0);
+        } else {
+            ch_draw_box->SetSelection(1);
+        }
+
+        if (mrcnn->draw_mask) {
+            ch_draw_mask->SetSelection(0);
+        }
+        else {
+            ch_draw_mask->SetSelection(1);
+        }
     }
     wxFrame::Show(true);
 }

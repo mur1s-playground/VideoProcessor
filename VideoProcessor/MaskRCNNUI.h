@@ -22,6 +22,9 @@ public:
 
 	wxTextCtrl* tc_scale;
 
+	wxChoice* ch_draw_box;
+	wxChoice* ch_draw_mask;
+
 	MaskRCNNFrame(wxWindow* parent);
 
 	void OnMaskRCNNFrameButtonOk(wxCommandEvent& event);

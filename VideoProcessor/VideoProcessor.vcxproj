@@ -156,6 +156,8 @@
     <ClCompile Include="AudioSource.cpp" />
     <ClCompile Include="AudioSourceUI.cpp" />
     <ClCompile Include="BitField.cpp" />
+    <ClCompile Include="CameraControl.cpp" />
+    <ClCompile Include="CameraControlUI.cpp" />
     <ClCompile Include="Clock.cpp" />
     <ClCompile Include="CUDAStreamHandler.cpp" />
     <ClCompile Include="GPUAudioVisual.cpp" />
@@ -201,6 +203,8 @@
     <ClInclude Include="AudioSourceUI.h" />
     <ClInclude Include="AudioVisualKernel.h" />
     <ClInclude Include="BitField.h" />
+    <ClInclude Include="CameraControl.h" />
+    <ClInclude Include="CameraControlUI.h" />
     <ClInclude Include="ComposeKernel.h" />
     <ClInclude Include="CUDAStreamHandler.h" />
     <ClInclude Include="EdgeFilterKernel.h" />

@@ -42,7 +42,8 @@ enum application_graph_component_type {
 	AGCT_GPU_AUDIOVISUAL,
 	AGCT_AUDIO_SOURCE,
 	AGCT_MINI_GINE,
-	AGCT_GPU_GREEN_SCREEN
+	AGCT_GPU_GREEN_SCREEN,
+	AGCT_CAMERA_CONTROL
 };
 
 #define application_graph_component void *

@@ -81,6 +81,7 @@ VideoSourceFrame::VideoSourceFrame(wxWindow *parent) : wxFrame(parent, -1, wxT("
     type_choices.Add("Path");
     type_choices.Add("Dummy");
     type_choices.Add("Desktop");
+    type_choices.Add("Server");
     ch_source_type = new wxChoice(panel, -1, wxDefaultPosition, wxDefaultSize, type_choices);
     ch_source_type->SetSelection(0);
     hbox_type->Add(ch_source_type, 1);
@@ -249,6 +250,24 @@ void VideoSourceFrame::OnSourceTypeChange(wxCommandEvent& event) {
 
         hbox_channels->Show(false);
         hbox_channels->Layout();
+    } else if (selection == 4) {
+        hbox_devices->Show(false);
+        hbox_devices->Layout();
+
+        hbox_path->Show(true);
+        hbox_path->Layout();
+
+        hbox_loop->Show(false);
+        hbox_loop->Layout();
+
+        hbox_width->Show(true);
+        hbox_width->Layout();
+
+        hbox_height->Show(true);
+        hbox_height->Layout();
+
+        hbox_channels->Show(false);
+        hbox_channels->Layout();
     }
     vbox->Layout();
 }
@@ -265,6 +284,8 @@ void VideoSourceFrame::OnVideoSourceFrameButtonOk(wxCommandEvent& event) {
         tc->SetValue(wxT("dummy"));
     } else if (source_type == 3) {
         tc->SetValue(wxT("desktop"));
+    } else if (source_type == 4) {
+        tc->SetValue(wxT("server"));
     }
 
     wxString str = tc->GetValue();

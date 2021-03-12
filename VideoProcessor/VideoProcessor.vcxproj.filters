@@ -159,6 +159,12 @@
     <ClCompile Include="GPUGreenScreenUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="CameraControl.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="CameraControlUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -324,6 +330,12 @@
       <Filter>Headerdateien\Kernel</Filter>
     </ClInclude>
     <ClInclude Include="GPUGreenScreenUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraControl.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraControlUI.h">
       <Filter>Headerdateien\UI</Filter>
     </ClInclude>
   </ItemGroup>

@@ -5,6 +5,8 @@
 #include "SharedMemoryBuffer.h"
 #include "GPUMemoryBuffer.h"
 
+//#include "Network.h"
+
 using namespace cv;
 using namespace std;
 
@@ -15,6 +17,10 @@ struct video_source {
 	HWND hwnd_desktop;
 	string name;
 
+	//struct network_server* ns;
+	int ns_overlap;
+	int ns_counter;
+
 	int video_width;
 	int video_height;
 	int video_channels;
@@ -24,6 +30,7 @@ struct video_source {
 	bool is_open;
 	bool read_hwnd;
 	bool read_video_capture;
+	bool is_image_stream;
 	bool do_copy;
 	bool direction_smb_to_gmb;
 

@@ -51,6 +51,9 @@
 #include "GPUGreenScreen.h"
 #include "GPUGreenScreenUI.h"
 
+#include "CameraControl.h"
+#include "CameraControlUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -782,6 +785,12 @@ void application_graph_load(string base_dir, string name) {
                     struct gpu_green_screen* mg = new gpu_green_screen();
                     gpu_green_screen_load(mg, g_infile);
                     gpu_green_screen_ui_graph_init(agn, (application_graph_component)mg, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_CAMERA_CONTROL: {
+                    struct camera_control* cc = new camera_control();
+                    camera_control_init(cc);
+                    camera_control_ui_graph_init(agn, (application_graph_component)cc, pos_x, pos_y);
                     break;
                 }
             }

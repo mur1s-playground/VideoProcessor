@@ -297,6 +297,7 @@ void BasicDrawPane::OnShowContextMenu(wxMouseEvent& event) {
         menu->Append(MENU_ID_GPU_GREEN_SCREEN, wxT("GPU Green Screen"));
         menu->Append(MENU_ID_AUDIO_SOURCE, wxT("Audio Source"));
         menu->Append(MENU_ID_MINI_GINE, wxT("MiniGine"));
+        menu->Append(MENU_ID_CAMERA_CONTROL, wxT("Camera Control"));
     }
     PopupMenu(menu);
 }
@@ -353,6 +354,9 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
         break;
     case MENU_ID_MINI_GINE:
         ui_manager_show_frame(AGCT_MINI_GINE, application_graph_active_id);
+        break;
+    case MENU_ID_CAMERA_CONTROL:
+        ui_manager_show_frame(AGCT_CAMERA_CONTROL, application_graph_active_id);
         break;
     case MENU_ID_START_NODE:
         application_graph_start_stop_node(application_graph_active_id, application_graph_hovering_node_id);
@@ -426,6 +430,10 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
                 }
                 case AGCT_MINI_GINE: {
                     ui_manager_show_frame(AGCT_MINI_GINE, application_graph_active_id, application_graph_hovering_node_id);
+                    break;
+                }
+                case AGCT_CAMERA_CONTROL: {
+                    ui_manager_show_frame(AGCT_CAMERA_CONTROL, application_graph_active_id, application_graph_hovering_node_id);
                     break;
                 }
             }

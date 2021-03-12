@@ -19,9 +19,13 @@ struct mask_rcnn {
 	float net_conf_threshold;
 	float net_mask_threshold;
 	float scale;
+	bool draw_box;
+	bool draw_mask;
 	
 	struct video_source* v_src_in;
 	struct video_source* v_src_out;
+
+	struct shared_memory_buffer* smb_det;
 	
 	Mat blob;
 };

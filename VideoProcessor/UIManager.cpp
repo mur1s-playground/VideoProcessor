@@ -18,6 +18,7 @@
 #include "AudioSourceUI.h"
 #include "MiniGineUI.h"
 #include "GPUGreenScreenUI.h"
+#include "CameraControlUI.h"
 
 #include "MainUI.h"
 
@@ -172,6 +173,14 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 				}
 				break;
 			}
+			case AGCT_CAMERA_CONTROL: {
+				CameraControlFrame* ccf = (CameraControlFrame*)ui_manager_frame_store[i].second;
+				if (!ccf->IsShownOnScreen()) {
+					ccf->Show(node_graph_id, node_id);
+					return;
+				}
+				break;
+			}
 			default:
 
 				break;
@@ -303,6 +312,13 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 		MiniGineFrame* mg = new MiniGineFrame((wxWindow*)myApp->frame);
 		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_MINI_GINE, (void*)mg));
 		mg->Show(node_graph_id, node_id);
+		return;
+		break;
+	}
+	case AGCT_CAMERA_CONTROL: {
+		CameraControlFrame* ccf = new CameraControlFrame((wxWindow*)myApp->frame);
+		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_CAMERA_CONTROL, (void*)ccf));
+		ccf->Show(node_graph_id, node_id);
 		return;
 		break;
 	}
