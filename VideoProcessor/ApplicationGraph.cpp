@@ -789,7 +789,7 @@ void application_graph_load(string base_dir, string name) {
                 }
                 case AGCT_CAMERA_CONTROL: {
                     struct camera_control* cc = new camera_control();
-                    camera_control_init(cc);
+                    camera_control_load(cc, g_infile);
                     camera_control_ui_graph_init(agn, (application_graph_component)cc, pos_x, pos_y);
                     break;
                 }

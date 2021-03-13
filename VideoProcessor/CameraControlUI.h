@@ -10,9 +10,17 @@ class CameraControlFrame : public wxFrame {
 	int node_graph_id;
 	int node_id;
 public:
+	wxTextCtrl* tc_camera_count;
+
+	wxTextCtrl* tc_m_path;
+	wxTextCtrl* tc_s_path;
+
+	wxButton* calibrate_button;
 	wxButton* ok_button;
 
 	CameraControlFrame(wxWindow* parent);
+
+	void OnCameraControlFrameButtonCalibrate(wxCommandEvent& event);
 
 	void OnCameraControlFrameButtonOk(wxCommandEvent& event);
 	void OnCameraControlFrameButtonClose(wxCommandEvent& event);

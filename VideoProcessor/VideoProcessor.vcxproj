@@ -192,6 +192,7 @@
     <ClCompile Include="SharedMemoryBufferUI.cpp" />
     <ClCompile Include="GPUVideoAlphaMerge.cpp" />
     <ClCompile Include="GPUVideoAlphaMergeUI.cpp" />
+    <ClCompile Include="Statistic.cpp" />
     <ClCompile Include="UIManager.cpp" />
     <ClCompile Include="VideoSource.cpp" />
     <ClCompile Include="VideoSourceUI.cpp" />
@@ -249,6 +250,7 @@
     <ClInclude Include="GPUVideoAlphaMerge.h" />
     <ClInclude Include="GPUVideoAlphaMergeUI.h" />
     <ClInclude Include="Clock.h" />
+    <ClInclude Include="Statistic.h" />
     <ClInclude Include="UIManager.h" />
     <ClInclude Include="Vector2.h" />
     <ClInclude Include="Vector3.h" />

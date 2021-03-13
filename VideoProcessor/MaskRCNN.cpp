@@ -72,8 +72,10 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 	shared_memory_buffer_try_rw(mrcnn->v_src_out->smb, current_frame, true, 8);
 	mrcnn->v_src_out->mats[current_frame].setTo(0);
 	
+	int saved_detections_count_total;
 	if (mrcnn->smb_det != nullptr) {
 		shared_memory_buffer_try_rw(mrcnn->smb_det, current_frame, true, 8);
+		saved_detections_count_total = mrcnn->smb_det->size / (sizeof(struct vector2<int>) * 2);
 	}
 	int saved_detections_count = 0;
 	for (int i = 0; i < num_detections; ++i) {
@@ -91,14 +93,19 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 			bottom = max(0, min(bottom, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows - 1));
 			Rect box = Rect(left, top, right - left + 1, bottom - top + 1);
 
+			/*
+			stringstream label_ss;
+			label_ss << "input frame_id: " << in_frame_id << " output frame_id: " << current_frame;
+			putText(mrcnn->v_src_out->mats[current_frame], label_ss.str(), Point(0, 20), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(255,255,255), 1);
+			*/
+
 			if (mrcnn->smb_det != nullptr) {
-				int saved_detections_count_total = mrcnn->smb_det->size / (sizeof(struct vector2<int>) * 2);
 				if (saved_detections_count < saved_detections_count_total) {
-					saved_detections_count++;
-					unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * (sizeof(struct vector2<int>) * 2) + i * (sizeof(struct vector2<int>) * 2)];
+					unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * (sizeof(struct vector2<int>) * 2) + saved_detections_count * (sizeof(struct vector2<int>) * 2)];
 					struct vector2<int>* sp = (struct vector2<int>*) start_pos;
 					sp[0] = struct vector2<int>(top, left);
 					sp[1] = struct vector2<int>(bottom, right);
+					saved_detections_count++;
 				}
 			}
 
@@ -111,8 +118,19 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 	}
 
 	if (mrcnn->smb_det != nullptr) {
+		unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * (sizeof(struct vector2<int>) * 2) + saved_detections_count * (sizeof(struct vector2<int>) * 2)];
+		struct vector2<int>* sp = (struct vector2<int>*) start_pos;
+		for (int sd = saved_detections_count; sd < saved_detections_count_total; sd++) {
+			sp[0] = struct vector2<int>(-1, -1);
+			sp[1] = struct vector2<int>(-1, -1);
+			sp += 2;
+		}
 		shared_memory_buffer_set_time(mrcnn->smb_det, current_frame, shared_memory_buffer_get_time(mrcnn->v_src_in->smb, in_frame_id));
 		shared_memory_buffer_release_rw(mrcnn->smb_det, current_frame);
+		
+		shared_memory_buffer_try_rw(mrcnn->smb_det, mrcnn->smb_det->slots, true, 8);
+		mrcnn->smb_det->p_buf_c[mrcnn->smb_det->slots * saved_detections_count_total * (sizeof(struct vector2<int>) * 2) + ((mrcnn->smb_det->slots + 1) * 2)] = current_frame;
+		shared_memory_buffer_release_rw(mrcnn->smb_det, mrcnn->smb_det->slots);
 	}
 
 	shared_memory_buffer_set_time(mrcnn->v_src_out->smb, current_frame, shared_memory_buffer_get_time(mrcnn->v_src_in->smb, in_frame_id));
@@ -135,12 +153,12 @@ DWORD* mask_rcnn_loop(LPVOID args) {
 
 		shared_memory_buffer_try_r(mrcnn->v_src_in->smb, mrcnn->v_src_in->smb_framecount, true, 8);
 		//slots																	//rw-locks									      //meta
-		int next_frame = mrcnn->v_src_in->smb->p_buf_c[mrcnn->v_src_in->smb_framecount * 3 * mrcnn->v_src_in->video_height * mrcnn->v_src_in->video_width + ((mrcnn->v_src_in->smb_framecount + 1) * 2)];
+		int next_frame = mrcnn->v_src_in->smb->p_buf_c[mrcnn->v_src_in->smb_framecount * mrcnn->v_src_in->video_channels * mrcnn->v_src_in->video_height * mrcnn->v_src_in->video_width + ((mrcnn->v_src_in->smb_framecount + 1) * 2)];
 		shared_memory_buffer_release_r(mrcnn->v_src_in->smb, mrcnn->v_src_in->smb_framecount);
 
 		if (next_frame != last_frame) {
 			shared_memory_buffer_try_r(mrcnn->v_src_in->smb, next_frame, true, 8);
-			blobFromImage(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id], mrcnn->blob, mrcnn->scale, Size(mrcnn->v_src_in->video_width, mrcnn->v_src_in->video_height), Scalar(), true, false);
+			blobFromImage(mrcnn->v_src_in->mats[next_frame], mrcnn->blob, mrcnn->scale, Size(mrcnn->v_src_in->video_width, mrcnn->v_src_in->video_height), Scalar(), true, false);
 			mrcnn->net.setInput(mrcnn->blob);
 			
 			std::vector<String> out_names(2);
@@ -177,6 +195,8 @@ void mask_rcnn_externalise(struct application_graph_node* agn, string& out_str) 
 		s_out << mrcnn->net_classes_active[i];
 	}
 	s_out << std::endl;
+	s_out << mrcnn->draw_box << std::endl;
+	s_out << mrcnn->draw_mask << std::endl;
 
 	out_str = s_out.str();
 }
@@ -201,6 +221,11 @@ void mask_rcnn_load(struct mask_rcnn* mrcnn, ifstream& in_f) {
 		end = line.find_first_of(",", start);
 	}
 	mrcnn->net_classes_active.push_back(line.substr(start, end - start).c_str());
+
+	std::getline(in_f, line);
+	mrcnn->draw_box = stoi(line) == 1;
+	std::getline(in_f, line);
+	mrcnn->draw_mask = stoi(line) == 1;
 }
 
 void mask_rcnn_destroy(struct application_graph_node *agn) {

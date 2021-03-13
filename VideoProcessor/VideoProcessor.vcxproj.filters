@@ -165,6 +165,9 @@
     <ClCompile Include="CameraControlUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Statistic.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -337,6 +340,9 @@
     </ClInclude>
     <ClInclude Include="CameraControlUI.h">
       <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Statistic.h">
+      <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
