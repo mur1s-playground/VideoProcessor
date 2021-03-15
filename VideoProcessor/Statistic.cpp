@@ -3,6 +3,7 @@
 #include <math.h>
 #include <cstdlib>
 #include "Vector2.h"
+#include "Logger.h"
 
 void statistic_angle_denoiser_init(struct statistic_angle_denoiser* sad, int size) {
 	sad->angle = 0.0f;
@@ -49,12 +50,12 @@ void statistic_angle_denoiser_update(struct statistic_angle_denoiser* sad, float
 	sad->angle = np_tmp;
 }
 
-void statistic_detection_matcher_2d_init(struct statistic_detection_matcher_2d* sdm2, int size, float ttl, int avg_size) {
+void statistic_detection_matcher_2d_init(struct statistic_detection_matcher_2d* sdm2, int size, unsigned long long ttl, int avg_size) {
 	sdm2->size = size;
 	sdm2->detections = (struct cam_detection*)malloc(sdm2->size*sizeof(cam_detection));
 	memset(sdm2->detections, 0, size * sizeof(cam_detection));
-	sdm2->matches_history = (struct cam_detection_history*)malloc(sdm2->size * sizeof(struct cam_detection_history*));
-	for (int mh = 0; mh < avg_size; mh++) {
+	sdm2->matches_history = (struct cam_detection_history*) malloc(sdm2->size * sizeof(struct cam_detection_history));
+	for (int mh = 0; mh < sdm2->size; mh++) {
 		sdm2->matches_history[mh].size = avg_size;
 		sdm2->matches_history[mh].latest_idx = -1;
 		sdm2->matches_history[mh].latest_count = 0;
@@ -66,9 +67,12 @@ void statistic_detection_matcher_2d_init(struct statistic_detection_matcher_2d* 
 
 void statistic_detection_matcher_2d_update(struct statistic_detection_matcher_2d* sdm2, struct cam_detection_history* cdh) {
 	for (int c = 0; c < cdh->latest_count; c++) {
-		int cur_h_idx = cdh->latest_count - c;
+		int cur_h_idx = cdh->latest_idx - c;
 		if (cur_h_idx < 0) cur_h_idx += cdh->size;
 		struct cam_detection* current_detection = &cdh->history[cur_h_idx];
+
+		logger("class_id");
+		logger(current_detection->class_id);
 
 		struct vector2<float> center = { current_detection->x1 + 0.5f * (current_detection->x2 - current_detection->x1), current_detection->y1 + 0.5f * (current_detection->y2 - current_detection->y1) };
 		int width = current_detection->x2 - current_detection->x1;
@@ -92,7 +96,7 @@ void statistic_detection_matcher_2d_update(struct statistic_detection_matcher_2d
 					if (sdm2->detections[s].class_id != current_detection->class_id) {
 						continue;
 					}
-					struct vector2<float> center_s = { sdm2->detections[s].x1 + 0.5 * (sdm2->detections[s].x2 - sdm2->detections[s].x1), sdm2->detections[s].y1 + 0.5 * (sdm2->detections[s].y2 - sdm2->detections[s].y1) };
+					struct vector2<float> center_s = { sdm2->detections[s].x1 + 0.5f * (sdm2->detections[s].x2 - sdm2->detections[s].x1), sdm2->detections[s].y1 + 0.5f * (sdm2->detections[s].y2 - sdm2->detections[s].y1) };
 					float center_d = length(center_s - center);
 					float center_sc = center_d / width;
 					if (center_sc > 1.0f) {

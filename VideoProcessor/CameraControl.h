@@ -12,6 +12,17 @@
 
 using namespace std;
 
+struct statistic_angle_denoiser {
+	float				angle;
+	float				angle_stability;
+
+	float* angle_distribution;
+	int					angle_distribution_size;
+	int					angle_distribution_idx_latest;
+
+	float* angle_distribution_weights;
+};
+
 struct cam_meta_data {
 	struct vector2<int> resolution;
 };
@@ -37,6 +48,14 @@ struct cam_control {
 	float volt_time;
 	float volt[24];
 	float volt_time_current;
+};
+
+struct cam_detection {
+	int						class_id;
+	float					score;
+
+	int						x1, x2, y1, y2;
+	unsigned long long		timestamp;
 };
 
 enum cam_calibration_process_state {
@@ -76,17 +95,8 @@ struct cam_calibration {
 	struct vector2<int>*	lens_fov;
 };
 
-struct cam_detection {
-	int						class_id;
-	float					score;
-
-	int						x1, x2, y1, y2;
-	unsigned long long		timestamp;
-};
-
 float cam_detection_get_center(struct cam_detection* cd, bool horizontal);
 struct vector2<float> cam_detection_get_center(struct cam_detection* cd);
-bool cam_detection_is_near_target(struct cam_detection* cd, struct vector2<float> target, float margin);
 
 struct cam_detection_history {
 	int							latest_idx;

@@ -11,6 +11,7 @@
 
 #include "Logger.h"
 
+void camera_control_simple_move_inverse(int cam_id, struct vector2<float> src, struct vector2<float> onto);
 void camera_control_write_control(int id, struct vector2<int> top_left, struct vector2<int> bottom_right, struct cam_sensors cs);
 
 void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path) {
@@ -22,6 +23,7 @@ void camera_control_init(struct camera_control* cc, int camera_count, string cam
 	for (int c = 0; c < cc->camera_count; c++) {
 		cc->cam_meta[c].resolution = { 640, 360 };
 	}
+	cc->cam_awareness = (struct cam_awareness*)malloc(cc->camera_count * sizeof(struct cam_awareness));
 
 	//TODO: get better weights
 	float np_w[25] = { 0.0770159,0.0767262,0.0763825,0.0759683,0.0754595,0.0748203,0.0739941,0.0728876,0.0713356,0.0690222,0.065287,0.058668,0.0466034,0.0303119,0.0182474,0.0116283,0.00789316,0.00557978,0.00402777,0.00292125,0.00209508,0.00145584,0.000947069,0.000532801,0.000189098 };
@@ -74,8 +76,8 @@ DWORD* camera_control_loop(LPVOID args) {
 
 	bool calibration_started	= false;
 
-	struct cam_calibration_process* ccp;
-	struct statistic_detection_matcher_2d* ccp_sdm2d;
+	struct cam_calibration_process* ccp = nullptr;
+	struct statistic_detection_matcher_2d* ccp_sdm2d = nullptr;
 	bool had_new_detection_frame = false;
 
 	while (agn->process_run) {
@@ -133,19 +135,18 @@ DWORD* camera_control_loop(LPVOID args) {
 				if (mrd->score == 0) break;
 				int center_y = mrd->y1 + 0.5 * (mrd->y2 - mrd->y1);
 				int res_y = 0;
-				int cam_id = -1;
 				for (int ca = 0; ca < cc->camera_count; ca++) {
 					res_y += cc->cam_meta[ca].resolution[1];
 					if (res_y > center_y) {
-						cam_id = ca;
 						cc->cam_awareness[ca].detection_history.latest_count++;
-						cc->cam_awareness[ca].detection_history.latest_idx++;
+						cc->cam_awareness[ca].detection_history.latest_idx = (cc->cam_awareness[ca].detection_history.latest_idx + 1) % cc->cam_awareness[ca].detection_history.size;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].class_id	= mrd->class_id;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].score		= mrd->score;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].x1			= mrd->x1;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].x2			= mrd->x2;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].y1			= mrd->y1;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].y2			= mrd->y2;
+						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].timestamp	= detections_time;
 						break;
 					}
 				}
@@ -156,27 +157,29 @@ DWORD* camera_control_loop(LPVOID args) {
 		}
 
 		if (cc->calibration) {
-			int CAM_CALIBRATION_CLASS_ID = 9;
+			int CAM_CALIBRATION_CLASS_ID = 37;
 			if (!calibration_started) {
-				ccp = (struct cam_calibration_process*)malloc(cc->camera_count * sizeof(struct cam_calibration_process));
-				ccp_sdm2d = (struct statistic_detection_matcher_2d*)malloc(cc->camera_count * sizeof(struct statistic_detection_matcher_2d));
+				ccp = (struct cam_calibration_process*) malloc(cc->camera_count * sizeof(struct cam_calibration_process));
+				ccp_sdm2d = (struct statistic_detection_matcher_2d*) malloc(cc->camera_count * sizeof(struct statistic_detection_matcher_2d));
 				
 				for (int ca = 0; ca < cc->camera_count; ca++) {
 					ccp[ca].tick = 0;
 					ccp[ca].ccps = CCPS_CALIBRATION_OBJECT_SEARCH;
-					
-					statistic_detection_matcher_2d_init(&ccp_sdm2d[ca], 4, 1000, 10);
+					statistic_detection_matcher_2d_init(&ccp_sdm2d[ca], 4, 1000000000, 10);
 				}
 				calibration_started = true;
 			}
-			for (int ca = 0; ca < cc->camera_count; ca++) {
+			for (int ca = 0; ca < 1; ca++) {
 				struct cam_awareness* current_awareness = &cc->cam_awareness[ca];
 				if (had_new_detection_frame) {
+					
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_SEARCH) {
+						
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							int lc_i = current_detection_history->latest_idx;
 							for (int lc = 0; lc < current_detection_history->latest_count; lc++) {
+								
 								if (current_detection_history->history[lc_i].class_id == CAM_CALIBRATION_CLASS_ID) {
 									ccp[ca].ccps = CCPS_CALIBRATION_OBJECT_DETECT_STABLE;
 									ccp[ca].tick = 0;
@@ -190,6 +193,7 @@ DWORD* camera_control_loop(LPVOID args) {
 						}
 					}
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_LOST) {
+						
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							statistic_detection_matcher_2d_update(&ccp_sdm2d[ca], current_detection_history);
@@ -210,12 +214,14 @@ DWORD* camera_control_loop(LPVOID args) {
 						}
 					}
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_DETECT_STABLE) {
+						
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							statistic_detection_matcher_2d_update(&ccp_sdm2d[ca], current_detection_history);
 						}
 						int sm = statistic_detection_matcher_2d_get_stable_match(&ccp_sdm2d[ca], CAM_CALIBRATION_CLASS_ID, 10);
 						if (sm > -1) {
+							
 							memcpy(&ccp[ca].calibration_object_found, &ccp_sdm2d[ca].detections[sm], sizeof(struct cam_detection));
 							ccp[ca].calibration_object_found_angles[0] = cc->cam_awareness[ca].north_pole.angle;
 							ccp[ca].calibration_object_found_angles[1] = cc->cam_awareness[ca].horizon.angle;
@@ -229,6 +235,7 @@ DWORD* camera_control_loop(LPVOID args) {
 						}
 					}
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_CENTER) {
+						
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							statistic_detection_matcher_2d_update(&ccp_sdm2d[ca], current_detection_history);
@@ -236,7 +243,7 @@ DWORD* camera_control_loop(LPVOID args) {
 						int sm = statistic_detection_matcher_2d_get_stable_match(&ccp_sdm2d[ca], CAM_CALIBRATION_CLASS_ID, 10);
 						if (sm > -1) {
 							struct vector2<float> det_center = cam_detection_get_center(&ccp_sdm2d[ca].detections[sm]);
-							struct vector2<float> c_target = struct vector2<float>(cc->cam_meta[ca].resolution[0] / 0.5f, cc->cam_meta[ca].resolution[1] / 0.5f);
+							struct vector2<float> c_target = struct vector2<float>(cc->cam_meta[ca].resolution[0] * 0.5f, cc->cam_meta[ca].resolution[1] * 0.5f);
 							float target_dist = length(det_center - c_target);
 							if (target_dist < length(c_target) * 0.05f) {
 								memcpy(&ccp[ca].calibration_object_center, &ccp_sdm2d[ca].detections[sm], sizeof(struct cam_detection));
@@ -245,6 +252,9 @@ DWORD* camera_control_loop(LPVOID args) {
 								ccp[ca].ccps = CCPS_CALIBRATION_OBJECT_TOP_LEFT;
 								ccp[ca].tick = 0;
 							} else {
+								if (ccp[ca].tick % 10 == 0) {
+									camera_control_simple_move_inverse(ca, det_center, c_target);
+								}
 								//MOVE CAM
 							}
 						} else {
@@ -261,8 +271,8 @@ DWORD* camera_control_loop(LPVOID args) {
 						int sm = statistic_detection_matcher_2d_get_stable_match(&ccp_sdm2d[ca], CAM_CALIBRATION_CLASS_ID, 10);
 						if (sm > -1) {
 							struct vector2<float> det_center = cam_detection_get_center(&ccp_sdm2d[ca].detections[sm]);
-							float det_half_width = (ccp_sdm2d[ca].detections[sm].x2 - ccp_sdm2d[ca].detections[sm].x1) / 0.5f;
-							float det_half_height = (ccp_sdm2d[ca].detections[sm].y2 - ccp_sdm2d[ca].detections[sm].y1) / 0.5f;
+							float det_half_width = (ccp_sdm2d[ca].detections[sm].x2 - ccp_sdm2d[ca].detections[sm].x1) * 0.5f;
+							float det_half_height = (ccp_sdm2d[ca].detections[sm].y2 - ccp_sdm2d[ca].detections[sm].y1) * 0.5f;
 							struct vector2<float> tl_target = struct vector2<float>(det_half_width, det_half_height);
 							float target_dist = length(det_center - tl_target);
 							if (target_dist < length(tl_target) * 0.1f) {
@@ -288,8 +298,8 @@ DWORD* camera_control_loop(LPVOID args) {
 						int sm = statistic_detection_matcher_2d_get_stable_match(&ccp_sdm2d[ca], CAM_CALIBRATION_CLASS_ID, 10);
 						if (sm > -1) {
 							struct vector2<float> det_center = cam_detection_get_center(&ccp_sdm2d[ca].detections[sm]);
-							float det_half_width = (ccp_sdm2d[ca].detections[sm].x2 - ccp_sdm2d[ca].detections[sm].x1) / 0.5f;
-							float det_half_height = (ccp_sdm2d[ca].detections[sm].y2 - ccp_sdm2d[ca].detections[sm].y1) / 0.5f;
+							float det_half_width = (ccp_sdm2d[ca].detections[sm].x2 - ccp_sdm2d[ca].detections[sm].x1) * 0.5f;
+							float det_half_height = (ccp_sdm2d[ca].detections[sm].y2 - ccp_sdm2d[ca].detections[sm].y1) * 0.5f;
 							struct vector2<float> br_target = struct vector2<float>(cc->cam_meta[ca].resolution[0] - det_half_width, cc->cam_meta[ca].resolution[1] - det_half_height);
 							float target_dist = length(det_center - br_target);
 							if (target_dist < length(struct vector2<float>(det_half_width, det_half_height)) * 0.1f) {
@@ -349,6 +359,51 @@ void camera_control_destroy(struct application_graph_node* agn) {
 }
 
 int camera_control_written = 0;
+void camera_control_simple_move_inverse(int cam_id, struct vector2<float> src, struct vector2<float> onto) {
+	float dx = onto[0] - src[0];
+	if (abs(dx) > 5) {
+		struct cam_control test;
+		test.id = cam_id;
+		test.ngin = ENGINE_HORIZONTAL;
+		test.volt_time = 0.008f;
+
+		float volt_fac = (-1 * (dx > 0) + 1 * (dx < 0));
+		
+		test.volt[0] = volt_fac * 0.0f;
+		for (int v = 1; v < 23; v++) {
+			test.volt[v] = volt_fac * 1.0f;
+		}
+		test.volt[23] = volt_fac * 0.0f;
+
+		test.volt_time_current = 0.0f;
+
+		stringstream filename;
+		filename << "R:\\Cams\\control_" << camera_control_written << ".txt";
+
+		HANDLE control_handle = CreateFileA(filename.str().c_str(),
+			FILE_GENERIC_WRITE,
+			0,
+			NULL,
+			OPEN_ALWAYS,
+			FILE_ATTRIBUTE_NORMAL,
+			NULL);
+
+		char buffer[145];
+		memset(buffer, 0, 145);
+		buffer[144] = 10;
+		memcpy(buffer, &test, 112);
+
+		DWORD dwBytesWritten;
+
+		WriteFile(control_handle, buffer, 145 * sizeof(char), &dwBytesWritten, NULL);
+		CloseHandle(control_handle);
+
+		camera_control_written++;
+	} else {
+		logger("there x");
+	}
+}
+
 void camera_control_write_control(int id, struct vector2<int> top_left, struct vector2<int> bottom_right, struct cam_sensors cs) {
 	int center_x = bottom_right[1] + 0.5 * (bottom_right[1] - top_left[1]);
 	int center_y = bottom_right[0] + 0.5 * (bottom_right[0] - top_left[0]);

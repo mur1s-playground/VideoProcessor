@@ -1,7 +1,7 @@
 #pragma once
 
 #include "CameraControl.h"
-
+/*
 struct statistic_angle_denoiser {
 	float				angle;
 	float				angle_stability;
@@ -12,6 +12,7 @@ struct statistic_angle_denoiser {
 
 	float*				angle_distribution_weights;
 };
+*/
 
 void statistic_angle_denoiser_init(struct statistic_angle_denoiser* sad, int size);
 void statistic_angle_denoiser_set_weights(struct statistic_angle_denoiser* sad, float* weights);

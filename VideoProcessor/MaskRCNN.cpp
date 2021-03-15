@@ -37,7 +37,7 @@ void mask_rcnn_init(struct mask_rcnn *mrcnn) {
 
 //INTERNAL HELPERS
 void draw_box(struct mask_rcnn* mrcnn, int current_output_id, int class_id, Rect box, Mat& object_mask) {
-	if (class_id < (int)mrcnn->net_classes_available.size() && find(mrcnn->net_classes_active.begin(), mrcnn->net_classes_active.end(), mrcnn->net_classes_available[class_id]) != mrcnn->net_classes_active.end()) {
+	//if (class_id < (int)mrcnn->net_classes_available.size() && find(mrcnn->net_classes_active.begin(), mrcnn->net_classes_active.end(), mrcnn->net_classes_available[class_id]) != mrcnn->net_classes_active.end()) {
 		//Scalar color = Scalar(255, 255, 255, 255);
 		if (box.y + box.height > mrcnn->v_src_in->video_height) {
 			box.height -= (box.y + box.height - mrcnn->v_src_in->video_height);
@@ -54,7 +54,7 @@ void draw_box(struct mask_rcnn* mrcnn, int current_output_id, int class_id, Rect
 			//coloredRoi.copyTo(mrcnn->v_src_out->mats[current_output_id](box), mask);
 			mask.copyTo(mrcnn->v_src_out->mats[current_output_id](box), mask);
 		}
-	}
+	//}
 }
 
 void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_frame_id) {
@@ -82,41 +82,43 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 		float score = out_detections.at<float>(i, 2);
 		if (score > mrcnn->net_conf_threshold) {
 			int class_id = static_cast<int>(out_detections.at<float>(i, 1));
-			int left = static_cast<int>(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].cols * out_detections.at<float>(i, 3));
-			int top = static_cast<int>(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows * out_detections.at<float>(i, 4));
-			int right = static_cast<int>(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].cols * out_detections.at<float>(i, 5));
-			int bottom = static_cast<int>(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows * out_detections.at<float>(i, 6));
+			if (class_id < (int)mrcnn->net_classes_available.size() && find(mrcnn->net_classes_active.begin(), mrcnn->net_classes_active.end(), mrcnn->net_classes_available[class_id]) != mrcnn->net_classes_active.end()) {
+				int left = static_cast<int>(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].cols * out_detections.at<float>(i, 3));
+				int top = static_cast<int>(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows * out_detections.at<float>(i, 4));
+				int right = static_cast<int>(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].cols * out_detections.at<float>(i, 5));
+				int bottom = static_cast<int>(mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows * out_detections.at<float>(i, 6));
 
-			left = max(0, min(left, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].cols - 1));
-			top = max(0, min(top, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows - 1));
-			right = max(0, min(right, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].cols - 1));
-			bottom = max(0, min(bottom, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows - 1));
-			Rect box = Rect(left, top, right - left + 1, bottom - top + 1);
+				left = max(0, min(left, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].cols - 1));
+				top = max(0, min(top, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows - 1));
+				right = max(0, min(right, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].cols - 1));
+				bottom = max(0, min(bottom, mrcnn->v_src_in->mats[mrcnn->v_src_in->smb_last_used_id].rows - 1));
+				Rect box = Rect(left, top, right - left + 1, bottom - top + 1);
 
-			/*
-			stringstream label_ss;
-			label_ss << "input frame_id: " << in_frame_id << " output frame_id: " << current_frame;
-			putText(mrcnn->v_src_out->mats[current_frame], label_ss.str(), Point(0, 20), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(255,255,255), 1);
-			*/
+				/*
+				stringstream label_ss;
+				label_ss << "input frame_id: " << in_frame_id << " output frame_id: " << current_frame;
+				putText(mrcnn->v_src_out->mats[current_frame], label_ss.str(), Point(0, 20), FONT_HERSHEY_SIMPLEX, 0.75, Scalar(255,255,255), 1);
+				*/
 
-			if (mrcnn->smb_det != nullptr) {
-				if (saved_detections_count < saved_detections_count_total) {
-					unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * sizeof(struct mask_rcnn_detection) + saved_detections_count * sizeof(struct mask_rcnn_detection)];
-					struct mask_rcnn_detection* sp = (struct mask_rcnn_detection *) start_pos;
-					sp->x1 = left;
-					sp->x2 = right;
-					sp->y1 = top;
-					sp->y2 = bottom;
-					sp->class_id = class_id;
-					sp->score = score;
-					saved_detections_count++;
+				if (mrcnn->smb_det != nullptr) {
+					if (saved_detections_count < saved_detections_count_total) {
+						unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * sizeof(struct mask_rcnn_detection) + saved_detections_count * sizeof(struct mask_rcnn_detection)];
+						struct mask_rcnn_detection* sp = (struct mask_rcnn_detection*)start_pos;
+						sp->x1 = left;
+						sp->x2 = right;
+						sp->y1 = top;
+						sp->y2 = bottom;
+						sp->class_id = class_id;
+						sp->score = score;
+						saved_detections_count++;
+					}
 				}
-			}
 
-			if (mrcnn->draw_box) cv::rectangle(mrcnn->v_src_out->mats[current_frame], box, (255, 255, 255), 3);
-			if (mrcnn->draw_mask) {
-				Mat object_mask(out_masks.size[2], out_masks.size[3], CV_32F, out_masks.ptr<float>(i, class_id));
-				draw_box(mrcnn, current_frame, class_id, box, object_mask);
+				if (mrcnn->draw_box) cv::rectangle(mrcnn->v_src_out->mats[current_frame], box, (255, 255, 255), 3);
+				if (mrcnn->draw_mask) {
+					Mat object_mask(out_masks.size[2], out_masks.size[3], CV_32F, out_masks.ptr<float>(i, class_id));
+					draw_box(mrcnn, current_frame, class_id, box, object_mask);
+				}
 			}
 		}
 	}
@@ -131,7 +133,7 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 		shared_memory_buffer_release_rw(mrcnn->smb_det, current_frame);
 		
 		shared_memory_buffer_try_rw(mrcnn->smb_det, mrcnn->smb_det->slots, true, 8);
-		mrcnn->smb_det->p_buf_c[mrcnn->smb_det->slots * saved_detections_count_total * (sizeof(struct vector2<int>) * 2) + ((mrcnn->smb_det->slots + 1) * 2)] = current_frame;
+		mrcnn->smb_det->p_buf_c[mrcnn->smb_det->slots * saved_detections_count_total * (sizeof(struct mask_rcnn_detection)) + ((mrcnn->smb_det->slots + 1) * 2)] = current_frame;
 		shared_memory_buffer_release_rw(mrcnn->smb_det, mrcnn->smb_det->slots);
 	}
 
