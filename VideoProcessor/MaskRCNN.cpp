@@ -75,7 +75,7 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 	int saved_detections_count_total;
 	if (mrcnn->smb_det != nullptr) {
 		shared_memory_buffer_try_rw(mrcnn->smb_det, current_frame, true, 8);
-		saved_detections_count_total = mrcnn->smb_det->size / (sizeof(struct vector2<int>) * 2);
+		saved_detections_count_total = mrcnn->smb_det->size / (sizeof(struct mask_rcnn_detection));
 	}
 	int saved_detections_count = 0;
 	for (int i = 0; i < num_detections; ++i) {
@@ -101,10 +101,14 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 
 			if (mrcnn->smb_det != nullptr) {
 				if (saved_detections_count < saved_detections_count_total) {
-					unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * (sizeof(struct vector2<int>) * 2) + saved_detections_count * (sizeof(struct vector2<int>) * 2)];
-					struct vector2<int>* sp = (struct vector2<int>*) start_pos;
-					sp[0] = struct vector2<int>(top, left);
-					sp[1] = struct vector2<int>(bottom, right);
+					unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * sizeof(struct mask_rcnn_detection) + saved_detections_count * sizeof(struct mask_rcnn_detection)];
+					struct mask_rcnn_detection* sp = (struct mask_rcnn_detection *) start_pos;
+					sp->x1 = left;
+					sp->x2 = right;
+					sp->y1 = top;
+					sp->y2 = bottom;
+					sp->class_id = class_id;
+					sp->score = score;
 					saved_detections_count++;
 				}
 			}
@@ -118,12 +122,10 @@ void generate_output(struct mask_rcnn* mrcnn, const vector<Mat>& outs, int in_fr
 	}
 
 	if (mrcnn->smb_det != nullptr) {
-		unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * (sizeof(struct vector2<int>) * 2) + saved_detections_count * (sizeof(struct vector2<int>) * 2)];
-		struct vector2<int>* sp = (struct vector2<int>*) start_pos;
-		for (int sd = saved_detections_count; sd < saved_detections_count_total; sd++) {
-			sp[0] = struct vector2<int>(-1, -1);
-			sp[1] = struct vector2<int>(-1, -1);
-			sp += 2;
+		unsigned char* start_pos = &mrcnn->smb_det->p_buf_c[current_frame * saved_detections_count_total * sizeof(struct mask_rcnn_detection) + saved_detections_count * sizeof(struct mask_rcnn_detection)];
+		//struct mask_rcnn_detection *sp = (struct mask_rcnn_detection*) start_pos;
+		if (saved_detections_count_total - saved_detections_count > 0) {
+			memset(start_pos, 0, sizeof(struct mask_rcnn_detection) * (saved_detections_count_total - saved_detections_count));
 		}
 		shared_memory_buffer_set_time(mrcnn->smb_det, current_frame, shared_memory_buffer_get_time(mrcnn->v_src_in->smb, in_frame_id));
 		shared_memory_buffer_release_rw(mrcnn->smb_det, current_frame);

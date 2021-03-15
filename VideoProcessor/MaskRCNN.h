@@ -10,6 +10,12 @@ using namespace cv;
 using namespace cv::dnn;
 using namespace std;
 
+struct mask_rcnn_detection {
+	int class_id;
+	float score;
+	int x1, x2, y1, y2;
+};
+
 struct mask_rcnn {
 	Net net;
 
