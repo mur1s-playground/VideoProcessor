@@ -1,7 +1,5 @@
 #include "Logger.h"
 
-#include <fstream>
-
 void logger(string text) {
 	std::ofstream outfile;
 

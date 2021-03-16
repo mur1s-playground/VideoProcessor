@@ -113,6 +113,8 @@ struct cam_awareness {
 	struct cam_detection_history		detection_history;
 
 	struct cam_calibration				calibration;
+
+	struct vector2<float>				resolution_offset;
 };
 
 struct camera_control {

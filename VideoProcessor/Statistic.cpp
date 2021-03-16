@@ -71,9 +71,6 @@ void statistic_detection_matcher_2d_update(struct statistic_detection_matcher_2d
 		if (cur_h_idx < 0) cur_h_idx += cdh->size;
 		struct cam_detection* current_detection = &cdh->history[cur_h_idx];
 
-		logger("class_id");
-		logger(current_detection->class_id);
-
 		struct vector2<float> center = { current_detection->x1 + 0.5f * (current_detection->x2 - current_detection->x1), current_detection->y1 + 0.5f * (current_detection->y2 - current_detection->y1) };
 		int width = current_detection->x2 - current_detection->x1;
 		int height = current_detection->y2 - current_detection->y1;
