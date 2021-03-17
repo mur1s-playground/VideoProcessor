@@ -26,6 +26,12 @@ __host__ __device__ auto operator-(const vector2<T> v1, const vector2<T> v2) -> 
 }
 
 template<typename T>
+__host__ __device__ vector2<T> operator*(const vector2<T> v, const T t)
+{
+    return { v[0] * t, v[1] * t };
+}
+
+template<typename T>
 __host__ __device__ T dot(const vector2<T> v1, const vector2<T> v2)
 {
     return v1[0] * v2[0] + v1[1] * v2[1];

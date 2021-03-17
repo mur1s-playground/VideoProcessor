@@ -66,12 +66,16 @@ enum cam_calibration_process_state {
 	CCPS_CALIBRATION_OBJECT_CENTER,
 	CCPS_CALIBRATION_OBJECT_TOP_LEFT,
 	CCPS_CALIBRATION_OBJECT_BOTTOM_RIGHT,
+
+	CCPS_CALIBRATION_DONE
 };
 
 struct cam_calibration_process {
 	int tick;
 	
 	enum cam_calibration_process_state ccps;
+
+	vector2<float>			camera_starting_angles;
 	
 	vector2<float>			calibration_object_found_angles;
 	struct cam_detection	calibration_object_found;
@@ -89,10 +93,13 @@ struct cam_calibration_process {
 };
 
 struct cam_calibration {
+	float					d_1;
+	struct vector3<float>	position;
+
 	struct vector3<int>		lens_distortion_quantization_size;
 	float*					lens_distortion_factor;
 
-	struct vector2<int>*	lens_fov;
+	struct vector2<float>	lens_fov;
 };
 
 float cam_detection_get_center(struct cam_detection* cd, bool horizontal);
