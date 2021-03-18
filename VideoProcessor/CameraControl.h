@@ -124,6 +124,22 @@ struct cam_awareness {
 	struct vector2<float>				resolution_offset;
 };
 
+struct camera_control_shared_state {
+	struct vector3<float>				position;
+	struct vector2<float>				fov;
+
+	float								np_angle;
+	float								np_stability;
+	float								np_sensor;
+
+	float								horizon_angle;
+	float								horizon_stability;
+	float								horizon_sensor;
+	
+	int									latest_detections_used_ct;
+	struct cam_detection				latest_detections[5];
+};
+
 struct camera_control {
 	int camera_count;
 
@@ -142,6 +158,9 @@ struct camera_control {
 	unsigned long long* cam_sens_timestamps;
 
 	struct cam_awareness* cam_awareness;
+
+	struct shared_memory_buffer* smb_shared_state;
+	int							shared_state_size_req;
 };
 
 void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path);

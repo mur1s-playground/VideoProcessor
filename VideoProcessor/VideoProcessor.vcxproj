@@ -157,6 +157,8 @@
     <ClCompile Include="AudioSourceUI.cpp" />
     <ClCompile Include="BitField.cpp" />
     <ClCompile Include="CameraControl.cpp" />
+    <ClCompile Include="CameraControlDiagnostic.cpp" />
+    <ClCompile Include="CameraControlDiagnosticUI.cpp" />
     <ClCompile Include="CameraControlUI.cpp" />
     <ClCompile Include="Clock.cpp" />
     <ClCompile Include="CUDAStreamHandler.cpp" />
@@ -205,6 +207,9 @@
     <ClInclude Include="AudioVisualKernel.h" />
     <ClInclude Include="BitField.h" />
     <ClInclude Include="CameraControl.h" />
+    <ClInclude Include="CameraControlDiagnostic.h" />
+    <ClInclude Include="CameraControlDiagnosticKernel.h" />
+    <ClInclude Include="CameraControlDiagnosticUI.h" />
     <ClInclude Include="CameraControlUI.h" />
     <ClInclude Include="ComposeKernel.h" />
     <ClInclude Include="CUDAStreamHandler.h" />
@@ -259,6 +264,7 @@
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="AudioVisualKernel.cu" />
+    <CudaCompile Include="CameraControlDiagnosticKernel.cu" />
     <CudaCompile Include="ComposeKernel.cu" />
     <CudaCompile Include="EdgeFilterKernel.cu" />
     <CudaCompile Include="GaussianBlur.cu" />

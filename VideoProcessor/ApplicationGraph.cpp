@@ -54,6 +54,9 @@
 #include "CameraControl.h"
 #include "CameraControlUI.h"
 
+#include "CameraControlDiagnostic.h"
+#include "CameraControlDiagnosticUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -180,26 +183,24 @@ void application_graph_add_edge_intl(int id, int closest_nid_1, int closest_nid_
     if (current_node->inputs[closest_id_2].second.first == AGCT_SHARED_MEMORY_BUFFER) {
         struct shared_memory_buffer** input_target_ptr_t = (struct shared_memory_buffer**)input_target_ptr;
         *input_target_ptr_t = (struct shared_memory_buffer*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
-    }
-    else if (current_node->inputs[closest_id_2].second.first == AGCT_GPU_MEMORY_BUFFER) {
+    } else if (current_node->inputs[closest_id_2].second.first == AGCT_GPU_MEMORY_BUFFER) {
         struct gpu_memory_buffer** input_target_ptr_t = (struct gpu_memory_buffer**)input_target_ptr;
         *input_target_ptr_t = (struct gpu_memory_buffer*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
-    }
-    else if (current_node->inputs[closest_id_2].second.first == AGCT_VIDEO_SOURCE) {
+    } else if (current_node->inputs[closest_id_2].second.first == AGCT_VIDEO_SOURCE) {
         struct video_source** input_target_ptr_t = (struct video_source**)input_target_ptr;
         *input_target_ptr_t = (struct video_source*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
-    }
-    else if (current_node->inputs[closest_id_2].second.first == AGCT_MASK_RCNN) {
+    } else if (current_node->inputs[closest_id_2].second.first == AGCT_MASK_RCNN) {
         struct mask_rcnn** input_target_ptr_t = (struct mask_rcnn**)input_target_ptr;
         *input_target_ptr_t = (struct mask_rcnn*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
-    }
-    else if (current_node->inputs[closest_id_2].second.first == AGCT_GPU_COMPOSER_ELEMENT) {
+    } else if (current_node->inputs[closest_id_2].second.first == AGCT_GPU_COMPOSER_ELEMENT) {
         struct gpu_composer_element** input_target_ptr_t = (struct gpu_composer_element**)input_target_ptr;
         *input_target_ptr_t = (struct gpu_composer_element*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
-    }
-    else if (current_node->inputs[closest_id_2].second.first == AGCT_AUDIO_SOURCE) {
+    } else if (current_node->inputs[closest_id_2].second.first == AGCT_AUDIO_SOURCE) {
         struct audio_source** input_target_ptr_t = (struct audio_source**)input_target_ptr;
         *input_target_ptr_t = (struct audio_source*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
+    } else if (current_node->inputs[closest_id_2].second.first == AGCT_CAMERA_CONTROL) {
+        struct camera_control** input_target_ptr_t = (struct camera_control**)input_target_ptr;
+        *input_target_ptr_t = (struct camera_control*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
     }
 
     if (current_node->on_input_connect != nullptr) {
@@ -791,6 +792,12 @@ void application_graph_load(string base_dir, string name) {
                     struct camera_control* cc = new camera_control();
                     camera_control_load(cc, g_infile);
                     camera_control_ui_graph_init(agn, (application_graph_component)cc, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_CAMERA_CONTROL_DIAGNOSTIC: {
+                    struct camera_control_diagnostic* ccd = new camera_control_diagnostic();
+                    camera_control_diagnostic_load(ccd, g_infile);
+                    camera_control_diagnostic_ui_graph_init(agn, (application_graph_component)ccd, pos_x, pos_y);
                     break;
                 }
             }

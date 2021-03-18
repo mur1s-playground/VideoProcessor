@@ -5,6 +5,7 @@
 
 const string TEXT_VIDEO_SOURCE_CAMERAS = "Video Source Cameras";
 const string TEXT_MEMORY_BUFFER_DET = "SMB Detections";
+const string TEXT_MEMORY_BUFFER_SHARED_STATE = "SMB Shared State";
 
 void camera_control_ui_graph_init(struct application_graph_node* agn, application_graph_component agc, int pos_x, int pos_y) {
     agn->component = agc;
@@ -30,6 +31,15 @@ void camera_control_ui_graph_init(struct application_graph_node* agn, applicatio
 
     pair<enum application_graph_component_type, void*> inner_in = pair<enum application_graph_component_type, void*>(AGCT_SHARED_MEMORY_BUFFER, (void*)&cc->smb_det);
     agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_MEMORY_BUFFER_SHARED_STATE));
+
+    pair<enum application_graph_component_type, void*> inner_in2 = pair<enum application_graph_component_type, void*>(AGCT_SHARED_MEMORY_BUFFER, (void*)&cc->smb_shared_state);
+    agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in2));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&cc->shared_state_size_req));
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
 

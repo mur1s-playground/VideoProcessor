@@ -58,6 +58,9 @@ void camera_control_init(struct camera_control* cc, int camera_count, string cam
 
 	cc->vs_cams = nullptr;
 	cc->smb_det = nullptr;
+
+	cc->smb_shared_state = nullptr;
+	cc->shared_state_size_req = cc->camera_count * sizeof(struct camera_control_shared_state);
 }
 
 
@@ -81,6 +84,8 @@ DWORD* camera_control_loop(LPVOID args) {
 
 	int linelength_sensors = 40;
 
+	int last_state_slot = 0;
+
 	bool calibration_started	= false;
 	bool calibration_position	= false;
 	bool calibration_done		= false;
@@ -89,8 +94,20 @@ DWORD* camera_control_loop(LPVOID args) {
 	struct statistic_detection_matcher_2d* ccp_sdm2d = nullptr;
 	bool had_new_detection_frame = false;
 
+	int current_state_slot = -1;
+
 	while (agn->process_run) {
 		application_graph_tps_balancer_timer_start(agn);
+		
+		struct camera_control_shared_state* ccss = nullptr;
+		if (cc->smb_shared_state != nullptr) {
+			current_state_slot = (last_state_slot + 1) % cc->smb_shared_state->slots;
+			shared_memory_buffer_try_rw(cc->smb_shared_state, current_state_slot, true, 8);
+			shared_memory_buffer_try_r(cc->smb_shared_state, last_state_slot, true, 8);
+			ccss = (struct camera_control_shared_state*) &cc->smb_shared_state->p_buf_c[current_state_slot * cc->smb_shared_state->size];
+			memcpy(ccss, &cc->smb_shared_state->p_buf_c[last_state_slot * cc->smb_shared_state->size], cc->smb_shared_state->size);
+			shared_memory_buffer_release_r(cc->smb_shared_state, last_state_slot);
+		}
 
 		shared_memory_buffer_try_r(cc->vs_cams->smb, cc->vs_cams->smb_framecount, true, 8);
 		int current_cameras_frame = cc->vs_cams->smb->p_buf_c[cc->vs_cams->smb_framecount * cc->vs_cams->video_channels * cc->vs_cams->video_height * cc->vs_cams->video_width + ((cc->vs_cams->smb_framecount + 1) * 2)];
@@ -116,6 +133,15 @@ DWORD* camera_control_loop(LPVOID args) {
 							for (int c = 0; c < cc->camera_count; c++) {
 								statistic_angle_denoiser_update(&cc->cam_awareness[c].north_pole, (float)cc->cam_sens[last_cameras_frame * cc->camera_count + c].compass);					
 								statistic_angle_denoiser_update(&cc->cam_awareness[c].horizon, (float)cc->cam_sens[last_cameras_frame * cc->camera_count + c].tilt);
+								if (current_state_slot > -1) {
+									ccss[c].np_sensor = (float)cc->cam_sens[last_cameras_frame * cc->camera_count + c].compass;
+									ccss[c].np_angle = cc->cam_awareness[c].north_pole.angle;
+									ccss[c].np_stability = cc->cam_awareness[c].north_pole.angle_stability;
+
+									ccss[c].horizon_sensor = (float)cc->cam_sens[last_cameras_frame * cc->camera_count + c].tilt;
+									ccss[c].horizon_angle = cc->cam_awareness[c].horizon.angle;
+									ccss[c].horizon_stability = cc->cam_awareness[c].horizon.angle_stability;
+								}
 							}
 						}
 					}
@@ -139,6 +165,9 @@ DWORD* camera_control_loop(LPVOID args) {
 			unsigned long long detections_time = shared_memory_buffer_get_time(cc->smb_det, current_detection_frame);
 			for (int ca = 0; ca < cc->camera_count; ca++) {
 				cc->cam_awareness[ca].detection_history.latest_count = 0;
+				if (current_state_slot > -1) {
+					ccss[ca].latest_detections_used_ct = 0;
+				}
 			}
 			for (int sp = 0; sp < saved_detections_count_total; sp++) {
 				if (mrd->score == 0) break;
@@ -156,6 +185,11 @@ DWORD* camera_control_loop(LPVOID args) {
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].y1			= mrd->y1;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].y2			= mrd->y2;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].timestamp	= detections_time;
+						
+						if (current_state_slot > -1 && ccss[ca].latest_detections_used_ct < 5) {
+							memcpy(&ccss[ca].latest_detections[ccss[ca].latest_detections_used_ct], &cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx], sizeof(cam_detection));
+							ccss[ca].latest_detections_used_ct++;
+						}
 						/*
 						logger("new detection");
 						logger("cam_id", ca);
@@ -171,6 +205,7 @@ DWORD* camera_control_loop(LPVOID args) {
 			shared_memory_buffer_release_r(cc->smb_det, current_detection_frame);
 			last_detection_frame = current_detection_frame;
 		}
+
 		if (cc->calibration) {
 			int CAM_CALIBRATION_CLASS_ID = 37;
 			if (!calibration_started) {
@@ -201,30 +236,46 @@ DWORD* camera_control_loop(LPVOID args) {
 				for (int ca = 0; ca < cc->camera_count; ca++) {
 					struct vector2<float> top_left_detection_center = cam_detection_get_center(&ccp[ca].calibration_object_top_left);
 					struct vector2<float> top_left_angles = ccp[ca].calibration_object_top_left_angles;
-					
-					struct vector2<float> center_angles = ccp[ca].calibration_object_center_angles;
+
+					logger("top_left np: ", ccp[ca].calibration_object_top_left_angles[0]);
+					logger("top_left horizon: ", ccp[ca].calibration_object_top_left_angles[1]);
+
 					struct vector2<float> center_detection_center = cam_detection_get_center(&ccp[ca].calibration_object_center);
+					struct vector2<float> center_angles = ccp[ca].calibration_object_center_angles;
+
+					logger("center np: ", ccp[ca].calibration_object_center_angles[0]);
+					logger("center horizon: ", ccp[ca].calibration_object_center_angles[1]);
 
 					struct vector2<float> bottom_right_detection_center = cam_detection_get_center(&ccp[ca].calibration_object_bottom_right);
 					struct vector2<float> bottom_right_angles = ccp[ca].calibration_object_bottom_right_angles;
 
-					float distance_detection_top_left_to_center = length(top_left_detection_center-center_detection_center);
+					logger("bottom_right np: ", ccp[ca].calibration_object_bottom_right_angles[0]);
+					logger("bottom_right horizon: ", ccp[ca].calibration_object_bottom_right_angles[1]);
+
+					float distance_detection_top_left_to_center = length(top_left_detection_center - center_detection_center);
 					float lambda = 1.0f;
-					struct vector2<float> top_left_corner = center_detection_center - -(top_left_detection_center - center_detection_center)*lambda;
-					while (top_left_corner[0] > cc->cam_awareness[ca].resolution_offset[0] || top_left_corner[1] > cc->cam_awareness[ca].resolution_offset[1]) {
+					struct vector2<float> top_left_corner = center_detection_center - -(top_left_detection_center - center_detection_center) * lambda;
+					while (top_left_corner[0] > cc->cam_awareness[ca].resolution_offset[0] && top_left_corner[1] > cc->cam_awareness[ca].resolution_offset[1]) {
 						lambda += 0.01f;
 						top_left_corner = center_detection_center - -(top_left_detection_center - center_detection_center) * lambda;
 					}
-					struct vector2<float> max_compass_max_tilt = center_angles - -(top_left_angles-center_angles)*lambda;
+					struct vector2<float> max_compass_max_tilt = center_angles - -(top_left_angles - center_angles) * lambda;
+					logger("max_compass: ", max_compass_max_tilt[0]);
+					logger("max_tilt: ", max_compass_max_tilt[1]);
+					logger("lambda: ", lambda);
 					
+
 					float distance_detection_bottom_right_to_center = length(bottom_right_detection_center - center_detection_center);
 					float phi = 1.0f;
 					struct vector2<float> bottom_right_corner = center_detection_center - -(bottom_right_detection_center - center_detection_center) * phi;
-					while (bottom_right_corner[0] < cc->cam_awareness[ca].resolution_offset[0] + cc->cam_meta[ca].resolution[0] || bottom_right_corner[1] < cc->cam_awareness[ca].resolution_offset[1] + cc->cam_meta[ca].resolution[1]) {
+					while (bottom_right_corner[0] < cc->cam_awareness[ca].resolution_offset[0] + cc->cam_meta[ca].resolution[0] && bottom_right_corner[1] < cc->cam_awareness[ca].resolution_offset[1] + cc->cam_meta[ca].resolution[1]) {
 						phi += 0.01f;
 						bottom_right_corner = center_detection_center - -(bottom_right_detection_center - center_detection_center) * phi;
 					}
-					struct vector2<float> min_compass_min_tilt = center_angles - -(bottom_right_angles - center_angles)*phi;
+					struct vector2<float> min_compass_min_tilt = center_angles - -(bottom_right_angles - center_angles) * phi;
+					logger("min_compass: ", min_compass_min_tilt[0]);
+					logger("min_tilt: ", min_compass_min_tilt[1]);
+					logger("phi: ", phi);
 
 					cc->cam_awareness[ca].calibration.lens_fov = { (max_compass_max_tilt[0] - min_compass_min_tilt[0]), (max_compass_max_tilt[1] - min_compass_min_tilt[1]) };
 					for (int fo = 0; fo < 1; fo++) {
@@ -237,6 +288,10 @@ DWORD* camera_control_loop(LPVOID args) {
 					logger("cam_id", ca);
 					logger("fov_c", cc->cam_awareness[ca].calibration.lens_fov[0]);
 					logger("fov_t", cc->cam_awareness[ca].calibration.lens_fov[1]);
+
+					if (current_state_slot > -1) {
+						ccss[ca].fov = cc->cam_awareness[ca].calibration.lens_fov;
+					}
 				}
 
 				cc->calibration = false;
@@ -308,7 +363,7 @@ DWORD* camera_control_loop(LPVOID args) {
 							struct vector2<float> hq = cam_calibration_get_hq(cc->cam_awareness[ca].calibration.d_1, cc->cam_awareness[ca].horizon.angle);
 							cc->cam_awareness[ca].calibration.position[2] = hq[0];
 						}
-						/*
+
 						logger("cam_id", ca);
 						logger("alpha", cc->cam_awareness[ca].north_pole.angle);
 						logger("beta", cc->cam_awareness[ca].horizon.angle);
@@ -317,7 +372,9 @@ DWORD* camera_control_loop(LPVOID args) {
 						logger("position_z", cc->cam_awareness[ca].calibration.position[2]);
 						logger("det_avg_d", (((ccp[ca].calibration_object_center.x2 - ccp[ca].calibration_object_center.x1) + (ccp[ca].calibration_object_center.y2 - ccp[ca].calibration_object_center.y1)) * 0.5f));
 						logger("det_dist", cc->cam_awareness[ca].calibration.d_1);
-						*/
+						if (current_state_slot > -1) {
+							ccss[ca].position = cc->cam_awareness[ca].calibration.position;
+						}
 					}
 					calibration_position = true;
 				}
@@ -328,7 +385,9 @@ DWORD* camera_control_loop(LPVOID args) {
 				}
 				struct cam_awareness* current_awareness = &cc->cam_awareness[ca];
 				if (had_new_detection_frame) {
+					//logger("camera_id", ca);
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_SEARCH) {
+						//logger("calibration_state", "COS");
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						bool found_object = false;
 						if (current_detection_history->latest_count >= 1) {
@@ -359,6 +418,7 @@ DWORD* camera_control_loop(LPVOID args) {
 						}
 					}
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_LOST) {
+						//logger("calibration_state", "COL");
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							statistic_detection_matcher_2d_update(&ccp_sdm2d[ca], current_detection_history);
@@ -379,6 +439,7 @@ DWORD* camera_control_loop(LPVOID args) {
 						}
 					}
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_DETECT_STABLE) {
+						//logger("calibration_state", "CDS");
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							statistic_detection_matcher_2d_update(&ccp_sdm2d[ca], current_detection_history);
@@ -398,6 +459,7 @@ DWORD* camera_control_loop(LPVOID args) {
 						}
 					}
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_CENTER) {
+						//logger("calibration_state", "COC");
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							statistic_detection_matcher_2d_update(&ccp_sdm2d[ca], current_detection_history);
@@ -406,6 +468,12 @@ DWORD* camera_control_loop(LPVOID args) {
 						if (sm > -1) {
 							struct vector2<float> det_center = cam_detection_get_center(&ccp_sdm2d[ca].detections[sm]);
 							struct vector2<float> c_target = struct vector2<float>(cc->cam_meta[ca].resolution[0] * 0.5f + cc->cam_awareness[ca].resolution_offset[0], cc->cam_meta[ca].resolution[1] * 0.5f + cc->cam_awareness[ca].resolution_offset[1]);
+							/*
+							logger("detection class", ccp_sdm2d[ca].detections[sm].class_id);
+							logger("detection center_x", det_center[0]);
+							logger("detection center_y", det_center[1]);
+							logger("center target_x", c_target[0]);
+							logger("center target_y", c_target[1]);*/
 							float target_dist = length(det_center - c_target);
 							struct vector2<float> target_dims = { (float)(ccp_sdm2d[ca].detections[sm].x2 - ccp_sdm2d[ca].detections[sm].x1),(float)(ccp_sdm2d[ca].detections[sm].y2 - ccp_sdm2d[ca].detections[sm].y1) };
 							if (target_dist < length(target_dims) * 0.2f) {
@@ -426,6 +494,7 @@ DWORD* camera_control_loop(LPVOID args) {
 						}
 					}
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_TOP_LEFT) {
+						//logger("calibration_state", "CTL");
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							statistic_detection_matcher_2d_update(&ccp_sdm2d[ca], current_detection_history);
@@ -463,6 +532,7 @@ DWORD* camera_control_loop(LPVOID args) {
 						}
 					}
 					if (ccp[ca].ccps == CCPS_CALIBRATION_OBJECT_BOTTOM_RIGHT) {
+						//logger("ccps CBR");
 						struct cam_detection_history* current_detection_history = &current_awareness->detection_history;
 						if (current_detection_history->latest_count >= 1) {
 							statistic_detection_matcher_2d_update(&ccp_sdm2d[ca], current_detection_history);
@@ -496,6 +566,14 @@ DWORD* camera_control_loop(LPVOID args) {
 				}
 			}
 			had_new_detection_frame = false;
+		}
+
+		if (cc->smb_shared_state != nullptr) {
+			shared_memory_buffer_release_rw(cc->smb_shared_state, current_state_slot);
+			shared_memory_buffer_try_rw(cc->smb_shared_state, cc->smb_shared_state->slots, true, 8);
+			cc->smb_shared_state->p_buf_c[cc->smb_shared_state->slots * cc->smb_shared_state->size + ((cc->smb_shared_state->slots + 1) * 2)] = current_state_slot;
+			shared_memory_buffer_release_rw(cc->smb_shared_state, cc->smb_shared_state->slots);
+			last_state_slot = current_state_slot;
 		}
 
 		application_graph_tps_balancer_timer_stop(agn);

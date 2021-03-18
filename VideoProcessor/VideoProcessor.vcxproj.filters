@@ -168,6 +168,12 @@
     <ClCompile Include="Statistic.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="CameraControlDiagnostic.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="CameraControlDiagnosticUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -344,6 +350,15 @@
     <ClInclude Include="Statistic.h">
       <Filter>Headerdateien</Filter>
     </ClInclude>
+    <ClInclude Include="CameraControlDiagnosticUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraControlDiagnostic.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="CameraControlDiagnosticKernel.h">
+      <Filter>Headerdateien\Kernel</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <CudaCompile Include="NLMeansKernel.cu">
@@ -371,6 +386,9 @@
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
     <CudaCompile Include="GreenScreenKernel.cu">
+      <Filter>Quelldateien\Kernel</Filter>
+    </CudaCompile>
+    <CudaCompile Include="CameraControlDiagnosticKernel.cu">
       <Filter>Quelldateien\Kernel</Filter>
     </CudaCompile>
   </ItemGroup>
