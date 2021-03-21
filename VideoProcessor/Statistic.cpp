@@ -24,6 +24,15 @@ void statistic_angle_denoiser_set_weights(struct statistic_angle_denoiser* sad, 
 	}
 }
 
+bool statistic_angle_denoise_is_left_of(float angle_base, float angle_new) {
+	if (angle_base >= 0.0f && angle_base < 90.0f && angle_new <= 360.0f && angle_new > 270.0f) {
+		return true;
+	} else if (angle_new >= 0.0f && angle_new < 90.0f && angle_base <= 360.0f && angle_base > 270.0f) {
+		return false;
+	}
+	return (angle_base - angle_new > 0);
+}
+
 void statistic_angle_denoiser_update(struct statistic_angle_denoiser* sad, float angle) {
 	sad->angle_distribution_idx_latest = (sad->angle_distribution_idx_latest + 1) % sad->angle_distribution_size;
 	sad->angle_distribution[sad->angle_distribution_idx_latest] = angle;
@@ -33,7 +42,7 @@ void statistic_angle_denoiser_update(struct statistic_angle_denoiser* sad, float
 	int tmp_d_c = sad->angle_distribution_idx_latest;
 	for (int np_d = 0; np_d < sad->angle_distribution_size; np_d++) {
 		float f_dt = 0.0f;
-		float dt_s = 1 - (2 * (sad->angle_distribution[sad->angle_distribution_idx_latest] - sad->angle_distribution[tmp_d_c] > 0));
+		float dt_s = 1 - (2 * (statistic_angle_denoise_is_left_of(sad->angle_distribution[sad->angle_distribution_idx_latest], sad->angle_distribution[tmp_d_c])));		
 		float dt = (float)abs(sad->angle_distribution[sad->angle_distribution_idx_latest] - sad->angle_distribution[tmp_d_c]);
 		if (dt < 180.0f) {
 			f_dt = dt;

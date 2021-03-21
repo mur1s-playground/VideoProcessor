@@ -252,6 +252,23 @@ DWORD* camera_control_loop(LPVOID args) {
 					logger("bottom_right np: ", ccp[ca].calibration_object_bottom_right_angles[0]);
 					logger("bottom_right horizon: ", ccp[ca].calibration_object_bottom_right_angles[1]);
 
+					float angle_zero_shift_compass = 360.0 - bottom_right_angles[0];
+					struct vector3<float> shifted_compass = { top_left_angles[0] + angle_zero_shift_compass, center_angles[0] + angle_zero_shift_compass, 0.0f };
+					if (shifted_compass[0] > 360) shifted_compass[0] -= 360;
+					if (shifted_compass[1] > 360) shifted_compass[1] -= 360;
+					logger("compass zero shift tl", shifted_compass[0]);
+					logger("compass zero shift c", shifted_compass[1]);
+					logger("compass zero shift br", shifted_compass[2]);
+
+
+					float angle_zero_shift_tilt = 360.0 - bottom_right_angles[1];
+					struct vector3<float> shifted_tilt = { top_left_angles[1] + angle_zero_shift_tilt, center_angles[1] + angle_zero_shift_tilt, 0.0f };
+					if (shifted_tilt[0] > 360) shifted_tilt[0] -= 360;
+					if (shifted_tilt[1] > 360) shifted_tilt[1] -= 360;
+					logger("tilt zero shift tl", shifted_tilt[0]);
+					logger("tilt zero shift c", shifted_tilt[1]);
+					logger("tilt zero shift br", shifted_tilt[2]);
+
 					float distance_detection_top_left_to_center = length(top_left_detection_center - center_detection_center);
 					float lambda = 1.0f;
 					struct vector2<float> top_left_corner = center_detection_center - -(top_left_detection_center - center_detection_center) * lambda;
@@ -259,11 +276,13 @@ DWORD* camera_control_loop(LPVOID args) {
 						lambda += 0.01f;
 						top_left_corner = center_detection_center - -(top_left_detection_center - center_detection_center) * lambda;
 					}
-					struct vector2<float> max_compass_max_tilt = center_angles - -(top_left_angles - center_angles) * lambda;
+					struct vector2<float> max_compass_max_tilt = {
+						shifted_compass[1] - -(shifted_compass[0] - shifted_compass[1]) * lambda,
+						shifted_tilt[1] - -(shifted_tilt[0] - shifted_tilt[1]) * lambda,
+					};
 					logger("max_compass: ", max_compass_max_tilt[0]);
 					logger("max_tilt: ", max_compass_max_tilt[1]);
 					logger("lambda: ", lambda);
-					
 
 					float distance_detection_bottom_right_to_center = length(bottom_right_detection_center - center_detection_center);
 					float phi = 1.0f;
@@ -272,7 +291,10 @@ DWORD* camera_control_loop(LPVOID args) {
 						phi += 0.01f;
 						bottom_right_corner = center_detection_center - -(bottom_right_detection_center - center_detection_center) * phi;
 					}
-					struct vector2<float> min_compass_min_tilt = center_angles - -(bottom_right_angles - center_angles) * phi;
+					struct vector2<float> min_compass_min_tilt = {
+						shifted_compass[1] - -(shifted_compass[2] - shifted_compass[1]) * phi,
+						shifted_tilt[1] - -(shifted_tilt[2] - shifted_tilt[1]) * phi
+					};
 					logger("min_compass: ", min_compass_min_tilt[0]);
 					logger("min_tilt: ", min_compass_min_tilt[1]);
 					logger("phi: ", phi);
@@ -295,7 +317,6 @@ DWORD* camera_control_loop(LPVOID args) {
 				}
 
 				cc->calibration = false;
-				continue;
 			}
 			if (!calibration_position) {
 				bool ready_for_position_estimation = true;
