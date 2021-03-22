@@ -65,6 +65,9 @@ struct cam_detection_3d {
 	vector3<float>			position;
 	vector3<float>			velocity;
 
+	vector3<float>			ray_position[5];
+	vector3<float>			ray_direction[5];
+
 	unsigned long long		timestamp;
 };
 
@@ -148,6 +151,9 @@ struct camera_control_shared_state {
 	
 	int									latest_detections_used_ct;
 	struct cam_detection				latest_detections[5];
+
+	struct vector2<float>				latest_detections_rays[5];
+	struct vector3<float>				latest_detections_objects[5];
 };
 
 struct camera_control {
@@ -172,8 +178,6 @@ struct camera_control {
 
 	struct shared_memory_buffer* smb_shared_state;
 	int							shared_state_size_req;
-
-	
 };
 
 void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path, string calibration_path);

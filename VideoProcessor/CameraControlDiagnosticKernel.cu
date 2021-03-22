@@ -51,6 +51,36 @@ __device__ void camera_control_diagnostic_draw_looking_direction(struct vector2<
 }
 
 __forceinline__
+__device__ void camera_control_diagnostic_draw_looking_direction_vec(struct vector2<float> cam_2d_pos, float scaling_factor, struct vector3<unsigned char> color, float pixel_width, struct vector2<float> world_position, float d_len, unsigned char* dst, int row, int col, int width, struct vector2<float> direction) {
+	cam_2d_pos = cam_2d_pos * scaling_factor;
+
+	float d_length = d_len * pixel_width;
+	struct vector2<float> np_dir = direction;
+
+	float min_dist = length(cam_2d_pos - world_position);
+
+	if (min_dist < d_length) {
+		for (int ss = 0; ss < 20; ss++) {
+			struct vector2<float> draw_pos = cam_2d_pos - np_dir * (-ss / 20.0f) * d_length;
+			if (length(draw_pos - world_position) < min_dist) {
+				min_dist = length(draw_pos - world_position);
+			}
+		}
+
+		if (min_dist < 1.0f * pixel_width) {
+			dst[row * width * 3 + col * 3 + 0] = color[0];
+			dst[row * width * 3 + col * 3 + 1] = color[1];
+			dst[row * width * 3 + col * 3 + 2] = color[2];
+		}
+		else if (min_dist < 4.0f * pixel_width) {
+			dst[row * width * 3 + col * 3 + 0] = color[0] + (min_dist / (4.0f * pixel_width) * (dst[row * width * 3 + col * 3 + 0] - color[0]));
+			dst[row * width * 3 + col * 3 + 1] = color[1] + (min_dist / (4.0f * pixel_width) * (dst[row * width * 3 + col * 3 + 1] - color[1]));
+			dst[row * width * 3 + col * 3 + 2] = color[2] + (min_dist / (4.0f * pixel_width) * (dst[row * width * 3 + col * 3 + 2] - color[2]));
+		}
+	}
+}
+
+__forceinline__
 __device__ void camera_control_diagnostic_draw_fov(struct vector2<float> cam_2d_pos, float scaling_factor, float pixel_width, struct vector2<float> world_position, unsigned char* dst, int row, int col, int width, float angle, struct vector2<float> fov) {
 	cam_2d_pos = cam_2d_pos * scaling_factor;
 
@@ -212,6 +242,26 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 				camera_control_diagnostic_draw_fov(cam_2d_pos, scaling_factor, pixel_width, world_position, dst, row, col, width, ccss[c].np_angle, ccss[c].fov);
 			}
 
+			//draw detection rays
+			for (int c = 0; c < camera_count; c++) {
+				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[1] };
+				for (int r = 0; r < 5; r++) {
+					if (ccss[c].latest_detections_rays[r][0] != 0) {
+						camera_control_diagnostic_draw_looking_direction(cam_2d_pos, scaling_factor, struct vector3<unsigned char>(123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 37, 0), pixel_width, world_position, 150, dst, row, col, width, ccss[c].latest_detections_rays[r][0] - 90.0f);
+					}
+				}
+			}
+
+			//draw detected objects
+			for (int c = 0; c < camera_count; c++) {
+				for (int r = 0; r < 5; r++) {
+					if (ccss[c].latest_detections_objects[r][0] != 0) {
+						struct vector2<float> cam_2d_pos = { ccss[c].latest_detections_objects[r][0], ccss[c].latest_detections_objects[r][1] };
+						camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(0, 123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 13), pixel_width, world_position, dst, row, col, width);
+					}
+				}
+			}
+
 			//draw camera
 			for (int c = 0; c < camera_count; c++) {
 				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[1] };
@@ -247,6 +297,37 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 				camera_control_diagnostic_draw_fov(cam_2d_pos, scaling_factor, pixel_width, world_position, dst, row, col, width, ccss[c].np_angle, ccss[c].fov);
 			}
 			*/
+
+			//draw detection rays
+			for (int c = 0; c < camera_count; c++) {
+				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[2] };
+				for (int r = 0; r < 5; r++) {
+					if (ccss[c].latest_detections_rays[r][1] != 0) {
+						float north_pole = ccss[c].latest_detections_rays[r][0];
+						float horizon = ccss[c].latest_detections_rays[r][1];
+
+						float M_PI = 3.14159274101257324219;
+
+						struct vector2<float> unit_vec = {						
+							-sinf(horizon * (M_PI / (2.0f * 90.0f))) * cosf(north_pole * (M_PI / (2.0f * 90.0f))),
+							cosf(horizon * (M_PI / (2.0f * 90.0f)))
+						};
+
+						camera_control_diagnostic_draw_looking_direction_vec(cam_2d_pos, scaling_factor, struct vector3<unsigned char>(123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 37, 0), pixel_width, world_position, 150, dst, row, col, width, unit_vec);
+					}
+				}
+			}
+
+			//draw detected objects
+			for (int c = 0; c < camera_count; c++) {
+				for (int r = 0; r < 5; r++) {
+					if (ccss[c].latest_detections_objects[r][0] != 0) {
+						struct vector2<float> cam_2d_pos = { ccss[c].latest_detections_objects[r][0], -ccss[c].latest_detections_objects[r][2] };
+						camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(0, 123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 13), pixel_width, world_position, dst, row, col, width);
+					}
+				}
+			}
+
 			//draw camera
 			for (int c = 0; c < camera_count; c++) {
 				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[2] };

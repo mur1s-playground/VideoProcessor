@@ -239,10 +239,12 @@ DWORD* camera_control_loop(LPVOID args) {
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].y2			= mrd->y2;
 						cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx].timestamp	= detections_time;
 						
+						
 						if (current_state_slot > -1 && ccss[ca].latest_detections_used_ct < 5) {
 							memcpy(&ccss[ca].latest_detections[ccss[ca].latest_detections_used_ct], &cc->cam_awareness[ca].detection_history.history[cc->cam_awareness[ca].detection_history.latest_idx], sizeof(cam_detection));
 							ccss[ca].latest_detections_used_ct++;
 						}
+						
 						/*
 						logger("new detection");
 						logger("cam_id", ca);
@@ -259,7 +261,7 @@ DWORD* camera_control_loop(LPVOID args) {
 			last_detection_frame = current_detection_frame;
 
 			if (!cc->calibration) {
-				statistic_detection_matcher_3d_update(&sdm3d, cc);
+				statistic_detection_matcher_3d_update(&sdm3d, cc, ccss);
 				/*
 				for (int d = 0; d < sdm3d.size; d++) {
 					if (sdm3d.detections[d].timestamp > 0) {

@@ -204,12 +204,15 @@ void statistic_detection_matcher_3d_init(struct statistic_detection_matcher_3d* 
 	sdm3->size_factor_matrix = (float *)malloc(cc->camera_count * sdm3->cdh_max_size * cc->camera_count * sdm3->cdh_max_size * sizeof(float));
 }
 
-void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d* sdm3, struct camera_control* cc) {
+void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d* sdm3, struct camera_control* cc, struct camera_control_shared_state *ccss) {
 	float distance_unit = cc->cam_awareness[0].calibration.d_1;
 
 	//precompute ray meta
 	for (int ca = 0; ca < cc->camera_count; ca++) {
 		struct cam_detection_history* cdh = &cc->cam_awareness[ca].detection_history;
+		if (ccss != nullptr) {
+			memset(&ccss[ca].latest_detections_rays, 0, 5 * sizeof(struct vector2<float>));
+		}
 		for (int c = 0; c < cdh->latest_count; c++) {
 			int cur_h_idx = cdh->latest_idx - c;
 			if (cur_h_idx < 0) cur_h_idx += cdh->size;
@@ -223,23 +226,27 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			float horizon = cc->cam_awareness[ca].horizon.angle;
 
 			struct vector2<int> diff_from_mid = {
-				(int)(cc->cam_meta[ca].resolution[0] / 2.0f - det_center[0]),
-				(int)(cc->cam_meta[ca].resolution[1] / 2.0f - det_center[1])
+				(int)(cc->cam_awareness[ca].resolution_offset[0] + cc->cam_meta[ca].resolution[0] / 2.0f - det_center[0]),
+				(int)(cc->cam_awareness[ca].resolution_offset[1] + cc->cam_meta[ca].resolution[1] / 2.0f - det_center[1])
 			};
 
 			float fov_np = cc->cam_awareness[ca].calibration.lens_fov[0];
 			float fov_h = cc->cam_awareness[ca].calibration.lens_fov[1];
 
-			//TODO: shift angles_vec by probably 90 degree
 			struct vector2<float> angles_vec = {
 				north_pole - (diff_from_mid[0] / (cc->cam_meta[ca].resolution[0] / 2.0f)) * (fov_np / 2.0f) + 90.0f,
 				horizon - (diff_from_mid[1] / (cc->cam_meta[ca].resolution[1] / 2.0f)) * (fov_h / 2.0f) + 90.0f
 			};
 
+			if (angles_vec[0] > 360.0f) angles_vec[0] -= 360.0f;
+			if (angles_vec[1] > 360.0f) angles_vec[1] -= 360.0f;
+
+			float M_PI = 3.14159274101257324219;
+
 			sdm3->detections_3d[ca * sdm3->cdh_max_size + c].direction = {
-				sinf(angles_vec[1]) * cosf(angles_vec[0]),
-				sinf(angles_vec[1]) * sinf(angles_vec[0]),
-				cosf(angles_vec[1])
+				sinf(angles_vec[1] * M_PI / (2.0f * 90.0f)) * cosf(angles_vec[0] * M_PI / (2.0f * 90.0f)),
+				sinf(angles_vec[1] * M_PI / (2.0f * 90.0f)) * sinf(angles_vec[0] * M_PI / (2.0f * 90.0f)),
+				cosf(angles_vec[1] * M_PI / (2.0f * 90.0f))
 			};
 
 			sdm3->detections_3d[ca * sdm3->cdh_max_size + c].dimensions = {
@@ -248,6 +255,10 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			};
 
 			sdm3->detections_3d[ca * sdm3->cdh_max_size + c].timestamp = current_detection->timestamp;
+
+			if (ccss != nullptr && c < 5) {
+				ccss[ca].latest_detections_rays[c] = angles_vec;
+			}
 		}
 	}
 
@@ -312,6 +323,8 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			used_current[ca * sdm3->cdh_max_size + c] = true;
 			int used_count = 0;
 			struct statistic_detection_matcher_3d_detection* sdm3dd = &sdm3->detections_3d[ca * sdm3->cdh_max_size + c];
+			sdm3->detections_buffer[ca * sdm3->cdh_max_size + c].ray_position[used_count] = cc->cam_awareness[ca].calibration.position;
+			sdm3->detections_buffer[ca * sdm3->cdh_max_size + c].ray_direction[used_count] = sdm3dd->direction;
 			for (int ca_i = 0; ca_i < cc->camera_count; ca_i++) {
 				if (ca_i == ca) continue;
 				struct cam_detection_history* cdh_i = &cc->cam_awareness[ca_i].detection_history;
@@ -336,6 +349,10 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 						//TMP
 						inv_best_score += best_dist;
 						used_count++;
+						if (used_count < 5) {
+							sdm3->detections_buffer[ca * sdm3->cdh_max_size + c].ray_position[used_count] = cc->cam_awareness[ca_i].calibration.position;
+							sdm3->detections_buffer[ca * sdm3->cdh_max_size + c].ray_direction[used_count] = sdm3->detections_3d[ca_i * sdm3->cdh_max_size + best_score_idx].direction;
+						}
 						sdm3->detections_buffer[ca * sdm3->cdh_max_size + c].position = (sdm3->detections_buffer[ca * sdm3->cdh_max_size + c].position - -sdm3->min_dist_central_points_matrix[ca * sdm3->cdh_max_size * cc->camera_count * sdm3->cdh_max_size + ca_i * sdm3->cdh_max_size + best_score_idx]);
 					}
 				}
@@ -353,6 +370,13 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 	}
 	
 	memset(sdm3->is_final_matched, 0, cc->camera_count* sdm3->cdh_max_size * sizeof(bool));
+
+	int shared_objects = 0;
+	if (ccss != nullptr) {
+		for (int ca = 0; ca < cc->camera_count; ca++) {
+			memset(&ccss[ca].latest_detections_objects, 0, 5 * sizeof(struct vector3<float>));
+		}
+	}
 
 	//match ray groups with existing ray group or make new one
 	for (int d = 0; d < sdm3->size; d++) {
@@ -398,6 +422,10 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 				sdm3->detections[d].position = sdm3->detections_buffer[best_idx].position;
 				sdm3->detections[d].score = inv_best_score;
 				sdm3->detections[d].timestamp = sdm3->detections_buffer[best_idx].timestamp;
+				if (ccss != nullptr && shared_objects < cc->camera_count * 5) {
+					ccss[shared_objects / 5].latest_detections_objects[shared_objects % 5] = sdm3->detections[d].position;
+					shared_objects++;
+				}
 			}
 		} else {
 			if (free_tracker_idx < 0) {
@@ -417,6 +445,12 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 				sdm3->detections[d].position = sdm3->detections_buffer[d_i].position;
 				sdm3->detections[d].score = 0.0f;
 				sdm3->detections[d].timestamp = sdm3->detections_buffer[d_i].timestamp;
+
+				if (ccss != nullptr && shared_objects < cc->camera_count * 5) {
+					ccss[shared_objects / 5].latest_detections_objects[shared_objects % 5] = sdm3->detections[d].position;
+					shared_objects++;
+				}
+
 				break;
 			}
 		}
