@@ -58,6 +58,16 @@ struct cam_detection {
 	unsigned long long		timestamp;
 };
 
+struct cam_detection_3d {
+	int						class_id;
+	float					score;
+
+	vector3<float>			position;
+	vector3<float>			velocity;
+
+	unsigned long long		timestamp;
+};
+
 enum cam_calibration_process_state {
 	CCPS_CALIBRATION_OBJECT_SEARCH,
 	CCPS_CALIBRATION_OBJECT_LOST,
@@ -95,10 +105,10 @@ struct cam_calibration_process {
 struct cam_calibration {
 	float					d_1;
 	struct vector3<float>	position;
-
+	/*
 	struct vector3<int>		lens_distortion_quantization_size;
 	float*					lens_distortion_factor;
-
+	*/
 	struct vector2<float>	lens_fov;
 };
 
@@ -145,6 +155,7 @@ struct camera_control {
 
 	string camera_meta_path;
 	string sensors_path;
+	string calibration_path;
 
 	bool calibration;
 
@@ -161,9 +172,11 @@ struct camera_control {
 
 	struct shared_memory_buffer* smb_shared_state;
 	int							shared_state_size_req;
+
+	
 };
 
-void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path);
+void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path, string calibration_path);
 void camera_control_on_input_connect(struct application_graph_node* agn, int input_id);
 
 DWORD* camera_control_loop(LPVOID args);

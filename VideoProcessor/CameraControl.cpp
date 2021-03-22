@@ -16,7 +16,7 @@ void camera_control_write_control(int id, struct vector2<int> top_left, struct v
 
 struct vector2<float> cam_calibration_get_hq(float d_1, float alpha);
 
-void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path) {
+void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path, string calibration_path) {
 	cc->camera_count = camera_count;
 
 	cc->cam_meta = (struct cam_meta_data*)malloc(sizeof(struct cam_meta_data)*camera_count);
@@ -51,6 +51,40 @@ void camera_control_init(struct camera_control* cc, int camera_count, string cam
 	}
 	
 	cc->sensors_path = sensors_path;
+	cc->calibration_path = calibration_path;
+	logger("calibration_path", calibration_path);
+
+	HANDLE calibration_handle = CreateFileA(cc->calibration_path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (calibration_handle != INVALID_HANDLE_VALUE) {
+		const int linelength = 256;
+		char read_buf[linelength];
+		memset(read_buf, 48, linelength * sizeof(char));
+		read_buf[linelength - 1] = 10;
+
+		DWORD dwBytesRead;
+
+		int cam_id = 0;
+		while (ReadFile(calibration_handle, read_buf, sizeof(read_buf), &dwBytesRead, NULL) && dwBytesRead > 0) {
+			logger("bytes read", (int)dwBytesRead);
+			if (dwBytesRead == linelength) {
+				memcpy(&cc->cam_awareness[cam_id].calibration, read_buf, sizeof(cam_calibration));
+
+				logger("d_1", cc->cam_awareness[cam_id].calibration.d_1);
+				logger("pos_x", cc->cam_awareness[cam_id].calibration.position[0]);
+				logger("pos_y", cc->cam_awareness[cam_id].calibration.position[1]);
+				logger("pos_z", cc->cam_awareness[cam_id].calibration.position[2]);
+
+				logger("fov_c", cc->cam_awareness[cam_id].calibration.lens_fov[0]);
+				logger("fov_t", cc->cam_awareness[cam_id].calibration.lens_fov[1]);
+
+				dwBytesRead = 0;
+				cam_id++;
+			}
+		}
+
+		CloseHandle(calibration_handle);
+	}
+
 	cc->cam_sens = nullptr;
 	cc->cam_sens_timestamps = nullptr;
 	
@@ -94,12 +128,31 @@ DWORD* camera_control_loop(LPVOID args) {
 	struct statistic_detection_matcher_2d* ccp_sdm2d = nullptr;
 	bool had_new_detection_frame = false;
 
+	struct statistic_detection_matcher_3d sdm3d;
+	statistic_detection_matcher_3d_init(&sdm3d, 10, 1000000000, cc);
+
 	int current_state_slot = -1;
+
+	struct camera_control_shared_state* ccss = nullptr;
+
+	if (cc->smb_shared_state != nullptr) {
+		shared_memory_buffer_try_rw(cc->smb_shared_state, last_state_slot, true, 8);
+		ccss = (struct camera_control_shared_state*)&cc->smb_shared_state->p_buf_c[last_state_slot * cc->smb_shared_state->size];
+		for (int c = 0; c < cc->camera_count; c++) {
+			struct camera_control_shared_state ccss_i;
+			memset(&ccss_i, 0, sizeof(struct camera_control_shared_state));
+			ccss_i.position = cc->cam_awareness[c].calibration.position;
+			ccss_i.fov = cc->cam_awareness[c].calibration.lens_fov;
+			memcpy(ccss, &ccss_i, sizeof(struct camera_control_shared_state));
+			ccss++;
+		}
+		shared_memory_buffer_release_rw(cc->smb_shared_state, last_state_slot);
+	}
+
 
 	while (agn->process_run) {
 		application_graph_tps_balancer_timer_start(agn);
 		
-		struct camera_control_shared_state* ccss = nullptr;
 		if (cc->smb_shared_state != nullptr) {
 			current_state_slot = (last_state_slot + 1) % cc->smb_shared_state->slots;
 			shared_memory_buffer_try_rw(cc->smb_shared_state, current_state_slot, true, 8);
@@ -204,6 +257,25 @@ DWORD* camera_control_loop(LPVOID args) {
 			}
 			shared_memory_buffer_release_r(cc->smb_det, current_detection_frame);
 			last_detection_frame = current_detection_frame;
+
+			if (!cc->calibration) {
+				statistic_detection_matcher_3d_update(&sdm3d, cc);
+				/*
+				for (int d = 0; d < sdm3d.size; d++) {
+					if (sdm3d.detections[d].timestamp > 0) {
+						logger("------------");
+						logger("idx", d);
+						logger("class_id", sdm3d.detections[d].class_id);
+						logger("position_x", sdm3d.detections[d].position[0]);
+						logger("position_y", sdm3d.detections[d].position[1]);
+						logger("position_z", sdm3d.detections[d].position[2]);
+						logger("timestamp", sdm3d.detections[d].timestamp);
+						logger("score", sdm3d.detections[d].score);
+						logger("------------");
+					}
+				}
+				*/
+			}
 		}
 
 		if (cc->calibration) {
@@ -233,7 +305,26 @@ DWORD* camera_control_loop(LPVOID args) {
 			}
 
 			if (calibration_done) {
+
+				const int linelength = 256;
+				char write_buf[linelength];
+				memset(write_buf, 48, linelength * sizeof(char));
+				write_buf[linelength - 1] = 10;
+
+				DWORD dwBytesWritten;
+
+				HANDLE calibration_handle = CreateFileA(cc->calibration_path.c_str(),
+					FILE_GENERIC_WRITE,         // open for writing
+					FILE_SHARE_READ,          // allow multiple readers
+					NULL,                     // no security
+					OPEN_ALWAYS,              // open or create
+					FILE_ATTRIBUTE_NORMAL,    // normal file
+					NULL);                    // no attr. template
+
 				for (int ca = 0; ca < cc->camera_count; ca++) {
+					memset(write_buf, 48, linelength * sizeof(char));
+					write_buf[linelength - 1] = 10;
+
 					struct vector2<float> top_left_detection_center = cam_detection_get_center(&ccp[ca].calibration_object_top_left);
 					struct vector2<float> top_left_angles = ccp[ca].calibration_object_top_left_angles;
 
@@ -314,7 +405,12 @@ DWORD* camera_control_loop(LPVOID args) {
 					if (current_state_slot > -1) {
 						ccss[ca].fov = cc->cam_awareness[ca].calibration.lens_fov;
 					}
+
+					memcpy(write_buf, &cc->cam_awareness[ca].calibration, sizeof(cam_calibration));
+					WriteFile(calibration_handle, write_buf, linelength * sizeof(char), &dwBytesWritten, NULL);
 				}
+
+				CloseHandle(calibration_handle);
 
 				cc->calibration = false;
 			}
@@ -612,6 +708,7 @@ void camera_control_externalise(struct application_graph_node* agn, string& out_
 	s_out << cc->camera_count << std::endl;
 	s_out << cc->camera_meta_path << std::endl;
 	s_out << cc->sensors_path << std::endl;
+	s_out << cc->calibration_path << std::endl;
 
 	out_str = s_out.str();
 }
@@ -624,8 +721,10 @@ void camera_control_load(struct camera_control* cc, ifstream& in_f) {
 	string m_path = line;
 	std::getline(in_f, line);
 	string s_path = line;
+	std::getline(in_f, line);
+	string c_path = line;
 	
-	camera_control_init(cc, camera_count, m_path, s_path);
+	camera_control_init(cc, camera_count, m_path, s_path, c_path);
 }
 
 void camera_control_destroy(struct application_graph_node* agn) {

@@ -102,6 +102,18 @@ CameraControlFrame::CameraControlFrame(wxWindow* parent) : wxFrame(parent, -1, w
 
     vbox->Add(-1, 10);
 
+    wxBoxSizer* hbox_c_path = new wxBoxSizer(wxHORIZONTAL);
+
+    wxStaticText* st_c_path = new wxStaticText(panel, -1, wxT("Calibration Path"));
+    hbox_c_path->Add(st_c_path, 0, wxRIGHT, 8);
+
+    tc_c_path = new wxTextCtrl(panel, -1, wxT(""));
+    hbox_c_path->Add(tc_c_path, 1);
+
+    vbox->Add(hbox_c_path, 0, wxEXPAND | wxLEFT | wxRIGHT | wxTOP, 10);
+
+    vbox->Add(-1, 10);
+
     wxBoxSizer* hbox_calibrate = new wxBoxSizer(wxHORIZONTAL);
     calibrate_button = new wxButton(panel, -1, wxT("Calibrate"), wxDefaultPosition, wxSize(70, 30));
     calibrate_button->Bind(wxEVT_BUTTON, &CameraControlFrame::OnCameraControlFrameButtonCalibrate, this);
@@ -136,9 +148,10 @@ void CameraControlFrame::OnCameraControlFrameButtonOk(wxCommandEvent& event) {
     
         string camera_meta_path(tc_m_path->GetValue().c_str().AsChar());
         string camera_sensors_path(tc_s_path->GetValue().c_str().AsChar());
+        string camera_calibration_path(tc_c_path->GetValue().c_str().AsChar());
 
         struct camera_control* cc = new struct camera_control();
-        camera_control_init(cc, camera_count, camera_meta_path, camera_sensors_path);
+        camera_control_init(cc, camera_count, camera_meta_path, camera_sensors_path, camera_calibration_path);
         struct application_graph_node* agn = new application_graph_node();
         agn->n_id = ags[node_graph_id]->nodes.size();
         camera_control_ui_graph_init(agn, (application_graph_component)cc, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
@@ -155,6 +168,7 @@ void CameraControlFrame::OnCameraControlFrameButtonClose(wxCommandEvent& event) 
     tc_camera_count->SetValue("1");
     tc_m_path->SetValue("");
     tc_s_path->SetValue("");
+    tc_c_path->SetValue("");
 }
 
 void CameraControlFrame::OnCameraControlFrameButtonCalibrate(wxCommandEvent& event) {
@@ -178,6 +192,7 @@ void CameraControlFrame::Show(int node_graph_id, int node_id) {
 
         tc_m_path->SetValue(wxString(cc->camera_meta_path));
         tc_s_path->SetValue(wxString(cc->sensors_path));
+        tc_c_path->SetValue(wxString(cc->calibration_path));
     }
     wxFrame::Show(true);
 }

@@ -12,6 +12,7 @@ public:
 
 	wxTextCtrl* tc_m_path;
 	wxTextCtrl* tc_s_path;
+	wxTextCtrl* tc_c_path;
 
 	wxButton* calibrate_button;
 	wxButton* ok_button;
