@@ -195,6 +195,8 @@
     <ClCompile Include="GPUVideoAlphaMerge.cpp" />
     <ClCompile Include="GPUVideoAlphaMergeUI.cpp" />
     <ClCompile Include="Statistic.cpp" />
+    <ClCompile Include="Statistics3D.cpp" />
+    <ClCompile Include="Statistics3DUI.cpp" />
     <ClCompile Include="UIManager.cpp" />
     <ClCompile Include="VideoSource.cpp" />
     <ClCompile Include="VideoSourceUI.cpp" />
@@ -237,6 +239,8 @@
     <ClInclude Include="GPUPaletteFilterUI.h" />
     <ClInclude Include="GreenScreenKernel.h" />
     <ClInclude Include="Grid.h" />
+    <ClInclude Include="Statistics3DUI.h" />
+    <ClInclude Include="StatisticsKernel.h" />
     <ClInclude Include="ImShow.h" />
     <ClInclude Include="ImShowUI.h" />
     <ClInclude Include="Logger.h" />
@@ -256,6 +260,7 @@
     <ClInclude Include="GPUVideoAlphaMergeUI.h" />
     <ClInclude Include="Clock.h" />
     <ClInclude Include="Statistic.h" />
+    <ClInclude Include="Statistics3D.h" />
     <ClInclude Include="UIManager.h" />
     <ClInclude Include="Vector2.h" />
     <ClInclude Include="Vector3.h" />
@@ -269,6 +274,7 @@
     <CudaCompile Include="EdgeFilterKernel.cu" />
     <CudaCompile Include="GaussianBlur.cu" />
     <CudaCompile Include="GreenScreenKernel.cu" />
+    <CudaCompile Include="StatisticsKernel.cu" />
     <CudaCompile Include="MiniGine.cu" />
     <CudaCompile Include="MotionBlur.cu" />
     <CudaCompile Include="NLMeansKernel.cu">

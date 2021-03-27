@@ -71,3 +71,50 @@ struct statistic_detection_matcher_3d {
 
 void statistic_detection_matcher_3d_init(struct statistic_detection_matcher_3d* sdm3, int size, unsigned long long ttl, struct camera_control* cc);
 void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d* sdm3, struct camera_control* cc, struct camera_control_shared_state* ccss);
+
+struct statistic_quantized_grid {
+	int					dim_c;
+
+	struct vector2<int>	*spans;
+	float				*quantization_factors;
+	int					*dimensions;
+
+	int					data_size;
+	int					total_size;
+
+	void				*data;
+};
+
+void statistic_quantized_grid_init(struct statistic_quantized_grid *sqg, std::vector<struct vector2<int>> spans, std::vector<float> quantization_factors, int data_size, void **data);
+int statistic_quantized_grid_get_base_idx(struct statistic_quantized_grid* sqg, float* position);
+
+struct statistic_heatmap {
+	struct statistic_quantized_grid		sqg;
+
+	float				falloff;
+
+	float*				data;
+	float*				device_data;
+
+	float				known_max;
+};
+
+void statistic_heatmap_init(struct statistic_heatmap *sh, struct vector2<int> x_dim, struct vector2<int> y_dim, struct vector2<int> z_dim, struct vector3<float> quantization_fac, float falloff);
+void statistic_heatmap_update(struct statistic_heatmap* sh, struct vector3<float> position);
+void statistic_heatmap_update_calculate(struct statistic_heatmap* sh);
+
+struct statistic_vectorfield_3d {
+	struct statistic_quantized_grid		sqg;
+
+	float part_factor;
+
+	float max_vel;
+	float max_acc;
+
+	float* data;
+	float* device_data;
+};
+
+void statistic_vectorfield_3d_init(struct statistic_vectorfield_3d *sv3d, struct vector2<int> x_dim, struct vector2<int> y_dim, struct vector2<int> z_dim, struct vector3<float> quantization_fac, int parts);
+void statistic_vectorfield_3d_update(struct statistic_vectorfield_3d* sv3d, struct vector3<float> position, struct vector3<float> velocity, float velocity_t, float acceleration_t);
+void statistic_vectorfield_3d_update_device(struct statistic_vectorfield_3d* sv3d);

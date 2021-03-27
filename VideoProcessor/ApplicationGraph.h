@@ -44,7 +44,8 @@ enum application_graph_component_type {
 	AGCT_MINI_GINE,
 	AGCT_GPU_GREEN_SCREEN,
 	AGCT_CAMERA_CONTROL,
-	AGCT_CAMERA_CONTROL_DIAGNOSTIC
+	AGCT_CAMERA_CONTROL_DIAGNOSTIC,
+	AGCT_STATISTICS_3D
 };
 
 #define application_graph_component void *

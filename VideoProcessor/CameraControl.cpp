@@ -129,11 +129,17 @@ DWORD* camera_control_loop(LPVOID args) {
 	bool had_new_detection_frame = false;
 
 	struct statistic_detection_matcher_3d sdm3d;
-	statistic_detection_matcher_3d_init(&sdm3d, 10, 1000000000, cc);
+	//statistic_detection_matcher_3d_init(&sdm3d, 10, 1000000000, cc);
 
 	int current_state_slot = -1;
 
 	struct camera_control_shared_state* ccss = nullptr;
+
+	//TMP 3D detection sim//
+	struct shared_memory_buffer detection_sim;
+	shared_memory_buffer_init(&detection_sim, "detections_3d", 7 * sizeof(cam_detection_3d), 50, sizeof(int));
+	int last_sim_id = -1;
+	//--------------------//
 
 	if (cc->smb_shared_state != nullptr) {
 		shared_memory_buffer_try_rw(cc->smb_shared_state, last_state_slot, true, 8);
@@ -261,7 +267,7 @@ DWORD* camera_control_loop(LPVOID args) {
 			last_detection_frame = current_detection_frame;
 
 			if (!cc->calibration) {
-				statistic_detection_matcher_3d_update(&sdm3d, cc, ccss);
+				//statistic_detection_matcher_3d_update(&sdm3d, cc, ccss);
 				/*
 				for (int d = 0; d < sdm3d.size; d++) {
 					if (sdm3d.detections[d].timestamp > 0) {
@@ -279,6 +285,46 @@ DWORD* camera_control_loop(LPVOID args) {
 				*/
 			}
 		}
+
+		//TMP 3D detection sim//
+
+		shared_memory_buffer_try_r(&detection_sim, detection_sim.slots, true, 8);
+		int current_sim_id = detection_sim.p_buf_c[detection_sim.slots * 7 * sizeof(struct cam_detection_3d) + (detection_sim.slots + 1) * 2];
+		shared_memory_buffer_release_r(&detection_sim, detection_sim.slots);
+
+		if (current_sim_id != last_sim_id) {
+			shared_memory_buffer_try_r(&detection_sim, current_sim_id, true, 8);
+
+			int shared_objects = 0;
+			if (ccss != nullptr) {
+				for (int ca = 0; ca < cc->camera_count; ca++) {
+					memset(&ccss[ca].latest_detections_objects, 0, 5 * sizeof(struct vector3<float>));
+				}
+			}
+			struct cam_detection_3d* tmp_3d_det = (struct cam_detection_3d*)&detection_sim.p_buf_c[current_sim_id * 7 * sizeof(struct cam_detection_3d)];
+			for (int sa = 0; sa < 7; sa++) {
+				memcpy(&ccss[sa / 5].latest_detections_3d[sa % 5], &tmp_3d_det[sa], sizeof(struct cam_detection_3d));
+			}
+
+			int shared_rays = 0;
+
+			for (int sa = 0; sa < 7; sa++) {
+				ccss[shared_objects / 5].latest_detections_objects[shared_objects % 5] = tmp_3d_det->position;
+				for (int r = 0; r < 3; r++) {
+					ccss[shared_rays / 15].latest_detections_rays_origin[shared_rays % 15] = tmp_3d_det->ray_position[r];
+					ccss[shared_rays / 15].latest_detections_rays[shared_rays % 15] = tmp_3d_det->ray_direction[r];
+					shared_rays++;
+				}
+				shared_objects++;
+				tmp_3d_det++;
+			}
+
+			shared_memory_buffer_release_r(&detection_sim, current_sim_id);
+			last_sim_id = current_sim_id;
+		}
+
+		//--------------------//
+
 
 		if (cc->calibration) {
 			int CAM_CALIBRATION_CLASS_ID = 37;

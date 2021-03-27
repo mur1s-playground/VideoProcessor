@@ -20,6 +20,7 @@
 #include "GPUGreenScreenUI.h"
 #include "CameraControlUI.h"
 #include "CameraControlDiagnosticUI.h"
+#include "Statistics3DUI.h"
 
 #include "MainUI.h"
 
@@ -190,6 +191,14 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 				}
 				break;
 			}
+			case AGCT_STATISTICS_3D: {
+				Statistics3DFrame* s3d = (Statistics3DFrame*)ui_manager_frame_store[i].second;
+				if (!s3d->IsShownOnScreen()) {
+					s3d->Show(node_graph_id, node_id);
+					return;
+				}
+				break;
+			}
 			default:
 
 				break;
@@ -335,6 +344,13 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 		CameraControlDiagnosticFrame* ccd = new CameraControlDiagnosticFrame((wxWindow*)myApp->frame);
 		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_CAMERA_CONTROL_DIAGNOSTIC, (void*)ccd));
 		ccd->Show(node_graph_id, node_id);
+		return;
+		break;
+	}
+	case AGCT_STATISTICS_3D: {
+		Statistics3DFrame* s3d = new Statistics3DFrame((wxWindow*)myApp->frame);
+		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_STATISTICS_3D, (void*)s3d));
+		s3d->Show(node_graph_id, node_id);
 		return;
 		break;
 	}

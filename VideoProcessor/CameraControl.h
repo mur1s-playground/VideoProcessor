@@ -152,8 +152,11 @@ struct camera_control_shared_state {
 	int									latest_detections_used_ct;
 	struct cam_detection				latest_detections[5];
 
-	struct vector2<float>				latest_detections_rays[5];
+	struct vector3<float>				latest_detections_rays_origin[15];
+	struct vector3<float>				latest_detections_rays[15];
 	struct vector3<float>				latest_detections_objects[5];
+
+	struct cam_detection_3d				latest_detections_3d[5];
 };
 
 struct camera_control {
@@ -178,6 +181,9 @@ struct camera_control {
 
 	struct shared_memory_buffer* smb_shared_state;
 	int							shared_state_size_req;
+
+	struct statistic_heatmap *heatmap_general;
+	struct statistic_vectorfield_3d* velocity_vectorfield_3d;
 };
 
 void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path, string calibration_path);

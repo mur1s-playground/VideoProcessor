@@ -57,6 +57,9 @@
 #include "CameraControlDiagnostic.h"
 #include "CameraControlDiagnosticUI.h"
 
+#include "Statistics3D.h"
+#include "Statistics3DUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -798,6 +801,12 @@ void application_graph_load(string base_dir, string name) {
                     struct camera_control_diagnostic* ccd = new camera_control_diagnostic();
                     camera_control_diagnostic_load(ccd, g_infile);
                     camera_control_diagnostic_ui_graph_init(agn, (application_graph_component)ccd, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_STATISTICS_3D: {
+                    struct statistics_3d* s3d = new statistics_3d();
+                    statistics_3d_load(s3d, g_infile);
+                    statistics_3d_ui_graph_init(agn, (application_graph_component)s3d, pos_x, pos_y);
                     break;
                 }
             }
