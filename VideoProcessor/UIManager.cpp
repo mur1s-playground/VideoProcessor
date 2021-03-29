@@ -21,6 +21,7 @@
 #include "CameraControlUI.h"
 #include "CameraControlDiagnosticUI.h"
 #include "Statistics3DUI.h"
+#include "DetectionSimulation3DUI.h"
 
 #include "MainUI.h"
 
@@ -199,6 +200,14 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 				}
 				break;
 			}
+			case AGCT_DETECTION_SIMULATION_3D: {
+				DetectionSimulation3DFrame* ds3d = (DetectionSimulation3DFrame*)ui_manager_frame_store[i].second;
+				if (!ds3d->IsShownOnScreen()) {
+					ds3d->Show(node_graph_id, node_id);
+					return;
+				}
+				break;
+			}
 			default:
 
 				break;
@@ -351,6 +360,13 @@ void ui_manager_show_frame(enum application_graph_component_type agct, int node_
 		Statistics3DFrame* s3d = new Statistics3DFrame((wxWindow*)myApp->frame);
 		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_STATISTICS_3D, (void*)s3d));
 		s3d->Show(node_graph_id, node_id);
+		return;
+		break;
+	}
+	case AGCT_DETECTION_SIMULATION_3D: {
+		DetectionSimulation3DFrame* ds3d = new DetectionSimulation3DFrame((wxWindow*)myApp->frame);
+		ui_manager_frame_store.push_back(pair<enum application_graph_component_type, void*>(AGCT_DETECTION_SIMULATION_3D, (void*)ds3d));
+		ds3d->Show(node_graph_id, node_id);
 		return;
 		break;
 	}

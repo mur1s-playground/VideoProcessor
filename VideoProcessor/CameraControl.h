@@ -184,6 +184,8 @@ struct camera_control {
 
 	struct statistic_heatmap *heatmap_general;
 	struct statistic_vectorfield_3d* velocity_vectorfield_3d;
+
+	struct shared_memory_buffer* smb_detection_sim;
 };
 
 void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path, string calibration_path);

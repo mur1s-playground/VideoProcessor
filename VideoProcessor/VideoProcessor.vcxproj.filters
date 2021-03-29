@@ -180,6 +180,12 @@
     <ClCompile Include="Statistics3DUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="DetectionSimulation3D.cpp">
+      <Filter>Quelldateien\Nodes</Filter>
+    </ClCompile>
+    <ClCompile Include="DetectionSimulation3DUI.cpp">
+      <Filter>Quelldateien\UI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -372,6 +378,12 @@
       <Filter>Headerdateien\Kernel</Filter>
     </ClInclude>
     <ClInclude Include="Statistics3DUI.h">
+      <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="DetectionSimulation3D.h">
+      <Filter>Headerdateien\Nodes</Filter>
+    </ClInclude>
+    <ClInclude Include="DetectionSimulation3DUI.h">
       <Filter>Headerdateien\UI</Filter>
     </ClInclude>
   </ItemGroup>

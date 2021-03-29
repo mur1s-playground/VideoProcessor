@@ -60,6 +60,9 @@
 #include "Statistics3D.h"
 #include "Statistics3DUI.h"
 
+#include "DetectionSimulation3D.h"
+#include "DetectionSimulation3DUI.h"
+
 #include "MainUI.h"
 
 #include "Logger.h"
@@ -807,6 +810,12 @@ void application_graph_load(string base_dir, string name) {
                     struct statistics_3d* s3d = new statistics_3d();
                     statistics_3d_load(s3d, g_infile);
                     statistics_3d_ui_graph_init(agn, (application_graph_component)s3d, pos_x, pos_y);
+                    break;
+                }
+                case AGCT_DETECTION_SIMULATION_3D: {
+                    struct detection_simulation_3d* ds3d = new detection_simulation_3d();
+                    detection_simulation_3d_load(ds3d, g_infile);
+                    detection_simulation_3d_ui_graph_init(agn, (application_graph_component)ds3d, pos_x, pos_y);
                     break;
                 }
             }

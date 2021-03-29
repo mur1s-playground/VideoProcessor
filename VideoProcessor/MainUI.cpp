@@ -300,6 +300,7 @@ void BasicDrawPane::OnShowContextMenu(wxMouseEvent& event) {
         menu->Append(MENU_ID_CAMERA_CONTROL, wxT("Camera Control"));
         menu->Append(MENU_ID_CAMERA_CONTROL_DIAGNOSTIC, wxT("Camera Control Diagnostic"));
         menu->Append(MENU_ID_STATISTICS_3D, wxT("Statistics 3D"));
+        menu->Append(MENU_ID_DETECTION_SIMULATION_3D, wxT("Detection Simulation 3D"));
     }
     PopupMenu(menu);
 }
@@ -365,6 +366,9 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
         break;
     case MENU_ID_STATISTICS_3D:
         ui_manager_show_frame(AGCT_STATISTICS_3D, application_graph_active_id);
+        break;
+    case MENU_ID_DETECTION_SIMULATION_3D:
+        ui_manager_show_frame(AGCT_DETECTION_SIMULATION_3D, application_graph_active_id);
         break;
     case MENU_ID_START_NODE:
         application_graph_start_stop_node(application_graph_active_id, application_graph_hovering_node_id);
@@ -450,6 +454,10 @@ void BasicDrawPane::OnContextMenuSelected(wxCommandEvent& event) {
                 }
                 case MENU_ID_STATISTICS_3D: {
                     ui_manager_show_frame(AGCT_STATISTICS_3D, application_graph_active_id, application_graph_hovering_node_id);
+                    break;
+                }
+                case MENU_ID_DETECTION_SIMULATION_3D: {
+                    ui_manager_show_frame(AGCT_DETECTION_SIMULATION_3D, application_graph_active_id, application_graph_hovering_node_id);
                     break;
                 }
             }

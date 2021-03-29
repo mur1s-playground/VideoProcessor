@@ -162,6 +162,8 @@
     <ClCompile Include="CameraControlUI.cpp" />
     <ClCompile Include="Clock.cpp" />
     <ClCompile Include="CUDAStreamHandler.cpp" />
+    <ClCompile Include="DetectionSimulation3D.cpp" />
+    <ClCompile Include="DetectionSimulation3DUI.cpp" />
     <ClCompile Include="GPUAudioVisual.cpp" />
     <ClCompile Include="GPUAudioVisualUI.cpp" />
     <ClCompile Include="GPUComposer.cpp" />
@@ -215,6 +217,8 @@
     <ClInclude Include="CameraControlUI.h" />
     <ClInclude Include="ComposeKernel.h" />
     <ClInclude Include="CUDAStreamHandler.h" />
+    <ClInclude Include="DetectionSimulation3D.h" />
+    <ClInclude Include="DetectionSimulation3DUI.h" />
     <ClInclude Include="EdgeFilterKernel.h" />
     <ClInclude Include="GaussianBlur.h" />
     <ClInclude Include="GPUAudioVisual.h" />
