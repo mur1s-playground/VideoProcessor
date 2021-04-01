@@ -59,17 +59,46 @@ struct statistic_detection_matcher_3d {
 
 	int cdh_max_size;
 
+	int					memory_pool_size;
+	unsigned char*		memory_pool;
+	unsigned char*		memory_pool_device;
+	float*				distance_matrix_device;
+
 	bool* class_match_matrix;
 	float* distance_matrix;
 	struct vector3<float>* min_dist_central_points_matrix;
 	float* size_factor_matrix;
+
+	int					population_c;
+	float*				population_scores;
+	float*				population_scores_device;
+	int*				population_scores_idxs_orig;
+	int*				population_scores_idxs;
+
+	float				population_keep_factor;
+	int					population_max_evolutions;
+
+	float				population_mutation_rate;
+
+	unsigned char		*population_evolution_buffer_device;
+
+	int					randoms_size;
+	float*				randoms;
+	float*				randoms_device;
+
+	bool											population_swap;
+	int*											population;
+	int*											population_bak;
+
+	int*											population_device;
+
 	/*
 	int match_max_cameras_used;
 	struct statistic_detection_matcher_3d_match* matches;
 	*/
 };
 
-void statistic_detection_matcher_3d_init(struct statistic_detection_matcher_3d* sdm3, int size, unsigned long long ttl, struct camera_control* cc);
+void statistic_detection_matcher_3d_init(struct statistic_detection_matcher_3d* sdm3, int size, unsigned long long ttl, struct camera_control* cc, int population_c);
 void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d* sdm3, struct camera_control* cc, struct camera_control_shared_state* ccss);
 
 struct statistic_quantized_grid {
@@ -97,11 +126,14 @@ struct statistic_heatmap {
 	float*				device_data;
 
 	float				known_max;
+
+	std::string			save_load_dir;
 };
 
-void statistic_heatmap_init(struct statistic_heatmap *sh, struct vector2<int> x_dim, struct vector2<int> y_dim, struct vector2<int> z_dim, struct vector3<float> quantization_fac, float falloff);
+void statistic_heatmap_init(struct statistic_heatmap *sh, struct vector2<int> x_dim, struct vector2<int> y_dim, struct vector2<int> z_dim, struct vector3<float> quantization_fac, float falloff, std::string save_load_dir);
 void statistic_heatmap_update(struct statistic_heatmap* sh, struct vector3<float> position);
 void statistic_heatmap_update_calculate(struct statistic_heatmap* sh);
+void statistic_heatmap_save(struct statistic_heatmap* sh);
 
 struct statistic_vectorfield_3d {
 	struct statistic_quantized_grid		sqg;
@@ -113,8 +145,11 @@ struct statistic_vectorfield_3d {
 
 	float* data;
 	float* device_data;
+
+	std::string			save_load_dir;
 };
 
-void statistic_vectorfield_3d_init(struct statistic_vectorfield_3d *sv3d, struct vector2<int> x_dim, struct vector2<int> y_dim, struct vector2<int> z_dim, struct vector3<float> quantization_fac, int parts);
+void statistic_vectorfield_3d_init(struct statistic_vectorfield_3d *sv3d, struct vector2<int> x_dim, struct vector2<int> y_dim, struct vector2<int> z_dim, struct vector3<float> quantization_fac, int parts, std::string save_load_dir);
 void statistic_vectorfield_3d_update(struct statistic_vectorfield_3d* sv3d, struct vector3<float> position, struct vector3<float> velocity, float velocity_t, float acceleration_t);
 void statistic_vectorfield_3d_update_device(struct statistic_vectorfield_3d* sv3d);
+void statistic_vectorfield_3d_save(struct statistic_vectorfield_3d* sv3d);

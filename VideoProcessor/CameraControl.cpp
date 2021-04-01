@@ -83,6 +83,26 @@ void camera_control_init(struct camera_control* cc, int camera_count, string cam
 		}
 
 		CloseHandle(calibration_handle);
+	} else {
+		cc->cam_awareness[0].calibration.d_1 = 3.5f;
+		cc->cam_awareness[0].calibration.position = { 25.0f, 0.0f, 10.0f };
+		cc->cam_awareness[0].calibration.lens_fov = { 80.0f, 45.0f };
+
+		cc->cam_awareness[1].calibration.d_1 = 3.5f;
+		cc->cam_awareness[1].calibration.position = { 25.0f, 16.0f, 10.0f };
+		cc->cam_awareness[1].calibration.lens_fov = { 80.0f, 45.0f };
+
+		cc->cam_awareness[2].calibration.d_1 = 3.5f;
+		cc->cam_awareness[2].calibration.position = { 10.0, 25.0f, 10.0f };
+		cc->cam_awareness[2].calibration.lens_fov = { 80.0f, 45.0f };
+		
+		cc->cam_awareness[3].calibration.d_1 = 3.5f;
+		cc->cam_awareness[3].calibration.position = { -4.0, 16.0f, 10.0f };
+		cc->cam_awareness[3].calibration.lens_fov = { 80.0f, 45.0f };
+
+		cc->cam_awareness[4].calibration.d_1 = 3.5f;
+		cc->cam_awareness[4].calibration.position = { -4.0, 1.0f, 10.0f };
+		cc->cam_awareness[4].calibration.lens_fov = { 80.0f, 45.0f };
 	}
 
 	cc->cam_sens = nullptr;
@@ -115,10 +135,10 @@ DWORD* camera_control_loop(LPVOID args) {
 
 	int saved_detections_count_total = cc->smb_det->size / (sizeof(struct mask_rcnn_detection));
 
-	int last_cameras_frame = -1;
-	int last_detection_frame = -1;
+	int last_cameras_frame = 0;
+	int last_detection_frame = 0;
 
-	int linelength_sensors = 40;
+	int linelength_sensors = 64;
 
 	int last_state_slot = 0;
 
@@ -131,7 +151,7 @@ DWORD* camera_control_loop(LPVOID args) {
 	bool had_new_detection_frame = false;
 
 	struct statistic_detection_matcher_3d sdm3d;
-	//statistic_detection_matcher_3d_init(&sdm3d, 10, 1000000000, cc);
+	statistic_detection_matcher_3d_init(&sdm3d, 10, 1000000000, cc, 1024);
 
 	int current_state_slot = -1;
 
@@ -267,7 +287,7 @@ DWORD* camera_control_loop(LPVOID args) {
 			last_detection_frame = current_detection_frame;
 
 			if (!cc->calibration) {
-				//statistic_detection_matcher_3d_update(&sdm3d, cc, ccss);
+				statistic_detection_matcher_3d_update(&sdm3d, cc, ccss);
 				/*
 				for (int d = 0; d < sdm3d.size; d++) {
 					if (sdm3d.detections[d].timestamp > 0) {

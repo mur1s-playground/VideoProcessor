@@ -200,6 +200,7 @@
     <ClCompile Include="Statistics3D.cpp" />
     <ClCompile Include="Statistics3DUI.cpp" />
     <ClCompile Include="UIManager.cpp" />
+    <ClCompile Include="Util.cpp" />
     <ClCompile Include="VideoSource.cpp" />
     <ClCompile Include="VideoSourceUI.cpp" />
   </ItemGroup>
@@ -266,6 +267,7 @@
     <ClInclude Include="Statistic.h" />
     <ClInclude Include="Statistics3D.h" />
     <ClInclude Include="UIManager.h" />
+    <ClInclude Include="Util.h" />
     <ClInclude Include="Vector2.h" />
     <ClInclude Include="Vector3.h" />
     <ClInclude Include="VideoSource.h" />

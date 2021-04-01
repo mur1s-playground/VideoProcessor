@@ -160,6 +160,9 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 		struct vector2<float> world_size_y = { 100000.0f, -100000.0f };
 		struct vector2<float> world_size_z = { 100000.0f, -100000.0f };
 
+		//world_size_x = { 0.0f, 10.0f * 20.0f };
+		//world_size_y = { 0.0f, 25.0f * 20.0f };
+
 		float scaling_factor = 20.0f;
 
 		for (int c = 0; c < camera_count; c++) {
@@ -183,6 +186,7 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 			if (ccss[c].position[2] * scaling_factor > world_size_z[1]) {
 				world_size_z[1] = ccss[c].position[2]* scaling_factor;
 			}
+			
 		}
 
 		world_size_x[0] -= (0.2f * max(100.0f, (world_size_x[1] - world_size_x[0])));
@@ -234,15 +238,27 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 			};
 
 			//draw cc
-			camera_control_diagnostic_draw_faded_circle_object(struct vector2<float>(0.0f, 0.0f), scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(128, 0, 128), pixel_width, world_position, dst, row, col, width);
-
+			//camera_control_diagnostic_draw_faded_circle_object(struct vector2<float>(0.0f, 0.0f), scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(128, 0, 128), pixel_width, world_position, dst, row, col, width);
+			
 			//draw fov
 			for (int c = 0; c < camera_count; c++) {
 				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[1] };
 				camera_control_diagnostic_draw_fov(cam_2d_pos, scaling_factor, pixel_width, world_position, dst, row, col, width, ccss[c].np_angle, ccss[c].fov);
 			}
-
+			
 			//draw detection rays
+			for (int c = 0; c < camera_count; c++) {
+				for (int r = 0; r < 15; r++) {
+					struct vector2<float> cam_2d_pos = { ccss[c].latest_detections_rays_origin[r][0], ccss[c].latest_detections_rays_origin[r][1]};
+					struct vector2<float> vec = { ccss[c].latest_detections_rays[r][0], ccss[c].latest_detections_rays[r][1] };
+					vec = vec * (1.0f / length(vec));
+					if (ccss[c].latest_detections_rays[r][0] != 0) {
+						camera_control_diagnostic_draw_looking_direction_vec(cam_2d_pos, scaling_factor, struct vector3<unsigned char>(123 + ((c * 15 + r) / 3) * 51, 123 + ((c * 15 + r) / 3) * 66, 123 - ((c * 15 + r) / 3) * 51), pixel_width, world_position, 150, dst, row, col, width, vec);
+					}
+				}
+			}
+
+			/*
 			for (int c = 0; c < camera_count; c++) {
 				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[1] };
 				for (int r = 0; r < 5; r++) {
@@ -251,13 +267,15 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 					}
 				}
 			}
+			*/
 
 			//draw detected objects
 			for (int c = 0; c < camera_count; c++) {
 				for (int r = 0; r < 5; r++) {
 					if (ccss[c].latest_detections_objects[r][0] != 0) {
 						struct vector2<float> cam_2d_pos = { ccss[c].latest_detections_objects[r][0], ccss[c].latest_detections_objects[r][1] };
-						camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(0, 123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 13), pixel_width, world_position, dst, row, col, width);
+						//camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(0, 123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 13), pixel_width, world_position, dst, row, col, width);
+						camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(123 + ((c * 5 + r)) * 51, 123 + ((c * 5 + r)) * 66, 123 - ((c * 5 + r)) * 51), pixel_width, world_position, dst, row, col, width);
 					}
 				}
 			}
@@ -267,7 +285,7 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[1] };
 				camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 17.5f, struct vector3<unsigned char>(255, 255, 255), pixel_width, world_position, dst, row, col, width);
 			}
-
+			
 			//draw camera_statistic_looking_direction
 			for (int c = 0; c < camera_count; c++) {
 				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[1] };
@@ -288,7 +306,7 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 			};
 
 			//draw cc
-			camera_control_diagnostic_draw_faded_circle_object(struct vector2<float>(0.0f, 0.0f), scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(128, 0, 128), pixel_width, world_position, dst, row, col, width);
+			//camera_control_diagnostic_draw_faded_circle_object(struct vector2<float>(0.0f, 0.0f), scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(128, 0, 128), pixel_width, world_position, dst, row, col, width);
 			
 			/*
 			//draw fov
@@ -299,6 +317,18 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 			*/
 
 			//draw detection rays
+			for (int c = 0; c < camera_count; c++) {
+				for (int r = 0; r < 15; r++) {
+					struct vector2<float> cam_2d_pos = { ccss[c].latest_detections_rays_origin[r][0], ccss[c].latest_detections_rays_origin[r][2] };
+					struct vector2<float> vec = { ccss[c].latest_detections_rays[r][0], ccss[c].latest_detections_rays[r][2] };
+					vec = vec * (1.0f / length(vec));
+					if (ccss[c].latest_detections_rays[r][0] != 0) {
+						camera_control_diagnostic_draw_looking_direction_vec(cam_2d_pos, scaling_factor, struct vector3<unsigned char>(123 + ((c * 15 + r) / 3) * 51, 123 + ((c * 15 + r) / 3) * 66, 123 - ((c * 15 + r) / 3) * 51), pixel_width, world_position, 150, dst, row, col, width, vec);
+					}
+				}
+			}
+
+			/*
 			for (int c = 0; c < camera_count; c++) {
 				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[2] };
 				for (int r = 0; r < 5; r++) {
@@ -317,23 +347,25 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 					}
 				}
 			}
+			*/
 
 			//draw detected objects
 			for (int c = 0; c < camera_count; c++) {
 				for (int r = 0; r < 5; r++) {
 					if (ccss[c].latest_detections_objects[r][0] != 0) {
 						struct vector2<float> cam_2d_pos = { ccss[c].latest_detections_objects[r][0], -ccss[c].latest_detections_objects[r][2] };
-						camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(0, 123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 13), pixel_width, world_position, dst, row, col, width);
+						//camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(0, 123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 13), pixel_width, world_position, dst, row, col, width);
+						camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(123 + ((c * 5 + r)) * 51, 123 + ((c * 5 + r)) * 66, 123 - ((c * 5 + r)) * 51), pixel_width, world_position, dst, row, col, width);
 					}
 				}
 			}
-
+			
 			//draw camera
 			for (int c = 0; c < camera_count; c++) {
 				struct vector2<float> cam_2d_pos = { ccss[c].position[0], ccss[c].position[2] };
 				camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 17.5f, struct vector3<unsigned char>(255, 255, 255), pixel_width, world_position, dst, row, col, width);
 			}
-
+			
 			/*
 			//draw camera_statistic_looking_direction
 			for (int c = 0; c < camera_count; c++) {
@@ -351,10 +383,93 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 				camera_control_diagnostic_draw_looking_direction(cam_2d_pos, scaling_factor, struct vector3<unsigned char>(0, 0, 255), pixel_width, world_position, d_len, dst, row, col, width, ccss[c].horizon_sensor);
 			}
 			*/
+		} else if (screen == 2) {
+			/*
+			if (col / (float)width < 0.5) {
+				//left sub screen
+				struct vector2<int> position = {
+					(int)(col / (float)width * 2.0f * heatmap_dims[0]),
+					(int)((((3*screen_height - row) % screen_height) / (float)(screen_height)) * (heatmap_dims[1]))
+				};
+
+				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + 0;
+
+				float tmp = 0.0f;
+				for (int z = 0; z < heatmap_dims[2]; z++) {
+					tmp += heatmap_data[idx + z];
+				}
+				//tmp /= heatmap_dims[2];
+				if (tmp > 1) tmp = 1.0f;
+				if (tmp < 0) tmp = 0.0f;
+
+				dst[row * width * 3 + col * 3 + 0] = 0;
+				dst[row * width * 3 + col * 3 + 1] = 0;
+				dst[row * width * 3 + col * 3 + 2] = 0;
+
+				if (tmp < 0.33) {
+					dst[row * width * 3 + col * 3 + 1] = (int)((tmp / 0.33f) * 254);
+				} else if (tmp < 0.66) {
+					dst[row * width * 3 + col * 3 + 0] = (int)((tmp / 0.66f) * 254);
+				} else {
+					dst[row * width * 3 + col * 3 + 2] = (int)(tmp * 254);
+				}
+				
+			} else {
+				//right sub screen
+				float x = ((col / (float)width - 0.5f) * 2.0f * heatmap_dims[0]);
+				float y = ((((3*screen_height - row) % screen_height) / (float)(screen_height)) * (heatmap_dims[1]));
+
+				int x_1, y_1, z_1;
+
+				if (x - floorf(x) < 0.33f) {
+					x_1 = 0;
+				} else if (x - floorf(x) < 0.66f) {
+					x_1 = 1;
+				} else {
+					x_1 = 2;
+				}
+				
+				if (y - floorf(y) < 0.33f) {
+					y_1 = 0;
+				} else if (y - floorf(y) < 0.66f) {
+					y_1 = 1;
+				} else {
+					y_1 = 2;
+				}
+
+				struct vector2<int> position = {
+					(int)x,
+					(int)y
+				};
+
+				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + 1;
+				idx *= 27;
+
+				dst[row * width * 3 + col * 3 + 0] = 0;
+				dst[row * width * 3 + col * 3 + 1] = 0;
+				dst[row * width * 3 + col * 3 + 2] = 0;
+
+				float tmp = 0.0f;
+				
+				for (int z = 0; z < 3; z++) {
+					int inner_idx = x_1 * 9 + y_1 * 3 + z;
+					tmp += vectorfield_data[idx + inner_idx];
+				}
+
+				dst[row * width * 3 + col * 3 + 1] = (int)(tmp * 254);
+				/*
+				if (tmp/3.0f < 1.0f / 54.0f) {
+					dst[row * width * 3 + col * 3 + 0] = (tmp / (1.0f / 54.0f) * 254);
+				} else if (tmp/3.0f < 3.0f / 54.0f) {
+					dst[row * width * 3 + col * 3 + 1] = (tmp / (3.0f / 54.0f) * 254);
+				} else {
+					dst[row * width * 3 + col * 3 + 2] = (tmp * 254);
+				}
+				*/
+			//}
 		}
 	}
 }
-
 
 void camera_control_diagnostic_launch(const unsigned char* gpu_shared_state, const unsigned int camera_count, unsigned char* dst, const int width, const int height) {
 	int threadsPerBlock = 256;

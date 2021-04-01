@@ -4,6 +4,7 @@
 #include "CUDAStreamHandler.h"
 
 #include "Vector2.h"
+#include "Logger.h"
 
 __global__ void statistics_heatmap_kernel(float *data, struct vector3<int> dimensions, float falloff) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -300,4 +301,245 @@ void statistics_3d_kernel_launch(const float *heatmap_data, const float *vectorf
 	int blocksPerGrid = (width * height + threadsPerBlock - 1) / threadsPerBlock;
 	statistics_3d_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (heatmap_data, vectorfield_data, max_vel, max_acc, dst, width, height, heatmap_dims);
 	cudaStreamSynchronize(cuda_streams[3]);
+}
+
+__global__ void statistics_evolutionary_tracker_kernel(const float *distance_matrix, const int max_tracked_objects, const unsigned int camera_count, const unsigned int cdh_max_size, int* population, float* scores, const unsigned int population_c) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (i < population_c) {
+		/*
+		const bool					*class_match_matrix				= (bool*)memory_pool;
+		const float					*distance_matrix				= (float*)(&memory_pool[camera_count * cdh_max_size * camera_count * cdh_max_size * sizeof(bool)]);
+		const struct vector3<float> *min_dist_central_points_matrix = (struct vector3<float> *)(&memory_pool[camera_count * cdh_max_size * camera_count * cdh_max_size * sizeof(bool) + camera_count * cdh_max_size * camera_count * cdh_max_size * sizeof(float)]);
+		const float					*size_factor_matrix				= (float*)(&memory_pool[camera_count * cdh_max_size * camera_count * cdh_max_size * sizeof(bool) + camera_count * cdh_max_size * camera_count * cdh_max_size * sizeof(float) + camera_count * cdh_max_size * camera_count * cdh_max_size * sizeof(struct vector3<float>)]);
+		*/
+
+		//evaluate score
+		float score = 0.0f;
+		int* pop_object_base_idx = &population[i * (1 + (max_tracked_objects * camera_count))];
+
+		int object_count = pop_object_base_idx[0];
+		pop_object_base_idx++;
+
+		int single_rays = 0;
+		float avg_score_per_object = 0.0f;
+		for (int o = 0; o < object_count; o++) {
+			int c_id_last = -1;
+			int r_id_last = -1;
+			int ray_count = 0;
+			float object_score = 0.0f;
+			for (int c = 0; c < camera_count; c++) {
+				int r_id = pop_object_base_idx[0];
+				if (r_id > -1) {
+					if (c_id_last > -1) {
+						object_score += distance_matrix[c_id_last * cdh_max_size * camera_count * cdh_max_size + r_id_last * camera_count * cdh_max_size + c * cdh_max_size + r_id];
+					}
+					c_id_last = c;
+					r_id_last = r_id;
+					ray_count++;
+				}
+				pop_object_base_idx++;
+			}
+			if (ray_count == 1) {
+				single_rays++;
+			} else {
+				avg_score_per_object += object_score;
+				score += object_score;
+			}
+		}
+		
+		scores[i] = score;
+		
+		//score penalty for single ray objects
+		if (single_rays > 0 && object_count - single_rays > 0) {
+			scores[i] += single_rays * (avg_score_per_object/((float)(object_count - single_rays)));
+		}
+	}
+}
+
+void statistics_evolutionary_tracker_kernel_launch(const float* distance_matrix, const int max_tracked_objects, const unsigned int camera_count, const unsigned int cdh_max_size, int* population, float* scores, const unsigned int population_c) {
+	int threadsPerBlock = 256;
+	int blocksPerGrid = (population_c + threadsPerBlock - 1) / threadsPerBlock;
+	statistics_evolutionary_tracker_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (distance_matrix, max_tracked_objects, camera_count, cdh_max_size, population, scores, population_c);
+	cudaStreamSynchronize(cuda_streams[3]);
+	cudaError_t err = cudaGetLastError();
+
+	if (err != cudaSuccess) {
+		logger("CUDA Error: %s\n", cudaGetErrorString(err));
+	}
+}
+
+__global__ void statistics_evolutionary_tracker_population_evolve_kernel(const int max_tracked_objects, const int camera_count, const int cdh_max_size, int* population, unsigned char* evolution_buffer, float* scores, const unsigned int population_c, const unsigned int population_kept, float mutation_rate, float *randoms, int randoms_size, int min_objects, int max_objects) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (i < population_c - population_kept) {
+		int* pop_object_base = &population[(population_kept + i) * (1 + (max_tracked_objects * camera_count))];
+		int object_count = pop_object_base[0];
+		pop_object_base++;
+
+		int random_1 = i % randoms_size;
+		int random_2 = (i * population_c) % randoms_size;
+																	  //object selected { i, swap_src }	  //ray selected { i, swap_src }
+		unsigned char* evolution_buffer_base = &evolution_buffer[i * (2 * max_tracked_objects			+ 2 * (camera_count * cdh_max_size))];
+		
+		//pick random object in i's genetic to swap
+		int rand_src_o1 = (int)(randoms[random_1] * (float)object_count);
+		evolution_buffer_base[rand_src_o1 * 2] = 1;
+
+		//mark participating rays on i
+		for (int r = 0; r < camera_count; r++) {
+			int ray_id_1 = pop_object_base[rand_src_o1 * camera_count + r];
+			if (ray_id_1 > -1) {
+				evolution_buffer_base[(2 * max_tracked_objects) + (r * 2) * cdh_max_size + (ray_id_1 * 2)] = 1;
+			}
+		}
+
+		int tries = 0;
+		int swaps = 0;
+		bool valid = true;
+
+		bool pop_object_missing_rays = false;
+		bool swap_source_missing_rays = true;
+
+		int pop_obj_swap_count = 1;
+		int swap_src_swap_count = 0;
+
+		//pick random partner in population
+		int p = (int)(randoms[random_2] * (float)(population_kept));
+		int* pop_object_swap_src = &population[p * (1 + (max_tracked_objects * camera_count))];
+		int swap_src_object_count = pop_object_swap_src[0];
+		pop_object_swap_src++;
+		
+		//find minimum amount of required object swaps, to have matching participating rays
+		while (pop_object_missing_rays || swap_source_missing_rays) {
+			if (swap_source_missing_rays) {
+				//add swap source objects, that contain rays of the chosen pop object
+				for (int o = 0; o < swap_src_object_count; o++) {
+					bool take_object = false;
+					for (int r = 0; camera_count; r++) {
+						int ray_id = pop_object_swap_src[o * camera_count + r];
+						if (ray_id > -1 && evolution_buffer_base[(2 * max_tracked_objects) + (r * 2) * cdh_max_size + (ray_id * 2)]) {
+							take_object = true;
+							break;
+						}
+					}
+					if (take_object) {
+						swap_src_swap_count++;
+						evolution_buffer_base[o * 2 + 1] = 1;
+						for (int r = 0; camera_count; r++) {
+							int ray_id = pop_object_swap_src[o * camera_count + r];
+							if (ray_id > -1) {
+								evolution_buffer_base[(2 * max_tracked_objects) + (r * 2) * cdh_max_size + (ray_id * 2) + 1] = 1;
+								if (!evolution_buffer_base[(2 * max_tracked_objects) + (r * 2) * cdh_max_size + (ray_id * 2)]) {
+									pop_object_missing_rays = true;
+								}
+							}
+						}
+					}
+				}
+				swap_source_missing_rays = false;
+			}
+
+			break;
+
+			if (pop_object_missing_rays) {
+				//add pop object objects, that contain rays of the chosen swap source objects
+				for (int o = 0; o < object_count; o++) {
+					//if object is not yet selected
+					if (!evolution_buffer_base[(2 * o)]) {
+						bool take_object = false;
+						for (int r = 0; r < camera_count; r++) {
+							int ray_id = pop_object_base[o * camera_count + r];
+							if (ray_id > -1 && evolution_buffer_base[(2 * max_tracked_objects) + (r * 2) * cdh_max_size + (ray_id * 2) + 1]) {
+								take_object = true;
+								break;
+							}
+						}
+						if (take_object) {
+							pop_obj_swap_count++;
+							evolution_buffer_base[o * 2] = 1;
+							for (int r = 0; camera_count; r++) {
+								int ray_id = pop_object_base[o * camera_count + r];
+								if (ray_id > -1) {
+									evolution_buffer_base[(2 * max_tracked_objects) + (r * 2) * cdh_max_size + (ray_id * 2)] = 1;
+									if (!evolution_buffer_base[(2 * max_tracked_objects) + (r * 2) * cdh_max_size + (ray_id * 2) + 1]) {
+										swap_source_missing_rays = true;
+									}
+								}
+							}
+						}
+					}
+				}
+				pop_object_missing_rays = false;
+			}
+			tries++;
+		}
+		/*
+		int final_object_count = object_count + (swap_src_swap_count - pop_obj_swap_count);
+		
+		if (final_object_count >= min_objects && final_object_count <= max_objects) {
+			//perform swap
+			int swap_source_swapped = 0;
+			int swap_source_last_idx = -1;
+			for (int o = 0; o < object_count; o++) {
+				if (evolution_buffer_base[o * 2]) {
+					if (swap_source_swapped < swap_src_swap_count) {
+						//override
+						for (int ssli = swap_source_last_idx + 1; ssli < swap_src_object_count; ssli++) {
+							if (evolution_buffer_base[ssli * 2 + 1]) {
+								swap_source_last_idx = ssli;
+								for (int r = 0; r < camera_count; r++) {
+									int ray_id = pop_object_swap_src[o * camera_count + r];
+									pop_object_base[o * camera_count + r] = ray_id;
+								}
+								swap_source_swapped++;
+								break;
+							}
+						}
+					} else {
+						//erase object
+						for (int r = 0; r < camera_count; r++) {
+							pop_object_base[o * camera_count + r] = -1;
+						}
+					}
+				}
+			}
+
+			//add remaining objects
+			if (swap_source_swapped < swap_src_swap_count) {
+				for (int o = object_count; o < max_tracked_objects; o++) {
+					for (int ssli = swap_source_last_idx + 1; ssli < swap_src_object_count; ssli++) {
+						if (evolution_buffer_base[ssli * 2 + 1]) {
+							swap_source_last_idx = ssli;
+							for (int r = 0; r < camera_count; r++) {
+								int ray_id = pop_object_swap_src[o * camera_count + r];
+								pop_object_base[o * camera_count + r] = ray_id;
+							}
+							swap_source_swapped++;
+							break;
+						}
+					}
+					if (swap_source_swapped == swap_src_swap_count) break;
+				}
+			}
+		}
+		pop_object_base--;
+		pop_object_base[0] = final_object_count;
+		*/
+	}
+}
+
+void statistics_evolutionary_tracker_population_evolve_kernel_launch(const int max_tracked_objects, const int camera_count, const int cdh_max_size, int* population, unsigned char* evolution_buffer, float* scores, const unsigned int population_c, const float population_keep_factor, float mutation_rate, float* randoms, int randoms_size, int min_objects, int max_objects) {
+	int threadsPerBlock = 256;
+	int population_kept = (int)floorf(population_c * population_keep_factor);
+
+	int blocksPerGrid = (population_c - population_kept + threadsPerBlock - 1) / threadsPerBlock;
+	logger("launching evolve");
+	statistics_evolutionary_tracker_population_evolve_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (max_tracked_objects, camera_count, cdh_max_size, population, evolution_buffer, scores, population_c, population_kept, mutation_rate, randoms, randoms_size, min_objects, max_objects);
+	cudaStreamSynchronize(cuda_streams[3]);
+	cudaError_t err = cudaGetLastError();
+
+	if (err != cudaSuccess) {
+		logger("CUDA Error: %s\n", cudaGetErrorString(err));
+	}
 }

@@ -11,9 +11,11 @@ struct statistics_3d {
 	struct statistic_vectorfield_3d		movement_vectorfield_3d;
 
 	struct video_source*				vs_out;
+
+	std::string							save_load_dir;
 };
 
-void statistics_3d_init(struct statistics_3d* s3d);
+void statistics_3d_init(struct statistics_3d* s3d, std::string save_load_dir);
 DWORD* statistics_3d_loop(LPVOID args);
 void statistics_3d_externalise(struct application_graph_node* agn, string& out_str);
 void statistics_3d_load(struct statistics_3d* s3d, ifstream& in_f);

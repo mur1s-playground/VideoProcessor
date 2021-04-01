@@ -9,10 +9,12 @@
 
 #include "Logger.h"
 
-void statistics_3d_init(struct statistics_3d *s3d) {
+void statistics_3d_init(struct statistics_3d *s3d, std::string save_load_dir) {
 	s3d->smb_shared_state = nullptr;
 
 	s3d->vs_out = nullptr;
+
+	s3d->save_load_dir = save_load_dir;
 }
 
 DWORD* statistics_3d_loop(LPVOID args) {
@@ -36,8 +38,8 @@ DWORD* statistics_3d_loop(LPVOID args) {
 	struct camera_control_shared_state* ccss;
 
 	//TMP NO CFG
-	statistic_heatmap_init(&s3d->heatmap_3d, struct vector2<int>(-5, 25), struct vector2<int>(-5, 25), struct vector2<int>(-1, 1), struct vector3<float>(1.0f, 1.0f, 1.0f), 0.995f);
-	statistic_vectorfield_3d_init(&s3d->movement_vectorfield_3d, struct vector2<int>(-5, 25), struct vector2<int>(-5, 25), struct vector2<int>(-1, 1), struct vector3<float>(1.0f, 1.0f, 1.0f), 10);
+	statistic_heatmap_init(&s3d->heatmap_3d, struct vector2<int>(-5, 25), struct vector2<int>(-5, 25), struct vector2<int>(-1, 1), struct vector3<float>(1.0f, 1.0f, 1.0f), 0.995f, s3d->save_load_dir);
+	statistic_vectorfield_3d_init(&s3d->movement_vectorfield_3d, struct vector2<int>(-5, 25), struct vector2<int>(-5, 25), struct vector2<int>(-1, 1), struct vector3<float>(1.0f, 1.0f, 1.0f), 10, s3d->save_load_dir);
 	//
 
 	while (agn->process_run) {
@@ -109,6 +111,9 @@ DWORD* statistics_3d_loop(LPVOID args) {
 		application_graph_tps_balancer_timer_stop(agn);
 		application_graph_tps_balancer_sleep(agn);
 	}
+	statistic_heatmap_save(&s3d->heatmap_3d);
+	statistic_vectorfield_3d_save(&s3d->movement_vectorfield_3d);
+
 	agn->process_run = false;
 	myApp->drawPane->Refresh();
 	return NULL;
@@ -116,16 +121,18 @@ DWORD* statistics_3d_loop(LPVOID args) {
 
 
 void statistics_3d_externalise(struct application_graph_node* agn, string& out_str) {
-	struct camera_control* cc = (struct camera_control*)agn->component;
+	struct statistics_3d* s3d = (struct statistics_3d*)agn->component;
 
 	stringstream s_out;
+	s_out << s3d->save_load_dir << std::endl;
 	out_str = s_out.str();
 }
 
 void statistics_3d_load(struct statistics_3d* s3d, ifstream& in_f) {
 	std::string line;
+	std::getline(in_f, line);
 
-	statistics_3d_init(s3d);
+	statistics_3d_init(s3d, line);
 }
 
 void statistics_3d_destroy(struct application_graph_node* agn) {

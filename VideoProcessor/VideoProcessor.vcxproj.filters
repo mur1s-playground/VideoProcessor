@@ -186,6 +186,9 @@
     <ClCompile Include="DetectionSimulation3DUI.cpp">
       <Filter>Quelldateien\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Util.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="MainUI.h">
@@ -385,6 +388,9 @@
     </ClInclude>
     <ClInclude Include="DetectionSimulation3DUI.h">
       <Filter>Headerdateien\UI</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.h">
+      <Filter>Headerdateien</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

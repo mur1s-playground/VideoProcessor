@@ -78,7 +78,8 @@ void Statistics3DFrame::OnStatistics3DFrameButtonOk(wxCommandEvent& event) {
     this->Hide();
     if (node_id == -1) {
         struct statistics_3d* s3d = new struct statistics_3d();
-        statistics_3d_init(s3d);
+        string directory = "R:\\Cams\\";
+        statistics_3d_init(s3d, directory);
         struct application_graph_node* agn = new application_graph_node();
         agn->n_id = ags[node_graph_id]->nodes.size();
         statistics_3d_ui_graph_init(agn, (application_graph_component)s3d, myApp->drawPane->right_click_mouse_x, myApp->drawPane->right_click_mouse_y);
