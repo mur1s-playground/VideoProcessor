@@ -59,14 +59,13 @@ struct statistic_detection_matcher_3d {
 
 	int cdh_max_size;
 
-	int					memory_pool_size;
-	unsigned char*		memory_pool;
-	unsigned char*		memory_pool_device;
-	float*				distance_matrix_device;
-
 	bool* class_match_matrix;
+
 	float* distance_matrix;
+	float* distance_matrix_device;
+
 	struct vector3<float>* min_dist_central_points_matrix;
+
 	float* size_factor_matrix;
 
 	int					population_c;
