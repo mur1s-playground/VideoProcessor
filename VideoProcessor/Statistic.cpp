@@ -1278,6 +1278,13 @@ void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_inte
 				float p__y1 = 1 - (d_y1 / d_total);
 				float p__y2 = 1 - (d_y2 / d_total);
 
+				float p_total = p__x1 + p__x2 + p__y1 + p__y2;
+
+				p__x1 /= p_total;
+				p__x2 /= p_total;
+				p__y1 /= p_total;
+				p__y2 /= p_total;
+
 				float value = p__x1 * v_x1 + p__x2 * v_x2 + p__y1 * v_y1 + p__y2 * v_y2;
 				sui2d->data[r * sui2d->dimension[0] + c] = value;
 			}
