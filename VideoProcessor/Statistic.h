@@ -17,6 +17,7 @@ struct statistic_angle_denoiser {
 void statistic_angle_denoiser_init(struct statistic_angle_denoiser* sad, int size);
 void statistic_angle_denoiser_set_weights(struct statistic_angle_denoiser* sad, float* weights);
 void statistic_angle_denoiser_update(struct statistic_angle_denoiser* sad, float angle);
+bool statistic_angle_denoiser_is_left_of(float angle_base, float angle_new);
 
 struct statistic_detection_matcher_2d {
 	struct cam_detection* detections;
@@ -152,3 +153,14 @@ void statistic_vectorfield_3d_init(struct statistic_vectorfield_3d *sv3d, struct
 void statistic_vectorfield_3d_update(struct statistic_vectorfield_3d* sv3d, struct vector3<float> position, struct vector3<float> velocity, float velocity_t, float acceleration_t);
 void statistic_vectorfield_3d_update_device(struct statistic_vectorfield_3d* sv3d);
 void statistic_vectorfield_3d_save(struct statistic_vectorfield_3d* sv3d);
+
+struct statistic_unscatter_interpolation_2d {
+	struct vector2<int>		grid_size;
+	struct vector2<int>		dimension;
+
+	float					*data;
+};
+
+void statistic_unscatter_interpolation_init(struct statistic_unscatter_interpolation_2d *sui2d, struct vector2<int> grid_size, struct vector2<int> dimension);
+void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_interpolation_2d* sui2d, std::vector<struct vector2<float>> points, std::vector<float> values, int power);
+void statistic_unscatter_interpolation_destroy(struct statistic_unscatter_interpolation_2d* sui2d);

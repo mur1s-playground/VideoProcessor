@@ -236,7 +236,7 @@ void statistic_detection_matcher_3d_init(struct statistic_detection_matcher_3d* 
 	cudaMalloc(&sdm3->population_evolution_buffer_device, population_evolution_buffer_mem_size);
 
 	sdm3->population_max_evolutions = 10;
-	sdm3->population_keep_factor = 1.0f / 16.0f;
+	sdm3->population_keep_factor = 1.0f / 2.0f;
 	sdm3->population_mutation_rate = 0.002f;
 
 	sdm3->randoms_size = 1024;
@@ -358,12 +358,12 @@ void statistic_evolutionary_tracker_population_next_pool(struct statistic_detect
 		}
 	}
 	stable_sort(sdm3->population_scores_idxs, &sdm3->population_scores_idxs[sdm3->population_c], [sdm3](size_t i1, size_t i2) {return sdm3->population_scores[i1] < sdm3->population_scores[i2]; });
-	logger(sdm3->population_scores[sdm3->population_scores_idxs[0]]);
+	//logger(sdm3->population_scores[sdm3->population_scores_idxs[0]]);
 	
 	logger("iteration", iteration);
 	for (int i = 0; i < sdm3->population_c; i++) {
 		//logger(sdm3->population_scores_idxs[i]);
-		logger(sdm3->population_scores[sdm3->population_scores_idxs[i]]);
+		//logger(sdm3->population_scores[sdm3->population_scores_idxs[i]]);
 		//int *population_base = sdm3->pop
 	}
 	if (iteration == 1) {
@@ -382,7 +382,7 @@ void statistic_evolutionary_tracker_population_next_pool(struct statistic_detect
 	int population_kept_c = (int)floorf(sdm3->population_c * sdm3->population_keep_factor);
 	int total_new = 0;
 
-	//logger("kept");
+	logger("kept");
 
 	for (int p = 0; p < population_kept_c; p++) {
 		int target_idx = total_new * (1 + (sdm3->size * cc->camera_count));
@@ -404,12 +404,15 @@ void statistic_evolutionary_tracker_population_next_pool(struct statistic_detect
 	int tries = 0;
 	float tries_factor = 1.0f;
 
-	//logger("p new");
+	logger("p new");
 
 	//min score = best score 0.0 err on all triangulations, max score = worst score...
 	float min_score = sdm3->population_scores[sdm3->population_scores_idxs[0]];
 	float max_kept_score = sdm3->population_scores[sdm3->population_scores_idxs[population_kept_c - 1]];
 	if (max_kept_score == min_score) max_kept_score += 1e-9;
+	if (abs(max_kept_score - min_score) < 5.0f) {
+		max_kept_score += 5.0f;
+	}
 
 	while (total_new < sdm3->population_c) {
 		tries_factor = 1.0f * ((tries/(float)(sdm3->population_c - population_kept_c)) * 0.1f);
@@ -435,6 +438,8 @@ void statistic_evolutionary_tracker_population_next_pool(struct statistic_detect
 		}
 		tries++;
 	}
+
+	logger("done");
 }
 
 void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d* sdm3, struct camera_control* cc, struct camera_control_shared_state *ccss) {
@@ -589,9 +594,10 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			}
 		}
 	}
+	
 	//cudaMemcpyAsync(sdm3->memory_pool_device, sdm3->memory_pool, sdm3->memory_pool_size, cudaMemcpyHostToDevice, cuda_streams[0]);
 	cudaMemcpyAsync(sdm3->distance_matrix_device, sdm3->distance_matrix, (size_t)cc->camera_count* sdm3->cdh_max_size* cc->camera_count* sdm3->cdh_max_size * sizeof(float), cudaMemcpyHostToDevice, cuda_streams[0]);
-	cudaStreamSynchronize(cuda_streams[0]);
+	//cudaStreamSynchronize(cuda_streams[0]);
 	cudaError_t err = cudaGetLastError();
 	if (err != cudaSuccess) {
 		logger("CUDA Error dist", cudaGetErrorString(err));
@@ -618,7 +624,7 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 		}
 		int err_c = 0;
 		cudaMemcpyAsync(sdm3->population_device, pop_cur, (size_t)sdm3->population_c * (1 + (size_t)(sdm3->size * cc->camera_count)) * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[0]);
-		cudaStreamSynchronize(cuda_streams[0]);
+		//cudaStreamSynchronize(cuda_streams[0]);
 		err = cudaGetLastError();
 		if (err != cudaSuccess) {
 			logger("CUDA Error", err_c);
@@ -642,12 +648,14 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 		err_c++;
 
 		if (e > 0) {
+			logger("b evo");
 			cudaMemsetAsync(sdm3->population_evolution_buffer_device, 0, sdm3->population_c* (2 * sdm3->size + 2 * cc->camera_count * sdm3->cdh_max_size) * sizeof(unsigned char), cuda_streams[3]);		
 			statistics_evolutionary_tracker_population_evolve_kernel_launch(sdm3->size, cc->camera_count, sdm3->cdh_max_size, sdm3->population_device, sdm3->population_evolution_buffer_device, sdm3->population_scores_device, sdm3->population_c, sdm3->population_keep_factor, sdm3->population_mutation_rate, sdm3->randoms_device, sdm3->randoms_size, min_objects, max_objects);
 			cudaMemcpyAsync(pop_cur, sdm3->population_device, sdm3->population_c* (1 + (sdm3->size * cc->camera_count)) * sizeof(int), cudaMemcpyDeviceToHost, cuda_streams[4]);
 			//cudaStreamSynchronize(cuda_streams[4]);
-
+			logger("a evo");
 			/*
+			logger("after evo");
 			for (int p = 0; p < sdm3->population_c; p++) {
 				int target_idx = p * (1 + (sdm3->size * cc->camera_count));
 				int origin_idx = sdm3->population_scores_idxs[p] * (1 + (sdm3->size * cc->camera_count));
@@ -671,9 +679,9 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			logger("CUDA Error", cudaGetErrorString(err));
 		}
 		err_c++;
-
+		logger("tkl");
 		statistics_evolutionary_tracker_kernel_launch(sdm3->distance_matrix_device, sdm3->size, cc->camera_count, sdm3->cdh_max_size, sdm3->population_device, sdm3->population_scores_device, sdm3->population_c);
-		
+		logger("tkld");
 		cudaMemcpyAsync(sdm3->population_scores, sdm3->population_scores_device, sdm3->population_c * sizeof(float), cudaMemcpyDeviceToHost, cuda_streams[4]);
 		
 		err = cudaGetLastError();
@@ -698,6 +706,9 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 	int object_count = object_it[0];
 	object_it++;
 	int shared_objects = 0;
+
+	int tmp_o = 0;
+
 	for (int o = 0; o < object_count; o++) {
 		sdm3->detections[o].class_id = 37;
 		sdm3->detections[o].velocity = { 0.0f, 0.0f, 0.0f };
@@ -705,33 +716,64 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 		int ray_count = 0;
 		int c_id_last = -1;
 		int r_id_last = -1;
+		
 		for (int r = 0; r < cc->camera_count; r++) {
 			int c_id = r;
 			int r_id = object_it[0];
 			object_it++;
 			if (r_id > -1) {
+				sdm3->detections[tmp_o].class_id = 37;
+				sdm3->detections[tmp_o].velocity = { 0.0f, 0.0f, 0.0f };
+				float l = -cc->cam_awareness[c_id].calibration.position[2] / sdm3->detections_3d[c_id * sdm3->cdh_max_size + r_id].direction[2];
+				sdm3->detections[tmp_o].position = {
+					cc->cam_awareness[c_id].calibration.position[0] + l * sdm3->detections_3d[c_id * sdm3->cdh_max_size + r_id].direction[0],
+					cc->cam_awareness[c_id].calibration.position[1] + l * sdm3->detections_3d[c_id * sdm3->cdh_max_size + r_id].direction[1],
+					0.0f
+				};
+				sdm3->detections[tmp_o].score = 0.0f;
+				sdm3->detections[tmp_o].timestamp = t_now;
+				if (ccss != nullptr && shared_objects < cc->camera_count * 5) {
+					ccss[shared_objects / 5].latest_detections_objects[shared_objects % 5] = sdm3->detections[tmp_o++].position;
+					shared_objects++;
+				}
+				if (tmp_o == sdm3->size) break;
+				/*
 				if (c_id_last > -1) {
-					sdm3->detections[o].position = sdm3->detections[o].position - -sdm3->min_dist_central_points_matrix[c_id_last * sdm3->cdh_max_size * cc->camera_count * sdm3->cdh_max_size + r_id_last * cc->camera_count * sdm3->cdh_max_size +  c_id * sdm3->cdh_max_size + r_id];
+					//sdm3->detections[o].position = sdm3->detections[o].position - -sdm3->min_dist_central_points_matrix[c_id_last * sdm3->cdh_max_size * cc->camera_count * sdm3->cdh_max_size + r_id_last * cc->camera_count * sdm3->cdh_max_size +  c_id * sdm3->cdh_max_size + r_id];
+					cc->cam_awareness[c_id].calibration.position;
+					sdm3->detections_3d[c_id * sdm3->cdh_max_size + r_id].direction;
 					ray_count++;
 				}
 				c_id_last = c_id;
 				r_id_last = r_id;
+				*/
 			}
 		}
+		if (tmp_o == sdm3->size) break;
+		/*
 		if (ray_count > 0) {
-			sdm3->detections[o].position = sdm3->detections[o].position / (float)ray_count;
-			sdm3->detections[o].score = 0.0f;
-			sdm3->detections[o].timestamp = t_now;
+			//sdm3->detections[o].position = sdm3->detections[o].position / (float)ray_count;
+
+			//sdm3->detections[o].score = 0.0f;
+			//sdm3->detections[o].timestamp = t_now;
 			/*
 			logger("o", o);
 			logger("position_x", sdm3->detections[o].position[0]);
 			logger("position_y", sdm3->detections[o].position[1]);
 			logger("position_z", sdm3->detections[o].position[2]);
 			*/
+		/*
 			if (ccss != nullptr && shared_objects < cc->camera_count * 5) {
 				ccss[shared_objects / 5].latest_detections_objects[shared_objects % 5] = sdm3->detections[o].position;
 				shared_objects++;
 			}
+		}
+		*/
+	}
+	for (; tmp_o < sdm3->size; tmp_o++) {
+		if (ccss != nullptr && shared_objects < cc->camera_count * 5) {
+			ccss[shared_objects / 5].latest_detections_objects[shared_objects % 5] = { 0.0f, 0.0f, 0.0f };
+			shared_objects++;
 		}
 	}
 
@@ -1105,4 +1147,144 @@ void statistic_vectorfield_3d_save(struct statistic_vectorfield_3d* sv3d) {
 	ss_dir_file << sv3d->save_load_dir << "vectorfield_3d.bin";
 
 	util_write_binary(ss_dir_file.str(), (unsigned char*) sv3d->data, sv3d->sqg.total_size);
+}
+
+void statistic_unscatter_interpolation_init(struct statistic_unscatter_interpolation_2d* sui2d, struct vector2<int> grid_size, struct vector2<int> dimension) {
+	sui2d->grid_size = grid_size;
+	sui2d->dimension = dimension;
+
+	sui2d->data = (float*)malloc(grid_size[0] * grid_size[1] * sizeof(float));
+}
+
+void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_interpolation_2d* sui2d, std::vector<struct vector2<float>> points, std::vector<float> values, int power) {
+	float x_steps = sui2d->dimension[0] / (float)sui2d->grid_size[0];
+	float x_start = x_steps / 2.0f;
+
+	float y_steps = sui2d->dimension[1] / (float)sui2d->grid_size[1];
+	float y_start = y_steps / 2.0f;
+
+	for (int r = 0; r < sui2d->dimension[1]; r++) {
+		for (int c = 0; c < sui2d->dimension[0]; c++) {
+			sui2d->data[r * sui2d->dimension[0] + c] = 0.0f;
+
+			struct vector2<float> target = { x_start + c * x_steps, y_start + r * y_steps };
+
+			float d = 0.0f;
+			bool hit = false;
+
+			int max_id = 0;
+			float max_dist = (float)max(sui2d->dimension[0], sui2d->dimension[1]);
+			float closest_dists[4] = { max_dist, max_dist, max_dist, max_dist };
+			int closest_ids[4] = { -1, -1, -1, -1 };
+
+			for (int m = 0; m < 4; m++) {
+				for (int p = 0; p < points.size(); p++) {
+					float dist = length(target - points[p]);
+					if (dist < 0.1f) {
+						sui2d->data[r * sui2d->dimension[0] + c] = values[p];
+						hit = true;
+					} else {
+						if (closest_ids[m] == -1) {
+							if (m == 0 || (m > 0 && (closest_dists[m - 1] < dist || (closest_ids[m - 1] != p && closest_dists[m - 1] == dist)))) {
+								closest_ids[m] = p;
+								closest_dists[m] = dist;
+							}
+						} else {
+							if (closest_dists[m] > dist) {
+								if (m == 0 || (m > 0 && (closest_dists[m - 1] < dist || (closest_ids[m - 1] != p && closest_dists[m - 1] == dist)))) {
+									closest_ids[m] = p;
+									closest_dists[m] = dist;
+								}
+							}
+						}
+					}
+				}
+				if (hit) break;
+			}
+			if (!hit) {
+				//point furthest away
+				struct vector2<float> p_1 = points[closest_ids[3]];
+				
+				//point with least x dist from p_1
+				struct vector2<float> p_2 = points[closest_ids[2]];
+				int					  p_2_id = 2;
+				float tmp_dist_x = (float)sui2d->dimension[0];
+				for (int m = 0; m < 2; m++) {
+					float d = abs(p_1[0] - points[closest_ids[m]][0]);
+					if (d < tmp_dist_x) {
+						p_2 = points[closest_ids[m]];
+						p_2_id = m;
+					}
+				}
+
+				//point with least y dist from p_1
+				struct vector2<float> p_3;
+				int					  p_3_id;
+				float tmp_dist_y = (float)sui2d->dimension[1];
+				for (int m = 0; m < 3; m++) {
+					if (m != p_2_id) {
+						float d = abs(p_1[1] - points[closest_ids[m]][1]);
+						if (d < tmp_dist_y) {
+							p_3 = points[closest_ids[m]];
+							p_3_id = m;
+						}
+					}
+				}
+
+				//last point
+				struct vector2<float> p_4;
+				int					  p_4_id;
+				for (int m = 0; m < 3; m++) {
+					if (m != p_2_id && m != p_3_id) {
+						p_4 = points[closest_ids[m]];
+						p_4_id = m;
+						break;
+					}
+				}
+
+				float v_p1 = values[closest_dists[3]];
+				float v_p2 = values[closest_dists[p_2_id]];
+				float v_p3 = values[closest_dists[p_3_id]];
+				float v_p4 = values[closest_dists[p_4_id]];
+
+				struct vector2<float> n_x1 = { -(p_3[0] - p_1[0]), p_3[1] - p_1[1] };
+				float lambda = ((target[1] / n_x1[1]) - (p_1[1] / n_x1[1]) + (p_1[0] / n_x1[0]) - (target[0] / n_x1[0])) / (((p_3[0] - p_1[0]) / n_x1[1]) - ((p_3[0] - p_1[0]) / n_x1[0]));
+				struct vector2<float> p_x1 = p_1 - -((p_3 - p_1) * lambda);
+				float d_x1 = length(p_x1 - target);
+				float v_x1 = v_p1 + lambda * (v_p3 - v_p1);
+
+				struct vector2<float> n_x2 = { -(p_4[0] - p_2[0]), p_4[1] - p_1[1] };
+				float phi = ((target[1] / n_x2[1]) - (p_2[1] / n_x2[1]) + (p_2[0] / n_x2[0]) - (target[0] / n_x2[0])) / (((p_4[0] - p_2[0]) / n_x2[1]) - ((p_4[0] - p_2[0]) / n_x2[0]));
+				struct vector2<float> p_x2 = p_2 - -((p_4 - p_2) * phi);
+				float d_x2 = length(p_x2 - target);
+				float v_x2 = v_p2 + phi * (v_p4 - v_p2);
+
+				struct vector2<float> n_y1 = { -(p_2[0] - p_1[0]), p_2[1] - p_1[1] };
+				float xi = ((target[1] / n_y1[1]) - (p_1[1] / n_y1[1]) + (p_1[0] / n_y1[0]) - (target[0] / n_y1[0])) / (((p_2[0] - p_1[0]) / n_y1[1]) - ((p_2[0] - p_1[0]) / n_y1[0]));
+				struct vector2<float> p_y1 = p_1 - -((p_2 - p_1) * xi);
+				float d_y1 = length(p_y1 - target);
+				float v_y1 = v_p1 + xi * (v_p2 - v_p1);
+
+				struct vector2<float> n_y2 = { -(p_4[0] - p_3[0]), p_4[1] - p_3[1] };
+				float theta = ((target[1] / n_y2[1]) - (p_3[1] / n_y2[1]) + (p_3[0] / n_y2[0]) - (target[0] / n_y2[0])) / (((p_4[0] - p_3[0]) / n_y2[1]) - ((p_4[0] - p_3[0]) / n_y2[0]));
+				struct vector2<float> p_y2 = p_3 - -((p_4 - p_3) * theta);
+				float d_y2 = length(p_y2 - target);
+				float v_y2 = v_p3 + theta * (v_p4 - v_p3);
+
+				float d_total = d_x1 + d_x2 + d_y1 + d_y2;
+
+				float p__x1 = 1 - (d_x1 / d_total);
+				float p__x2 = 1 - (d_x2 / d_total);
+				float p__y1 = 1 - (d_y1 / d_total);
+				float p__y2 = 1 - (d_y2 / d_total);
+
+				float value = p__x1 * v_x1 + p__x2 * v_x2 + p__y1 * v_y1 + p__y2 * v_y2;
+				sui2d->data[r * sui2d->dimension[0] + c] = value;
+			}
+		}
+	}
+}
+
+void statistic_unscatter_interpolation_destroy(struct statistic_unscatter_interpolation_2d* sui2d) {
+	free(sui2d->data);
 }
