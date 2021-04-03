@@ -2,6 +2,7 @@
 
 #include <windows.h>
 
+#include <vector>
 #include <string>
 #include "Vector2.h"
 #include "Vector3.h"
@@ -74,12 +75,32 @@ struct cam_detection_3d {
 enum cam_calibration_process_state {
 	CCPS_CALIBRATION_OBJECT_SEARCH,
 	CCPS_CALIBRATION_OBJECT_LOST,
-
 	CCPS_CALIBRATION_OBJECT_DETECT_STABLE,
-	CCPS_CALIBRATION_OBJECT_CENTER,
+
+	/*
 	CCPS_CALIBRATION_OBJECT_TOP_LEFT,
 	CCPS_CALIBRATION_OBJECT_BOTTOM_RIGHT,
+	*/
 
+	/*
+	//|-----------|
+	//|>    >    v|
+	//|^   (^)   v|
+	//|^    <    <|
+	//|-----------|
+	CCPS_CALIBRATION_OBJECT_CENTER,
+	CCPS_CALIBRATION_OBJECT_CENTER_TOP,
+	CCPS_CALIBRATION_OBJECT_TOP_RIGHT,
+	CCPS_CALIBRATION_OBJECT_CENTER_RIGHT,
+	CCPS_CALIBRATION_OBJECT_BOTTOM_RIGHT,
+	CCPS_CALIBRATION_OBJECT_CENTER_BOTTOM,
+	CCPS_CALIBRATION_OBJECT_BOTTOM_LEFT,
+	CCPS_CALIBRATION_OBJECT_CENTER_LEFT,
+	CCPS_CALIBRATION_OBJECT_TOP_LEFT,
+	*/	
+
+	CCPS_CALIBRATION_OBJECT_GET_MATRIX,
+	
 	CCPS_CALIBRATION_DONE
 };
 
@@ -93,15 +114,36 @@ struct cam_calibration_process {
 	vector2<float>			calibration_object_found_angles;
 	struct cam_detection	calibration_object_found;
 
+	vector2<int>			calibration_discretization;
+
 	vector2<float>			calibration_object_center_angles;
 	struct cam_detection	calibration_object_center;
 
+	int															calibration_object_a_cd_i;
+	vector<pair<struct vector2<float>, struct cam_detection>>	calibration_object_a_cd;
+	/*
+	vector2<float>			calibration_object_center_angles;
+	struct cam_detection	calibration_object_center;
+	
+	vector2<float>			calibration_object_center_top_angles;
+	struct cam_detection	calibration_object_center_top;
+
+	vector2<float>			calibration_object_center_bottom_angles;
+	struct cam_detection	calibration_object_center_bottom;
+
+	vector2<float>			calibration_object_center_left_angles;
+	struct cam_detection	calibration_object_center_left;
+
+	vector2<float>			calibration_object_center_right_angles;
+	struct cam_detection	calibration_object_center_right;
+
+	
 	vector2<float>			calibration_object_top_left_angles;
 	struct cam_detection	calibration_object_top_left;
 
 	vector2<float>			calibration_object_bottom_right_angles;
 	struct cam_detection	calibration_object_bottom_right;
-
+	*/
 	enum cam_calibration_process_state ccps_store;
 };
 
