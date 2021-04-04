@@ -1156,6 +1156,8 @@ void statistic_unscatter_interpolation_init(struct statistic_unscatter_interpola
 	sui2d->data = (float*)malloc(grid_size[0] * grid_size[1] * sizeof(float));
 }
 
+float statistic_unscatter_orth_proj(struct vector2<float> p1, struct vector2<float> p2, struct vector2<float> s, float* out_dist);
+
 void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_interpolation_2d* sui2d, std::vector<struct vector2<float>> points, std::vector<float> values, int power) {
 	float x_steps = sui2d->dimension[0] / (float)sui2d->grid_size[0];
 	float x_start = x_steps / 2.0f;
@@ -1163,9 +1165,9 @@ void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_inte
 	float y_steps = sui2d->dimension[1] / (float)sui2d->grid_size[1];
 	float y_start = y_steps / 2.0f;
 
-	for (int r = 0; r < sui2d->dimension[1]; r++) {
-		for (int c = 0; c < sui2d->dimension[0]; c++) {
-			sui2d->data[r * sui2d->dimension[0] + c] = 0.0f;
+	for (int r = 0; r < sui2d->grid_size[1]; r++) {
+		for (int c = 0; c < sui2d->grid_size[0]; c++) {
+			sui2d->data[r * sui2d->grid_size[0] + c] = 0.0f;
 
 			struct vector2<float> target = { x_start + c * x_steps, y_start + r * y_steps };
 
@@ -1181,8 +1183,9 @@ void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_inte
 				for (int p = 0; p < points.size(); p++) {
 					float dist = length(target - points[p]);
 					if (dist < 0.1f) {
-						sui2d->data[r * sui2d->dimension[0] + c] = values[p];
+						sui2d->data[r * sui2d->grid_size[0] + c] = values[p];
 						hit = true;
+						break;
 					} else {
 						if (closest_ids[m] == -1) {
 							if (m == 0 || (m > 0 && (closest_dists[m - 1] < dist || (closest_ids[m - 1] != p && closest_dists[m - 1] == dist)))) {
@@ -1208,14 +1211,15 @@ void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_inte
 				//point with least x dist from p_1
 				struct vector2<float> p_2 = points[closest_ids[2]];
 				int					  p_2_id = 2;
-				float tmp_dist_x = (float)sui2d->dimension[0];
+				float tmp_dist_x = abs(p_1[0] - p_2[0]);
 				for (int m = 0; m < 2; m++) {
 					float d = abs(p_1[0] - points[closest_ids[m]][0]);
 					if (d < tmp_dist_x) {
-						p_2 = points[closest_ids[m]];
+						tmp_dist_x = d;
 						p_2_id = m;
 					}
 				}
+				p_2 = points[closest_ids[p_2_id]];
 
 				//point with least y dist from p_1
 				struct vector2<float> p_3;
@@ -1225,11 +1229,12 @@ void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_inte
 					if (m != p_2_id) {
 						float d = abs(p_1[1] - points[closest_ids[m]][1]);
 						if (d < tmp_dist_y) {
-							p_3 = points[closest_ids[m]];
+							tmp_dist_y = d;
 							p_3_id = m;
 						}
 					}
 				}
+				p_3 = points[closest_ids[p_3_id]];
 
 				//last point
 				struct vector2<float> p_4;
@@ -1247,36 +1252,28 @@ void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_inte
 				float v_p3 = values[closest_dists[p_3_id]];
 				float v_p4 = values[closest_dists[p_4_id]];
 
-				struct vector2<float> n_x1 = { -(p_3[0] - p_1[0]), p_3[1] - p_1[1] };
-				float lambda = ((target[1] / n_x1[1]) - (p_1[1] / n_x1[1]) + (p_1[0] / n_x1[0]) - (target[0] / n_x1[0])) / (((p_3[0] - p_1[0]) / n_x1[1]) - ((p_3[0] - p_1[0]) / n_x1[0]));
-				struct vector2<float> p_x1 = p_1 - -((p_3 - p_1) * lambda);
-				float d_x1 = length(p_x1 - target);
-				float v_x1 = v_p1 + lambda * (v_p3 - v_p1);
+				float d_x1		= 0.0f;
+				float lambda	= statistic_unscatter_orth_proj(p_1, p_3, target, &d_x1);
+				float v_x1		= v_p1 + lambda * (v_p3 - v_p1);
 
-				struct vector2<float> n_x2 = { -(p_4[0] - p_2[0]), p_4[1] - p_1[1] };
-				float phi = ((target[1] / n_x2[1]) - (p_2[1] / n_x2[1]) + (p_2[0] / n_x2[0]) - (target[0] / n_x2[0])) / (((p_4[0] - p_2[0]) / n_x2[1]) - ((p_4[0] - p_2[0]) / n_x2[0]));
-				struct vector2<float> p_x2 = p_2 - -((p_4 - p_2) * phi);
-				float d_x2 = length(p_x2 - target);
-				float v_x2 = v_p2 + phi * (v_p4 - v_p2);
+				float d_x2		= 0.0f;
+				float phi		= statistic_unscatter_orth_proj(p_2, p_4, target, &d_x2);
+				float v_x2		= v_p2 + phi * (v_p4 - v_p2);
 
-				struct vector2<float> n_y1 = { -(p_2[0] - p_1[0]), p_2[1] - p_1[1] };
-				float xi = ((target[1] / n_y1[1]) - (p_1[1] / n_y1[1]) + (p_1[0] / n_y1[0]) - (target[0] / n_y1[0])) / (((p_2[0] - p_1[0]) / n_y1[1]) - ((p_2[0] - p_1[0]) / n_y1[0]));
-				struct vector2<float> p_y1 = p_1 - -((p_2 - p_1) * xi);
-				float d_y1 = length(p_y1 - target);
-				float v_y1 = v_p1 + xi * (v_p2 - v_p1);
+				float d_y1		= 0.0f;
+				float xi		= statistic_unscatter_orth_proj(p_1, p_2, target, &d_y1);
+				float v_y1		= v_p1 + xi * (v_p2 - v_p1);
 
-				struct vector2<float> n_y2 = { -(p_4[0] - p_3[0]), p_4[1] - p_3[1] };
-				float theta = ((target[1] / n_y2[1]) - (p_3[1] / n_y2[1]) + (p_3[0] / n_y2[0]) - (target[0] / n_y2[0])) / (((p_4[0] - p_3[0]) / n_y2[1]) - ((p_4[0] - p_3[0]) / n_y2[0]));
-				struct vector2<float> p_y2 = p_3 - -((p_4 - p_3) * theta);
-				float d_y2 = length(p_y2 - target);
-				float v_y2 = v_p3 + theta * (v_p4 - v_p3);
+				float d_y2		= 0.0f;
+				float theta		= statistic_unscatter_orth_proj(p_3, p_4, target, &d_y2);
+				float v_y2		= v_p3 + theta * (v_p4 - v_p3);
 
-				float d_total = d_x1 + d_x2 + d_y1 + d_y2;
+				float d_total	= d_x1 + d_x2 + d_y1 + d_y2;
 
-				float p__x1 = 1 - (d_x1 / d_total);
-				float p__x2 = 1 - (d_x2 / d_total);
-				float p__y1 = 1 - (d_y1 / d_total);
-				float p__y2 = 1 - (d_y2 / d_total);
+				float p__x1 = (float)pow(1.0f - (d_x1 / d_total), power);
+				float p__x2 = (float)pow(1.0f - (d_x2 / d_total), power);
+				float p__y1 = (float)pow(1.0f - (d_y1 / d_total), power);
+				float p__y2 = (float)pow(1.0f - (d_y2 / d_total), power);
 
 				float p_total = p__x1 + p__x2 + p__y1 + p__y2;
 
@@ -1286,10 +1283,31 @@ void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_inte
 				p__y2 /= p_total;
 
 				float value = p__x1 * v_x1 + p__x2 * v_x2 + p__y1 * v_y1 + p__y2 * v_y2;
-				sui2d->data[r * sui2d->dimension[0] + c] = value;
+				sui2d->data[r * sui2d->grid_size[0] + c] = value;
 			}
 		}
 	}
+}
+
+float statistic_unscatter_orth_proj(struct vector2<float> p1, struct vector2<float> p2, struct vector2<float> s, float* out_dist) {
+	struct vector2<float> n = { -(p2[1] - p1[1]), (p2[0] - p1[0]) };
+	
+	float lambda = 0.0f;
+	if (n[0] == 0) {
+		lambda = (s[0] - p1[0]) / (p2[0] - p1[0]);
+	} else if (n[1] == 0) {
+		lambda = (s[1] - p1[1]) / (p2[1] - p1[1]);
+	} else {
+		float lambda_n = (p1[0] / n[0]) - (s[0] / n[0]) - (p1[1] / n[1]) + (s[1] / n[1]);
+		float lambda_d = ((p2[1] - p1[1]) / n[1]) - ((p2[0] - p1[0]) / n[0]);
+
+		lambda = lambda_n / lambda_d;
+	}
+
+	struct vector2<float> p = p1 - -(p2 - p1) * lambda;
+	float d = length(s - p);
+	*out_dist = d;
+	return lambda;
 }
 
 void statistic_unscatter_interpolation_destroy(struct statistic_unscatter_interpolation_2d* sui2d) {
