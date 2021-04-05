@@ -238,7 +238,7 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 			};
 
 			//draw cc
-			//camera_control_diagnostic_draw_faded_circle_object(struct vector2<float>(0.0f, 0.0f), scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(128, 0, 128), pixel_width, world_position, dst, row, col, width);
+			camera_control_diagnostic_draw_faded_circle_object(struct vector2<float>(0.0f, 0.0f), scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(128, 0, 128), pixel_width, world_position, dst, row, col, width);
 			
 			//draw fov
 			for (int c = 0; c < camera_count; c++) {

@@ -9,12 +9,15 @@
 
 #include "MaskRCNN.h"
 
+#include "Util.h"
 #include "Logger.h"
 
 void camera_control_simple_move_inverse(int cam_id, struct vector2<float> src, struct vector2<float> onto);
 void camera_control_write_control(int id, struct vector2<int> top_left, struct vector2<int> bottom_right, struct cam_sensors cs);
 
 struct vector2<float> cam_calibration_get_hq(float d_1, float alpha);
+
+void camera_control_calibration_from_matrix(struct camera_control* cc);
 
 void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path, string calibration_path) {
 	cc->camera_count = camera_count;
@@ -84,29 +87,9 @@ void camera_control_init(struct camera_control* cc, int camera_count, string cam
 
 		CloseHandle(calibration_handle);
 		
-	} /*else {*/
+	}
 
-		cc->cam_awareness[0].calibration.d_1 = 3.5f;
-		cc->cam_awareness[0].calibration.position = { 25.0f, 0.0f, 10.0f };
-		cc->cam_awareness[0].calibration.lens_fov = { 90.0f, 45.0f };
-
-		cc->cam_awareness[1].calibration.d_1 = 3.5f;
-		cc->cam_awareness[1].calibration.position = { 25.0f, 16.0f, 10.0f };
-		cc->cam_awareness[1].calibration.lens_fov = { 90.0f, 45.0f };
-
-		cc->cam_awareness[2].calibration.d_1 = 3.5f;
-		cc->cam_awareness[2].calibration.position = { 10.0, 25.0f, 10.0f };
-		cc->cam_awareness[2].calibration.lens_fov = { 90.0f, 45.0f };
-		
-		cc->cam_awareness[3].calibration.d_1 = 3.5f;
-		cc->cam_awareness[3].calibration.position = { -4.0, 16.0f, 10.0f };
-		cc->cam_awareness[3].calibration.lens_fov = { 90.0f, 45.0f };
-
-		cc->cam_awareness[4].calibration.d_1 = 3.5f;
-		cc->cam_awareness[4].calibration.position = { -4.0, 1.0f, 10.0f };
-		cc->cam_awareness[4].calibration.lens_fov = { 90.0f, 45.0f };
-	/*}
-	*/
+	camera_control_calibration_from_matrix(cc);
 
 	cc->cam_sens = nullptr;
 	cc->cam_sens_timestamps = nullptr;
@@ -130,6 +113,278 @@ void camera_control_on_input_connect(struct application_graph_node* agn, int inp
 		cc->cam_sens = (struct cam_sensors*) malloc(cc->vs_cams->smb->slots * cc->camera_count * sizeof(struct cam_sensors));
 		cc->cam_sens_timestamps = (unsigned long long*) malloc(cc->vs_cams->smb->slots * sizeof(unsigned long long));
 	}
+}
+
+void camera_control_calibration_from_matrix(struct camera_control * cc) {
+	struct cam_calibration_process* ccp = new struct cam_calibration_process[cc->camera_count];
+
+	for (int ca = 0; ca < cc->camera_count; ca++) {
+		ccp[ca].calibration_discretization = { 16, 9 };
+		cc->cam_awareness[ca].calibration.lens_quantization_size = { 0, 0 };
+
+		struct vector2<float> tmp_vec(0.0f, 0.0f);
+		struct cam_detection tmp_cd;
+		memset(&tmp_cd, 0, sizeof(struct cam_detection));
+
+		for (int cp_s = 0; cp_s < ccp[ca].calibration_discretization[0] * ccp[ca].calibration_discretization[1]; cp_s++) {
+			ccp[ca].calibration_object_a_cd.push_back(pair<struct vector2<float>, struct cam_detection>(tmp_vec, tmp_cd));
+		}
+
+		stringstream filename_cal_matrix;
+		filename_cal_matrix << "R:\\Cams\\calibration_matrix_" << ca << ".bin";
+		size_t out_len = 0.0f;
+		util_read_binary(filename_cal_matrix.str(), (unsigned char*)ccp[ca].calibration_object_a_cd.data(), &out_len);
+
+
+		if (out_len > 0) {
+			int center_row = (int)(ccp[ca].calibration_discretization[1] * 0.5f);
+			int center_col = (int)(ccp[ca].calibration_discretization[0] * 0.5f);
+
+			struct vector2<float> center_angles = ccp[ca].calibration_object_a_cd[center_row * 16 + center_col].first;
+			struct cam_detection* center = &ccp[ca].calibration_object_a_cd[center_row * 16 + center_col].second;
+			struct vector2<float> center_d_center = cam_detection_get_center(center);
+
+			int col_offset = 1;
+			if (center_d_center[0] > cc->cam_meta[ca].resolution[0] * 0.5f + cc->cam_awareness[ca].resolution_offset[0]) {
+				col_offset = -1;
+			}
+
+			struct vector2<float> center_angles_2 = ccp[ca].calibration_object_a_cd[center_row * 16 + center_col + col_offset].first;
+			struct cam_detection* center_2 = &ccp[ca].calibration_object_a_cd[center_row * 16 + center_col + col_offset].second;
+			struct vector2<float> center_d_center_2 = cam_detection_get_center(center_2);
+
+			logger("center_x", center_d_center[0]);
+			logger("center_angles", center_angles[0]);
+			logger("center_x_2", center_d_center_2[0]);
+			logger("center_angles_2", center_angles_2[0]);
+
+			float l = ((float)cc->cam_meta[ca].resolution[0] * 0.5f + cc->cam_awareness[ca].resolution_offset[0] - center_d_center_2[0])/(center_d_center[0] - center_d_center_2[0]);
+			logger("l", l);
+
+			float row_offset = 1;
+			if (center_d_center[1] > cc->cam_meta[ca].resolution[1] * 0.5f + cc->cam_awareness[ca].resolution_offset[1]) {
+				row_offset = -1;
+			}
+			struct vector2<float> center_h_angles = ccp[ca].calibration_object_a_cd[(center_row + row_offset) * 16 + center_col].first;
+			struct cam_detection* center_h = &ccp[ca].calibration_object_a_cd[(center_row + row_offset) * 16 + center_col].second;
+			struct vector2<float> center_h_d_center = cam_detection_get_center(center_h);
+
+			logger("center_y", center_d_center[1]);
+			logger("center_angles_h", center_angles[1]);
+			logger("center_h_y", center_h_d_center[1]);
+			logger("center__h_angles_h", center_h_angles[1]);
+
+			float h = ((float)cc->cam_meta[ca].resolution[1] * 0.5f + cc->cam_awareness[ca].resolution_offset[1] - center_h_d_center[1]) / (center_d_center[1] - center_h_d_center[1]);
+			logger("h", h);
+
+			float row_offset_2 = 1;
+			if (center_d_center_2[1] > cc->cam_meta[ca].resolution[1] * 0.5f + cc->cam_awareness[ca].resolution_offset[1]) {
+				row_offset_2 = -1;
+			}
+			struct vector2<float> center_h2_angles = ccp[ca].calibration_object_a_cd[(center_row + row_offset_2) * 16 + center_col + col_offset].first;
+			struct cam_detection* center_h2 = &ccp[ca].calibration_object_a_cd[(center_row + row_offset_2) * 16 + center_col + col_offset].second;
+			struct vector2<float> center_h2_d_center = cam_detection_get_center(center_h2);
+
+			logger("center_x", center_h_d_center[0]);
+			logger("center_angles", center_h_angles[0]);
+			logger("center_x_2", center_h2_d_center[0]);
+			logger("center_angles_2", center_h2_angles[0]);
+
+			float l2 = ((float)cc->cam_meta[ca].resolution[0] * 0.5f + cc->cam_awareness[ca].resolution_offset[0] - center_h2_d_center[0]) / (center_h_d_center[0] - center_h2_d_center[0]);
+
+			logger("l2", l2);
+
+			float h2 = ((float)cc->cam_meta[ca].resolution[1] * 0.5f + cc->cam_awareness[ca].resolution_offset[1] - center_d_center_2[1]) / (center_h2_d_center[1] - center_d_center_2[1]);
+
+			//TMP
+			ccp[ca].calibration_object_center_angles = {
+				((center_angles_2[0] + l * (center_angles[0] - center_angles_2[0])) + (center_h_angles[0] + l2 * (center_h2_angles[0] - center_h_angles[0]))) * 0.5f,
+				((center_h_angles[1] + h * (center_angles[1] - center_h_angles[1])) + ((center_h2_angles[1] + h * (center_angles_2[1] - center_h2_angles[1])))) * 0.5f
+			};
+
+			logger("center_angles_fin", ccp[ca].calibration_object_center_angles[0]);
+			logger("center_angles_fin_h", ccp[ca].calibration_object_center_angles[1]);
+
+			ccp[ca].calibration_object_center.class_id = 37;
+			ccp[ca].calibration_object_center.score = 0.5;
+			ccp[ca].calibration_object_center.timestamp = 1337;
+			ccp[ca].calibration_object_center.x1 = ((center_2->x1 + l * (center->x1 - center_2->x1)) + (center_h->x1 + l2 * (center_h2->x1 - center_h->x1))) * 0.5f;
+			ccp[ca].calibration_object_center.x2 = ((center_2->x2 + l * (center->x2 - center_2->x2)) + (center_h->x2 + l2 * (center_h2->x2 - center_h->x2))) * 0.5f;
+			ccp[ca].calibration_object_center.y1 = ((center_h->y1 + h * (center->y1 - center_h->y1)) + (center_h2->y1 + h2 * (center_2->y1 - center_h2->y1))) * 0.5f;
+			ccp[ca].calibration_object_center.y2 = ((center_h->y2 + h * (center->y2 - center_h->y2)) + (center_h2->y2 + h2 * (center_2->y2 - center_h2->y2))) * 0.5f;
+			
+			
+			struct vector2<float> center_detection_center = cam_detection_get_center(&ccp[ca].calibration_object_center);
+			center_angles = ccp[ca].calibration_object_center_angles;
+
+			std::vector<struct vector2<float>> points;
+			std::vector<float>				   values_np;
+			std::vector<float>				   values_h;
+
+			float zero_shift_np = 360.0f;
+			float min_np = ccp[ca].calibration_object_a_cd[0 * ccp[ca].calibration_discretization[0] + (ccp[ca].calibration_discretization[0] - 1)].first[0];
+			for (int r = 1; r < ccp[ca].calibration_discretization[1]; r++) {
+				float np = ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + (ccp[ca].calibration_discretization[0] - 1)].first[0];
+				if (statistic_angle_denoiser_is_left_of(min_np, np)) {
+					min_np = np;
+				}
+			}
+			zero_shift_np -= min_np;
+
+			float zero_shift_h = 360.0f;
+			float min_h = ccp[ca].calibration_object_a_cd[(ccp[ca].calibration_discretization[1] - 1) * ccp[ca].calibration_discretization[0] + 0].first[1];
+			for (int c = 1; c < ccp[ca].calibration_discretization[0]; c++) {
+				float h = ccp[ca].calibration_object_a_cd[(ccp[ca].calibration_discretization[1] - 1) * ccp[ca].calibration_discretization[0] + c].first[1];
+				if (statistic_angle_denoiser_is_left_of(min_h, h)) {
+					min_h = h;
+				}
+			}
+			zero_shift_h -= min_h;
+
+			float avg_fov_w = 0.0f;
+
+			//logger("zero_shift_np", zero_shift_np);
+			//logger("zero_shift_h", zero_shift_h);
+			for (int r = 0; r < ccp[ca].calibration_discretization[1]; r++) {
+				stringstream ss_r;
+
+				float tmp_fov_w = 0.0f;
+				float tmp_fov_w_dist = 0.0f;
+
+				for (int c = 0; c < ccp[ca].calibration_discretization[0]; c++) {
+					struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].second);
+					det_center = { det_center[0] - cc->cam_awareness[ca].resolution_offset[0], det_center[1] - cc->cam_awareness[ca].resolution_offset[1] };
+
+					points.push_back(det_center);
+
+					float v_np = ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].first[0] + zero_shift_np;
+					if (v_np >= 360) v_np -= 360;
+
+					if (c == 0) {
+						tmp_fov_w_dist = det_center[0];
+						tmp_fov_w = v_np;
+					} else if (c == ccp[ca].calibration_discretization[0] - 1) {
+						tmp_fov_w_dist = det_center[0] - tmp_fov_w_dist;
+						tmp_fov_w -= v_np;
+					}
+
+					float v_h = ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].first[1] + zero_shift_h;
+					if (v_h >= 360) v_h -= 360;
+					//ss_r << "z_n:" << v_np << " z_h:" << v_h << "\t";
+
+
+					values_np.push_back(v_np);
+					values_h.push_back(v_h);
+				}
+				//logger(ss_r.str());
+
+				avg_fov_w += (tmp_fov_w / tmp_fov_w_dist) / (float)ccp[ca].calibration_discretization[1];
+
+			}
+			avg_fov_w *= cc->cam_meta[ca].resolution[0];
+			//logger("avg_fov_w", avg_fov_w);
+			cc->cam_awareness[ca].calibration.lens_fov[0] = avg_fov_w;
+
+			float avg_fov_h = 0.0f;
+
+			for (int c = 0; c < ccp[ca].calibration_discretization[0]; c++) {
+				float tmp_fov_h = values_h[0 * ccp[ca].calibration_discretization[0] + c] - values_h[(ccp[ca].calibration_discretization[1] - 1) * ccp[ca].calibration_discretization[0] + c];
+				float tmp_fov_h_dist = cam_detection_get_center(&ccp[ca].calibration_object_a_cd[(ccp[ca].calibration_discretization[1] - 1) * ccp[ca].calibration_discretization[0] + c].second)[1] - cam_detection_get_center(&ccp[ca].calibration_object_a_cd[(0 * ccp[ca].calibration_discretization[0]) + c].second)[1];
+
+				avg_fov_h += (tmp_fov_h / tmp_fov_h_dist) / (float)ccp[ca].calibration_discretization[0];
+			}
+			avg_fov_h *= cc->cam_meta[ca].resolution[1];
+			//logger("avg_fov_h", avg_fov_h);
+			cc->cam_awareness[ca].calibration.lens_fov[1] = avg_fov_h;
+
+			cc->cam_awareness[ca].calibration.lens_north_pole = (struct statistic_unscatter_triangulation_2d*)malloc(sizeof(struct statistic_unscatter_triangulation_2d));
+			statistic_unscatter_triangulation_init(cc->cam_awareness[ca].calibration.lens_north_pole, ccp[ca].calibration_discretization, cc->cam_meta[ca].resolution);
+			statistic_unscatter_triangulation_calculate(cc->cam_awareness[ca].calibration.lens_north_pole, points, values_np);
+			statistic_unscatter_triangulation_center_shift_inverse(cc->cam_awareness[ca].calibration.lens_north_pole);
+
+			cc->cam_awareness[ca].calibration.lens_horizon = (struct statistic_unscatter_triangulation_2d*)malloc(sizeof(struct statistic_unscatter_triangulation_2d));
+			statistic_unscatter_triangulation_init(cc->cam_awareness[ca].calibration.lens_horizon, ccp[ca].calibration_discretization, cc->cam_meta[ca].resolution);
+			statistic_unscatter_triangulation_calculate(cc->cam_awareness[ca].calibration.lens_horizon, points, values_h);
+			statistic_unscatter_triangulation_center_shift_inverse(cc->cam_awareness[ca].calibration.lens_horizon);
+
+			/*
+			float x_steps = sui_np.dimension[0] / (float)sui_np.grid_size[0];
+			float x_start = x_steps / 2.0f;
+
+			float y_steps = sui_np.dimension[1] / (float)sui_np.grid_size[1];
+			float y_start = y_steps / 2.0f;
+
+			
+			logger("ca", ca);
+			for (int r = 0; r < ccp[ca].calibration_discretization[1]; r++) {
+				stringstream ss_r;
+				for (int c = 0; c < ccp[ca].calibration_discretization[0]; c++) {
+					struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].second);
+					ss_r << "n:" << ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].first[0] << " h:" << ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].first[1] << " x:" << det_center[0] << " y:" << det_center[1] << "\t";
+				}
+				logger(ss_r.str());
+				
+			}
+			*/
+			/*
+			for (int r = 0; r < ccp[ca].calibration_discretization[1]; r++) {
+				stringstream ss_r2;
+				for (int c = 0; c < ccp[ca].calibration_discretization[0]; c++) {
+					struct vector2<float> target = { x_start + c * x_steps, y_start + r * y_steps };
+					struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].second);
+					ss_r2 << "n:" << sui_np.data[r * ccp[ca].calibration_discretization[0] + c] << " h:" << sui_h.data[r * ccp[ca].calibration_discretization[0] + c] << " x:" << target[0] << " y: " << target[1] << "\t";
+				}
+				logger(ss_r2.str());
+			}
+			logger("-----------");
+			*/
+			
+
+			//cfg
+			float calibration_object_diameter = 1.0f; //-> 1m
+
+			struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_center);
+
+			float x_times = (float)cc->cam_meta[ca].resolution[0] * 0.5f / (float)(det_center[0] - ccp[ca].calibration_object_center.x1);
+
+			float a = x_times * calibration_object_diameter * 0.5f;
+			float alpha = (cc->cam_awareness[ca].calibration.lens_fov[0] * 0.5f);
+
+			float c = a / sinf(alpha * M_PI / 180.0f);
+			cc->cam_awareness[ca].calibration.d_1 = c;
+
+			float h_smoothed = ccp[ca].calibration_object_center_angles[1];
+			float pz = h_smoothed * M_PI / (180.0f);
+
+			float np_smoothed = ccp[ca].calibration_object_center_angles[0];
+
+			struct vector3<float>	ray_dir = {
+				 sinf((h_smoothed + 90.0f) * M_PI / (2.0f * 90.0f)) * cosf((np_smoothed - 90.0f) * M_PI / (2.0f * 90.0f)),
+				 -sinf((h_smoothed + 90.0f) * M_PI / (2.0f * 90.0f)) * sinf((np_smoothed - 90.0f) * M_PI / (2.0f * 90.0f)),
+				 cosf((h_smoothed + 90.0f) * M_PI / (2.0f * 90.0f))
+			};
+
+			struct vector3<float>	c_pos = -(ray_dir)*c;
+
+			cc->cam_awareness[ca].calibration.position = c_pos;
+
+			logger("cam_id", ca);
+			logger("alpha", cc->cam_awareness[ca].north_pole.angle);
+			logger("beta", cc->cam_awareness[ca].horizon.angle);
+			logger("position_x", cc->cam_awareness[ca].calibration.position[0]);
+			logger("position_y", cc->cam_awareness[ca].calibration.position[1]);
+			logger("position_z", cc->cam_awareness[ca].calibration.position[2]);
+			logger("det_avg_d", (((ccp[ca].calibration_object_center.x2 - ccp[ca].calibration_object_center.x1) + (ccp[ca].calibration_object_center.y2 - ccp[ca].calibration_object_center.y1)) * 0.5f));
+			logger("det_dist", cc->cam_awareness[ca].calibration.d_1);
+			/*
+			if (current_state_slot > -1) {
+				ccss[ca].position = cc->cam_awareness[ca].calibration.position;
+			}
+			*/
+
+		}
+	}
+
 }
 
 DWORD* camera_control_loop(LPVOID args) {
@@ -291,9 +546,9 @@ DWORD* camera_control_loop(LPVOID args) {
 			last_detection_frame = current_detection_frame;
 
 			if (!cc->calibration) {
-				if (tick > 200) {
-					//statistic_detection_matcher_3d_update(&sdm3d, cc, ccss);
-				}
+				//if (tick > 200) {
+					statistic_detection_matcher_3d_update(&sdm3d, cc, ccss);
+				//}
 				tick++;
 				/*
 				for (int d = 0; d < sdm3d.size; d++) {
@@ -410,157 +665,19 @@ DWORD* camera_control_loop(LPVOID args) {
 					NULL);                    // no attr. template
 
 				for (int ca = 0; ca < cc->camera_count; ca++) {
+					/*
 					memset(write_buf, 48, linelength * sizeof(char));
 					write_buf[linelength - 1] = 10;
 
-					struct vector2<float> center_detection_center = cam_detection_get_center(&ccp[ca].calibration_object_center);
-					struct vector2<float> center_angles = ccp[ca].calibration_object_center_angles;
-
-					std::vector<struct vector2<float>> points;
-					std::vector<float>				   values_np;
-					std::vector<float>				   values_h;
-
-					float zero_shift_np = 360.0f;
-					float min_np = ccp[ca].calibration_object_a_cd[0 * ccp[ca].calibration_discretization[0] + (ccp[ca].calibration_discretization[0] - 1)].first[0];
-					for (int r = 1; r < ccp[ca].calibration_discretization[1]; r++) {
-						float np = ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + (ccp[ca].calibration_discretization[0] - 1)].first[0];
-						if (statistic_angle_denoiser_is_left_of(min_np, np)) {
-							min_np = np;
-						}
-					}
-					zero_shift_np -= min_np;
-
-					float zero_shift_h = 360.0f;
-					float min_h = ccp[ca].calibration_object_a_cd[(ccp[ca].calibration_discretization[1] - 1) * ccp[ca].calibration_discretization[0] + 0].first[1];
-					for (int c = 1; c < ccp[ca].calibration_discretization[0]; c++) {
-						float h = ccp[ca].calibration_object_a_cd[(ccp[ca].calibration_discretization[1] - 1) * ccp[ca].calibration_discretization[0] + c].first[1];
-						if (statistic_angle_denoiser_is_left_of(min_h, h)) {
-							min_h = h;
-						}
-					}
-					zero_shift_h -= min_h;
-
-					logger("zero_shift_np", zero_shift_np);
-					logger("zero_shift_h", zero_shift_h);
-					for (int r = 0; r < ccp[ca].calibration_discretization[1]; r++) {
-						stringstream ss_r;
-						for (int c = 0; c < ccp[ca].calibration_discretization[0]; c++) {
-							struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].second);
-							det_center = { det_center[0] - cc->cam_awareness[ca].resolution_offset[0], det_center[1] - cc->cam_awareness[ca].resolution_offset[1] };
-
-							points.push_back(det_center);
-
-							float v_np = ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].first[0] + zero_shift_np;
-							if (v_np >= 360) v_np -= 360;
-
-							float v_h = ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].first[1] + zero_shift_h;
-							if (v_h >= 360) v_h -= 360;
-							ss_r << "z_n:" << v_np << " z_h:" << v_h << "\t";
-
-
-							values_np.push_back(v_np);
-							values_h.push_back(v_h);
-						}
-						logger(ss_r.str());
-					}
-
-					struct statistic_unscatter_interpolation_2d sui_np;
-					statistic_unscatter_interpolation_init(&sui_np, ccp[ca].calibration_discretization, cc->cam_meta[ca].resolution);
-					statistic_unscatter_interpolation_calculate(&sui_np, points, values_np, 16);
-
-					struct statistic_unscatter_interpolation_2d sui_h;
-					statistic_unscatter_interpolation_init(&sui_h, ccp[ca].calibration_discretization, cc->cam_meta[ca].resolution);
-					statistic_unscatter_interpolation_calculate(&sui_h, points, values_h, 16);
-
-					float x_steps = sui_np.dimension[0] / (float)sui_np.grid_size[0];
-					float x_start = x_steps / 2.0f;
-
-					float y_steps = sui_np.dimension[1] / (float)sui_np.grid_size[1];
-					float y_start = y_steps / 2.0f;
-
-					struct vector2<float> min_max_np = { 361.0f, -1.0f };
-					struct vector2<float> min_max_h = { 361.0f, -1.0f };
-
-					logger("ca", ca);
-					for (int r = 0; r < ccp[ca].calibration_discretization[1]; r++) {
-						stringstream ss_r;
-						stringstream ss_r2;
-						for (int c = 0; c < ccp[ca].calibration_discretization[0]; c++) {
-							struct vector2<float> target = { x_start + c * x_steps, y_start + r * y_steps };
-							struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].second);
-							ss_r << "n:" << ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].first[0] << " h:" << ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].first[1] << " x:" << det_center[0] << " y:" << det_center[1] << "\t";
-							ss_r2 << "n:" << sui_np.data[r * ccp[ca].calibration_discretization[0] + c] << " h:" << sui_h.data[r * ccp[ca].calibration_discretization[0] + c] << " x:" << target[0] << " y: " << target[1] << "\t";
-
-							if (min_max_np[0] > sui_np.data[r * ccp[ca].calibration_discretization[0] + c]) {
-								min_max_np[0] = sui_np.data[r * ccp[ca].calibration_discretization[0] + c];
-							}
-							if (min_max_np[1] < sui_np.data[r * ccp[ca].calibration_discretization[0] + c]) {
-								min_max_np[1] = sui_np.data[r * ccp[ca].calibration_discretization[0] + c];
-							}
-							if (min_max_h[0] > sui_h.data[r * ccp[ca].calibration_discretization[0] + c]) {
-								min_max_h[0] = sui_h.data[r * ccp[ca].calibration_discretization[0] + c];
-							}
-							if (min_max_h[1] < sui_h.data[r * ccp[ca].calibration_discretization[0] + c]) {
-								min_max_h[1] = sui_h.data[r * ccp[ca].calibration_discretization[0] + c];
-							}
-						}
-						logger(ss_r.str());
-						logger(ss_r2.str());
-					}
-					//TODO: fix
-					logger("fov_np", min_max_np[1] - min_max_np[0]);
-					logger("fov_h", min_max_h[1] - min_max_h[0]);
-					cc->cam_awareness[ca].calibration.lens_fov[0] = min_max_np[1] - min_max_np[0];
-					cc->cam_awareness[ca].calibration.lens_fov[1] = min_max_h[1] - min_max_h[0];
-					logger("-----------");
-
-					//cfg
-					float calibration_object_diameter = 1.0f; //-> 1m
-
-					struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_center);
-
-					//TODO: use smoothed center detection
-					float x_times = (float)cc->cam_meta[ca].resolution[0] * 0.5f / (float)(det_center[0] - ccp[ca].calibration_object_center.x1);
-
-					float a		= x_times * calibration_object_diameter * 0.5f;
-					float alpha = (cc->cam_awareness[ca].calibration.lens_fov[0] * 0.5f);
-
-					float c = a / sinf(alpha * M_PI / 180.0f);
-					cc->cam_awareness[ca].calibration.d_1 = c;
-
-					//TODO: use smoothed center angle
-					float h_smoothed = ccp[ca].calibration_object_center_angles[1];
-					float pz = h_smoothed * M_PI / (180.0f);
-
-					float c_pz = c * cos(pz);
-
-					//TODO: use smoothed center angle
-					float np_smoothed = ccp[ca].calibration_object_center_angles[0];
-
-					struct vector3<float>	ray_dir = {
-						 sinf((h_smoothed + 90.0f) * M_PI / (2.0f * 90.0f)) * cosf((np_smoothed - 90.0f) * M_PI / (2.0f * 90.0f)),
-						 sinf((h_smoothed + 90.0f) * M_PI / (2.0f * 90.0f)) * sinf((np_smoothed - 90.0f) * M_PI / (2.0f * 90.0f)),
-						 cosf((h_smoothed + 90.0f) * M_PI / (2.0f * 90.0f))
-					};
-
-					struct vector3<float>	c_pos = -(ray_dir) * c;
-
-					cc->cam_awareness[ca].calibration.position = c_pos;
-					
-					logger("cam_id", ca);
-					logger("alpha", cc->cam_awareness[ca].north_pole.angle);
-					logger("beta", cc->cam_awareness[ca].horizon.angle);
-					logger("position_x", cc->cam_awareness[ca].calibration.position[0]);
-					logger("position_y", cc->cam_awareness[ca].calibration.position[1]);
-					logger("position_z", cc->cam_awareness[ca].calibration.position[2]);
-					logger("det_avg_d", (((ccp[ca].calibration_object_center.x2 - ccp[ca].calibration_object_center.x1) + (ccp[ca].calibration_object_center.y2 - ccp[ca].calibration_object_center.y1)) * 0.5f));
-					logger("det_dist", cc->cam_awareness[ca].calibration.d_1);
-					if (current_state_slot > -1) {
-						ccss[ca].position = cc->cam_awareness[ca].calibration.position;
-					}
+					//
 
 					memcpy(write_buf, &cc->cam_awareness[ca].calibration, sizeof(cam_calibration));
 					WriteFile(calibration_handle, write_buf, linelength * sizeof(char), &dwBytesWritten, NULL);
+					*/
+
+					stringstream filename_cal_matrix;
+					filename_cal_matrix << "R:\\Cams\\calibration_matrix_" << ca << ".bin";
+					util_write_binary(filename_cal_matrix.str(), (unsigned char *)ccp[ca].calibration_object_a_cd.data(), ccp[ca].calibration_object_a_cd.size() * sizeof(pair<struct vector2<float>, struct cam_detection>));
 				}
 
 				CloseHandle(calibration_handle);
@@ -776,7 +893,7 @@ void camera_control_simple_move_inverse(int cam_id, struct vector2<float> src, s
 		
 		test.volt[0] = volt_fac * 0.0f;
 		for (int v = 1; v < 23; v++) {
-			test.volt[v] = volt_fac * 1.0f;
+			test.volt[v] = volt_fac * 0.5f;
 		}
 		test.volt[23] = volt_fac * 0.0f;
 
@@ -815,7 +932,7 @@ void camera_control_simple_move_inverse(int cam_id, struct vector2<float> src, s
 
 		test.volt[0] = volt_fac * 0.0f;
 		for (int v = 1; v < 23; v++) {
-			test.volt[v] = volt_fac * 1.0f;
+			test.volt[v] = volt_fac * 0.5f;
 		}
 		test.volt[23] = volt_fac * 0.0f;
 

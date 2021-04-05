@@ -164,3 +164,17 @@ struct statistic_unscatter_interpolation_2d {
 void statistic_unscatter_interpolation_init(struct statistic_unscatter_interpolation_2d *sui2d, struct vector2<int> grid_size, struct vector2<int> dimension);
 void statistic_unscatter_interpolation_calculate(struct statistic_unscatter_interpolation_2d* sui2d, std::vector<struct vector2<float>> points, std::vector<float> values, int power);
 void statistic_unscatter_interpolation_destroy(struct statistic_unscatter_interpolation_2d* sui2d);
+
+struct statistic_unscatter_triangulation_2d {
+	struct vector2<int>		grid_size;
+	struct vector2<int>		dimension;
+
+	float* data;
+};
+
+void statistic_unscatter_triangulation_init(struct statistic_unscatter_triangulation_2d* sut2d, struct vector2<int> grid_size, struct vector2<int> dimension);
+void statistic_unscatter_triangulation_calculate(struct statistic_unscatter_triangulation_2d* sut2d, std::vector<struct vector2<float>> points, std::vector<float> values);
+void statistic_unscatter_triangulation_destroy(struct statistic_unscatter_triangulation_2d* sut2d);
+
+bool statistic_unscatter_triangulation_get_value(struct statistic_unscatter_triangulation_2d* sut2d, struct vector2<float> point, float* out_value);
+void statistic_unscatter_triangulation_center_shift_inverse(struct statistic_unscatter_triangulation_2d* sut2d);

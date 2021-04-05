@@ -150,10 +150,11 @@ struct cam_calibration_process {
 struct cam_calibration {
 	float					d_1;
 	struct vector3<float>	position;
-	/*
-	struct vector3<int>		lens_distortion_quantization_size;
-	float*					lens_distortion_factor;
-	*/
+	
+	struct vector2<int>		lens_quantization_size;
+	struct statistic_unscatter_triangulation_2d *lens_north_pole;
+	struct statistic_unscatter_triangulation_2d *lens_horizon;
+	
 	struct vector2<float>	lens_fov;
 };
 

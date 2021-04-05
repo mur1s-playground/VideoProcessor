@@ -12,6 +12,7 @@
 #include "StatisticsKernel.h"
 
 #include <algorithm>
+#include <limits>
 
 void statistic_angle_denoiser_init(struct statistic_angle_denoiser* sad, int size) {
 	sad->angle = 0.0f;
@@ -476,6 +477,19 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 
 			struct vector2<float> det_center = cam_detection_get_center(current_detection);
 
+			
+
+			float north_pole_offset = 0.0f;
+			if (statistic_unscatter_triangulation_get_value(cc->cam_awareness[ca].calibration.lens_north_pole, struct vector2<float>(det_center[0] - cc->cam_awareness[ca].resolution_offset[0], det_center[1] - cc->cam_awareness[ca].resolution_offset[1]), &north_pole_offset)) {
+				float horizon_offset = 0.0f;
+				if (statistic_unscatter_triangulation_get_value(cc->cam_awareness[ca].calibration.lens_horizon, struct vector2<float>(det_center[0] - cc->cam_awareness[ca].resolution_offset[0], det_center[1] - cc->cam_awareness[ca].resolution_offset[1]), &horizon_offset)) {
+					struct vector2<float> angles_vec = {
+						cc->cam_awareness[ca].north_pole.angle + north_pole_offset - 90.0f,
+						cc->cam_awareness[ca].horizon.angle + horizon_offset + 90.0f
+					};
+
+
+			/*
 			float north_pole = cc->cam_awareness[ca].north_pole.angle;
 			float horizon = cc->cam_awareness[ca].horizon.angle;
 
@@ -491,6 +505,7 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 				north_pole - (diff_from_mid[0] / (cc->cam_meta[ca].resolution[0] / 2.0f)) * (fov_np / 2.0f) - 90.0f,
 				horizon - (diff_from_mid[1] / (cc->cam_meta[ca].resolution[1] / 2.0f)) * (fov_h / 2.0f) + 90.0f
 			};
+			*/
 			if (angles_vec[0] < 0.0f) angles_vec[0] += 360.0f;
 			if (angles_vec[1] < 0.0f) angles_vec[1] += 360.0f;
 			if (angles_vec[0] > 360.0f) angles_vec[0] -= 360.0f;
@@ -531,6 +546,10 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 				shared_rays++;
 
 				//ccss[ca].latest_detections_rays[c] = {angles_vec[0] + 180.0f, angles_vec[1] };
+			}
+
+
+				}
 			}
 		}
 	}
@@ -594,7 +613,7 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			}
 		}
 	}
-	
+	/*
 	//cudaMemcpyAsync(sdm3->memory_pool_device, sdm3->memory_pool, sdm3->memory_pool_size, cudaMemcpyHostToDevice, cuda_streams[0]);
 	cudaMemcpyAsync(sdm3->distance_matrix_device, sdm3->distance_matrix, (size_t)cc->camera_count* sdm3->cdh_max_size* cc->camera_count* sdm3->cdh_max_size * sizeof(float), cudaMemcpyHostToDevice, cuda_streams[0]);
 	//cudaStreamSynchronize(cuda_streams[0]);
@@ -672,6 +691,7 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			}
 			logger("-----------");
 			*/
+	/*
 		}
 		err = cudaGetLastError();
 		if (err != cudaSuccess) {
@@ -747,7 +767,7 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 				c_id_last = c_id;
 				r_id_last = r_id;
 				*/
-			}
+		/*	}
 		}
 		if (tmp_o == sdm3->size) break;
 		/*
@@ -769,15 +789,15 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			}
 		}
 		*/
-	}
+	/*}
 	for (; tmp_o < sdm3->size; tmp_o++) {
 		if (ccss != nullptr && shared_objects < cc->camera_count * 5) {
 			ccss[shared_objects / 5].latest_detections_objects[shared_objects % 5] = { 0.0f, 0.0f, 0.0f };
 			shared_objects++;
 		}
-	}
+	}*/
 
-	/*
+	
 	memset(sdm3->is_matched, 0, cc->camera_count * sdm3->cdh_max_size * sizeof(bool));
 	memset(sdm3->detections_buffer, 0, cc->camera_count * sdm3->cdh_max_size * sizeof(struct cam_detection_3d));
 
@@ -925,7 +945,6 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 			}
 		}
 	}
-	*/
 }
 
 void statistic_quantized_grid_init(struct statistic_quantized_grid* sqg, std::vector<struct vector2<int>> spans, std::vector<float> quantization_factors, int data_size, void **data) {
@@ -1312,4 +1331,174 @@ float statistic_unscatter_orth_proj(struct vector2<float> p1, struct vector2<flo
 
 void statistic_unscatter_interpolation_destroy(struct statistic_unscatter_interpolation_2d* sui2d) {
 	free(sui2d->data);
+}
+
+void statistic_unscatter_triangulation_init(struct statistic_unscatter_triangulation_2d* sut2d, struct vector2<int> grid_size, struct vector2<int> dimension) {
+	sut2d->grid_size = grid_size;
+	sut2d->dimension = dimension;
+
+	sut2d->data = (float*)malloc(grid_size[0] * grid_size[1] * sizeof(float));
+}
+
+bool statistic_unscatter_triangulation_is_in_triangle(struct vector2<float> p0, struct vector2<float> p1, struct vector2<float> p2, struct vector2<float> point, float *out_A, float* out_s, float* out_ts) {
+	struct vector2<float> point_t = point - p0;
+
+	struct vector2<float> u = p1 - p0;
+	struct vector2<float> v = p2 - p0;
+
+	struct vector2<float> w_h = p2 - p1;
+
+	float u_l = length(u * 0.1f);
+	float v_l = length(v * 0.1f);
+	float w_l = length(w_h * 0.1f);
+
+	float s_h = (u_l + v_l + w_l) * 0.5f;
+
+	float A_1 = s_h - u_l;
+	float A_2 = s_h - v_l;
+	float A_3 = s_h - w_l;
+
+	A_1 *= (A_1 > 0);
+	A_2 *= (A_1 > 0);
+	A_3 *= (A_1 > 0);
+
+	A_1 = sqrtf(A_1);
+	A_2 = sqrtf(A_2);
+	A_3 = sqrtf(A_3);
+
+	float A = sqrtf(s_h) * A_1 * A_2 * A_3;
+	if (A == 0) return false;
+
+	float uu = dot(u, u);
+	float uv = dot(u, v);
+	float vv = dot(v, v);
+
+	float wu = dot(point_t, u);
+	float wv = dot(point_t, v);
+
+	float D = uv * uv - uu * vv;
+
+	if (D == 0) return false;
+
+	float s = (uv * wv - vv * wu) / D;
+	if (s < 0.0f || s > 1.0f) return false;
+	float ts = (uv * wu - uu * wv) / D;
+	if (ts < 0.0f || s + ts > 1.0f) return false;
+	*out_A = A;
+	*out_s = s;
+	*out_ts = ts;
+	return true;
+}
+
+void statistic_unscatter_triangulation_calculate(struct statistic_unscatter_triangulation_2d* sut2d, std::vector<struct vector2<float>> points, std::vector<float> values) {
+	float x_steps = sut2d->dimension[0] / (float)sut2d->grid_size[0];
+	float x_start = x_steps / 2.0f;
+
+	float y_steps = sut2d->dimension[1] / (float)sut2d->grid_size[1];
+	float y_start = y_steps / 2.0f;
+
+	for (int r = 0; r < sut2d->grid_size[1]; r++) {
+		for (int c = 0; c < sut2d->grid_size[0]; c++) {
+			sut2d->data[r * sut2d->grid_size[0] + c] = 0.0f;
+
+			struct vector2<float> target = { x_start + c * x_steps, y_start + r * y_steps };
+
+			bool hit = false;
+			float closest_dist = sut2d->dimension[0];
+			int closest_id = -1;
+			for (int p = 0; p < points.size(); p++) {
+				float dist = length(points[p] - target);
+
+				if (dist < 0.1) {
+					sut2d->data[r * sut2d->grid_size[0] + c] = values[p];
+					hit = true;
+					break;
+				} else {
+					if (dist < closest_dist) {
+						closest_dist = dist;
+						closest_id = p;
+					}
+				}
+			}
+			if (!hit) {
+				float smallest_A = sut2d->dimension[0] * sut2d->dimension[1];
+				for (int p1 = 0; p1 < points.size(); p1++) {
+					if (p1 != closest_id) {
+						for (int p2 = 0; p2 < points.size(); p2++) {
+							if (p2 != p1 && p2 != closest_id) {
+								float A = 0.0f;
+								float s = 0.0f;
+								float ts = 0.0f;
+								if (statistic_unscatter_triangulation_is_in_triangle(points[closest_id], points[p1], points[p2], target, &A, &s, &ts)) {
+									if (A < smallest_A) {
+										smallest_A = A;
+										sut2d->data[r * sut2d->grid_size[0] + c] = values[closest_id] + s * (values[p1] - values[closest_id]) + ts * (values[p2] - values[closest_id]);
+										hit = true;
+									}
+								}
+							}
+						}
+					}
+				}
+				if (!hit) sut2d->data[r * sut2d->grid_size[0] + c] = FLT_MAX;
+			}
+		}
+	}
+
+}
+
+void statistic_unscatter_triangulation_destroy(struct statistic_unscatter_triangulation_2d* sut2d) {
+	free(sut2d->data);
+}
+
+bool statistic_unscatter_triangulation_get_value(struct statistic_unscatter_triangulation_2d* sut2d, struct vector2<float> point, float *out_value) {
+	float x_steps = sut2d->dimension[0] / (float)sut2d->grid_size[0];
+	float x_start = x_steps / 2.0f;
+
+	float y_steps = sut2d->dimension[1] / (float)sut2d->grid_size[1];
+	float y_start = y_steps / 2.0f;
+
+	int x_index = floorf((point[0]-x_start) / x_steps);
+	int y_index = floorf((point[1]-y_start) / y_steps);
+
+	if (x_index > 0 && x_index < sut2d->grid_size[0] - 1) {
+		if (y_index > 0 && y_index < sut2d->grid_size[1] - 1) {
+			if (sut2d->data[y_index * sut2d->grid_size[0] + x_index] == FLT_MAX || sut2d->data[y_index * sut2d->grid_size[0] + x_index + 1] == FLT_MAX ||
+				sut2d->data[(y_index + 1) * sut2d->grid_size[0] + x_index] == FLT_MAX || sut2d->data[(y_index + 1) * sut2d->grid_size[0] + x_index + 1] == FLT_MAX) {
+				return false;
+			}
+
+			float x1 = x_start + x_index		* x_steps;
+			float x2 = x_start + (x_index + 1)	* x_steps;
+
+			float lambda = (point[0] - x1) / (x2 - x1);
+
+			float y1 = y_start + y_index		* y_steps;
+			float y2 = y_start + (y_index + 1)	* y_steps;
+
+			float phi = (point[1] - y1) / (y2 - y1);
+
+			float value_y1_x = sut2d->data[y_index * sut2d->grid_size[0] + x_index] + lambda * (sut2d->data[y_index * sut2d->grid_size[0] + x_index + 1] - sut2d->data[y_index * sut2d->grid_size[0] + x_index]);
+			float value_y2_x = sut2d->data[(y_index + 1) * sut2d->grid_size[0] + x_index] + lambda * (sut2d->data[(y_index + 1) * sut2d->grid_size[0] + x_index + 1] - sut2d->data[(y_index + 1) * sut2d->grid_size[0] + x_index]);
+
+			float value = value_y1_x + phi * (value_y2_x - value_y1_x);
+			*out_value = value;
+
+			return true;
+		}
+	}
+	return false;
+}
+
+void statistic_unscatter_triangulation_center_shift_inverse(struct statistic_unscatter_triangulation_2d* sut2d) {
+	struct vector2<float> point = { sut2d->dimension[0] * 0.5f, sut2d->dimension[1] * 0.5f };
+	float value = 0.0f;
+	if (statistic_unscatter_triangulation_get_value(sut2d, point, &value)) {
+		for (int i = 0; i < sut2d->grid_size[0] * sut2d->grid_size[1]; i++) {
+			if (sut2d->data[i] != FLT_MAX) {
+				sut2d->data[i] -= value;
+				sut2d->data[i] *= -1;
+			}
+		}
+	}
 }
