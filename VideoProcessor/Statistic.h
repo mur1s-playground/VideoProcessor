@@ -177,4 +177,5 @@ void statistic_unscatter_triangulation_calculate(struct statistic_unscatter_tria
 void statistic_unscatter_triangulation_destroy(struct statistic_unscatter_triangulation_2d* sut2d);
 
 bool statistic_unscatter_triangulation_get_value(struct statistic_unscatter_triangulation_2d* sut2d, struct vector2<float> point, float* out_value);
-void statistic_unscatter_triangulation_center_shift_inverse(struct statistic_unscatter_triangulation_2d* sut2d);
+float statistic_unscatter_triangulation_center_shift_inverse(struct statistic_unscatter_triangulation_2d* sut2d);
+bool statistic_unscatter_triangulation_approximate_missing(struct statistic_unscatter_triangulation_2d* sut2d);

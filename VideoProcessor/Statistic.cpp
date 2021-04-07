@@ -14,6 +14,14 @@
 #include <algorithm>
 #include <limits>
 
+// triangulation video dump
+/*
+#include "opencv2/imgcodecs.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/core.hpp"
+#include "opencv2/videoio.hpp"
+*/
+
 void statistic_angle_denoiser_init(struct statistic_angle_denoiser* sad, int size) {
 	sad->angle = 0.0f;
 	sad->angle_stability = 1.0f;
@@ -912,6 +920,7 @@ void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d
 				sdm3->detections[d].position = sdm3->detections_buffer[best_idx].position;
 				sdm3->detections[d].score = inv_best_score;
 				sdm3->detections[d].timestamp = sdm3->detections_buffer[best_idx].timestamp;
+
 				if (ccss != nullptr && shared_objects < cc->camera_count * 5) {
 					ccss[shared_objects / 5].latest_detections_objects[shared_objects % 5] = sdm3->detections[d].position;
 					shared_objects++;
@@ -1390,6 +1399,13 @@ bool statistic_unscatter_triangulation_is_in_triangle(struct vector2<float> p0, 
 	return true;
 }
 
+// triangulation video dump
+/*
+VideoWriter outputVideo;
+int total_frames = 600;
+int frame_count = 0;
+*/
+
 void statistic_unscatter_triangulation_calculate(struct statistic_unscatter_triangulation_2d* sut2d, std::vector<struct vector2<float>> points, std::vector<float> values) {
 	float x_steps = sut2d->dimension[0] / (float)sut2d->grid_size[0];
 	float x_start = x_steps / 2.0f;
@@ -1430,9 +1446,37 @@ void statistic_unscatter_triangulation_calculate(struct statistic_unscatter_tria
 								float s = 0.0f;
 								float ts = 0.0f;
 								if (statistic_unscatter_triangulation_is_in_triangle(points[closest_id], points[p1], points[p2], target, &A, &s, &ts)) {
-									if (A < smallest_A) {
+									float p_d_len_threshold = max((sut2d->dimension[0] / sut2d->grid_size[0]) * 1.5f * sqrtf(2.0f), (sut2d->dimension[1] / sut2d->grid_size[1]) * 1.5f * sqrtf(2.0f));
+									if (A < smallest_A && max(length(points[closest_id] - points[p1]), max(length(points[closest_id] - points[p2]), length(points[p1] - points[p2]))) < p_d_len_threshold) {
 										smallest_A = A;
 										sut2d->data[r * sut2d->grid_size[0] + c] = values[closest_id] + s * (values[p1] - values[closest_id]) + ts * (values[p2] - values[closest_id]);
+
+										// triangulation video dump
+										/*
+										if (frame_count < total_frames) {
+											if (length(points[closest_id] - points[p1]) < 200 && length(points[closest_id] - points[p2]) < 200 && length(points[p1] - points[p2]) < 200) {
+												if (!outputVideo.isOpened()) {
+													outputVideo.open("R:\\Cams\\triangulation.avi", cv::VideoWriter::fourcc('D', 'I', 'V', '5'), 30.0, cv::Size(640, 360), true);
+												}
+												Mat scattered = cv::Mat(360, 640, CV_8UC3);
+												memset(scattered.data, 0, 360 * 640 * 3);
+
+												cv::line(scattered, cv::Point(points[closest_id][0], points[closest_id][1]), cv::Point(points[p1][0], points[p1][1]), cv::Scalar(255, 255, 255), 2);
+												cv::line(scattered, cv::Point(points[closest_id][0], points[closest_id][1]), cv::Point(points[p2][0], points[p2][1]), cv::Scalar(255, 255, 255), 2);
+												cv::line(scattered, cv::Point(points[p1][0], points[p1][1]), cv::Point(points[p2][0], points[p2][1]), cv::Scalar(255, 255, 255), 2);
+
+												cv::circle(scattered, cv::Point(target[0], target[1]), 3, cv::Scalar(0, 255, 0));
+
+												outputVideo.write(scattered);
+												frame_count++;
+											}
+										} else {
+											if (outputVideo.isOpened()) {
+												outputVideo.release();
+											}
+										}
+										*/									
+
 										hit = true;
 									}
 								}
@@ -1461,8 +1505,8 @@ bool statistic_unscatter_triangulation_get_value(struct statistic_unscatter_tria
 	int x_index = floorf((point[0]-x_start) / x_steps);
 	int y_index = floorf((point[1]-y_start) / y_steps);
 
-	if (x_index > 0 && x_index < sut2d->grid_size[0] - 1) {
-		if (y_index > 0 && y_index < sut2d->grid_size[1] - 1) {
+	if (x_index >= 0 && x_index < sut2d->grid_size[0] - 1) {
+		if (y_index >= 0 && y_index < sut2d->grid_size[1] - 1) {
 			if (sut2d->data[y_index * sut2d->grid_size[0] + x_index] == FLT_MAX || sut2d->data[y_index * sut2d->grid_size[0] + x_index + 1] == FLT_MAX ||
 				sut2d->data[(y_index + 1) * sut2d->grid_size[0] + x_index] == FLT_MAX || sut2d->data[(y_index + 1) * sut2d->grid_size[0] + x_index + 1] == FLT_MAX) {
 				return false;
@@ -1490,7 +1534,7 @@ bool statistic_unscatter_triangulation_get_value(struct statistic_unscatter_tria
 	return false;
 }
 
-void statistic_unscatter_triangulation_center_shift_inverse(struct statistic_unscatter_triangulation_2d* sut2d) {
+float statistic_unscatter_triangulation_center_shift_inverse(struct statistic_unscatter_triangulation_2d* sut2d) {
 	struct vector2<float> point = { sut2d->dimension[0] * 0.5f, sut2d->dimension[1] * 0.5f };
 	float value = 0.0f;
 	if (statistic_unscatter_triangulation_get_value(sut2d, point, &value)) {
@@ -1501,4 +1545,49 @@ void statistic_unscatter_triangulation_center_shift_inverse(struct statistic_uns
 			}
 		}
 	}
+	return value;
+}
+
+bool statistic_unscatter_triangulation_approximate_missing(struct statistic_unscatter_triangulation_2d* sut2d) {
+	bool no_missing_values = true;
+	for (int i = 0; i < sut2d->grid_size[0] * sut2d->grid_size[1]; i++) {
+		if (sut2d->data[i] == FLT_MAX) {
+			int row = i / sut2d->grid_size[0];
+			int col = i % sut2d->grid_size[0];
+			if (col - 1 >= 0 && col + 1 < sut2d->grid_size[0] && sut2d->data[row * sut2d->grid_size[0] + col - 1] != FLT_MAX && sut2d->data[row * sut2d->grid_size[0] + col + 1] != FLT_MAX) {
+				sut2d->data[i] = (sut2d->data[row * sut2d->grid_size[0] + col - 1] + sut2d->data[row * sut2d->grid_size[0] + col + 1]) * 0.5f;
+			} else if (col + 2 < sut2d->grid_size[0] && sut2d->data[row * sut2d->grid_size[0] + col + 1] != FLT_MAX && sut2d->data[row * sut2d->grid_size[0] + col + 2] != FLT_MAX) {
+				sut2d->data[i] = sut2d->data[row * sut2d->grid_size[0] + col + 2] + 2.0f * (sut2d->data[row * sut2d->grid_size[0] + col + 1] - sut2d->data[row * sut2d->grid_size[0] + col + 2]);
+				
+			} else if (col - 2 >= 0 && sut2d->data[row * sut2d->grid_size[0] + col - 1] != FLT_MAX && sut2d->data[row * sut2d->grid_size[0] + col - 2] != FLT_MAX) {
+				sut2d->data[i] = sut2d->data[row * sut2d->grid_size[0] + col - 2] + 2.0f * (sut2d->data[row * sut2d->grid_size[0] + col - 1] - sut2d->data[row * sut2d->grid_size[0] + col - 2]);
+			}
+			if (row - 1 >= 0 && row + 1 < sut2d->grid_size[1] && sut2d->data[(row - 1) * sut2d->grid_size[0] + col] != FLT_MAX && sut2d->data[(row + 1) * sut2d->grid_size[0] + col] != FLT_MAX) {
+				float val = (sut2d->data[(row - 1) * sut2d->grid_size[0] + col] + sut2d->data[(row + 1) * sut2d->grid_size[0] + col]) * 0.5f;
+				if (sut2d->data[i] != FLT_MAX) {
+					sut2d->data[i] = (sut2d->data[i] + val) * 0.5f;
+				} else {
+					sut2d->data[i] = val;
+				}
+			} else if (row + 2 < sut2d->grid_size[1] && sut2d->data[(row + 1) * sut2d->grid_size[0] + col] != FLT_MAX && sut2d->data[(row + 2) * sut2d->grid_size[0] + col] != FLT_MAX) {
+				float val = sut2d->data[(row + 2) * sut2d->grid_size[0] + col] + 2.0f * (sut2d->data[(row + 1) * sut2d->grid_size[0] + col] - sut2d->data[(row + 2) * sut2d->grid_size[0] + col]);
+				if (sut2d->data[i] != FLT_MAX) {
+					sut2d->data[i] = (sut2d->data[i] + val) * 0.5f;
+				} else {
+					sut2d->data[i] = val;
+				}
+			} else if (row - 2 >= 0 && sut2d->data[(row - 1) * sut2d->grid_size[0] + col] != FLT_MAX && sut2d->data[(row - 2) * sut2d->grid_size[0] + col] != FLT_MAX) {
+				float val = sut2d->data[(row - 2) * sut2d->grid_size[0] + col] + 2.0f * (sut2d->data[(row - 1) * sut2d->grid_size[0] + col] - sut2d->data[(row - 2) * sut2d->grid_size[0] + col]);
+				if (sut2d->data[i] != FLT_MAX) {
+					sut2d->data[i] = (sut2d->data[i] + val) * 0.5;
+				} else {
+					sut2d->data[i] = val;
+				}
+			}
+			if (sut2d->data[i] == FLT_MAX) {
+				no_missing_values = false;
+			}
+		}
+	}
+	return no_missing_values;
 }

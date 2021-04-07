@@ -353,7 +353,7 @@ __global__ void camera_control_diagnostic_kernel(const unsigned char* gpu_shared
 			for (int c = 0; c < camera_count; c++) {
 				for (int r = 0; r < 5; r++) {
 					if (ccss[c].latest_detections_objects[r][0] != 0) {
-						struct vector2<float> cam_2d_pos = { ccss[c].latest_detections_objects[r][0], -ccss[c].latest_detections_objects[r][2] };
+						struct vector2<float> cam_2d_pos = { ccss[c].latest_detections_objects[r][0], ccss[c].latest_detections_objects[r][2] };
 						//camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(0, 123 + (c * 5 + r) * 13, 123 + (c * 5 + r) * 13), pixel_width, world_position, dst, row, col, width);
 						camera_control_diagnostic_draw_faded_circle_object(cam_2d_pos, scaling_factor, 5.0f, 10.0f, struct vector3<unsigned char>(123 + ((c * 5 + r)) * 51, 123 + ((c * 5 + r)) * 66, 123 - ((c * 5 + r)) * 51), pixel_width, world_position, dst, row, col, width);
 					}

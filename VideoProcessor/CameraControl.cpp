@@ -12,6 +12,9 @@
 #include "Util.h"
 #include "Logger.h"
 
+//matrix detection data image dump
+//#include "opencv2/imgcodecs.hpp"
+
 void camera_control_simple_move_inverse(int cam_id, struct vector2<float> src, struct vector2<float> onto);
 void camera_control_write_control(int id, struct vector2<int> top_left, struct vector2<int> bottom_right, struct cam_sensors cs);
 
@@ -135,6 +138,49 @@ void camera_control_calibration_from_matrix(struct camera_control * cc) {
 		size_t out_len = 0.0f;
 		util_read_binary(filename_cal_matrix.str(), (unsigned char*)ccp[ca].calibration_object_a_cd.data(), &out_len);
 
+		//matrix detection data image dump
+		/*
+		Mat scattered = cv::Mat(360, 640, CV_8UC3);
+		memset(scattered.data, 0, 360 * 640 * 3);
+
+		for (int i = 0; i < 16 * 9; i++) {
+			struct cam_detection* det = &ccp[ca].calibration_object_a_cd[i].second;
+			struct vector2<float> det_center = cam_detection_get_center(det);
+			det_center[1] -= cc->cam_awareness[ca].resolution_offset[1];
+			int y1 = det->y1 - cc->cam_awareness[ca].resolution_offset[1];
+			int y2 = det->y2 - cc->cam_awareness[ca].resolution_offset[1];
+			int x1 = det->x1 - cc->cam_awareness[ca].resolution_offset[0];
+			int x2 = det->x2 - cc->cam_awareness[ca].resolution_offset[0];
+
+			for (int dy = -2; dy < 2; dy++) {
+				for (int dx = -2; dx < 2; dx++) {
+					scattered.data[((int)det_center[1] + dy) * 640 * 3 + ((int)det_center[0] + dx) * 3 + 1] = 255;
+				}
+			}
+
+			for (int y = y1; y < y2; y++) {
+				scattered.data[y * 640 * 3 + x1 * 3] = 255;
+				scattered.data[y * 640 * 3 + x1 * 3 + 1] = 255;
+				scattered.data[y * 640 * 3 + x1 * 3 + 2] = 255;
+
+				scattered.data[y * 640 * 3 + x2 * 3] = 255;
+				scattered.data[y * 640 * 3 + x2 * 3 + 1] = 255;
+				scattered.data[y * 640 * 3 + x2 * 3 + 2] = 255;
+			}
+
+			for (int x = x1; x < x2; x++) {
+				scattered.data[y1 * 640 * 3 + x * 3] = 255;
+				scattered.data[y1 * 640 * 3 + x * 3 + 1] = 255;
+				scattered.data[y1 * 640 * 3 + x * 3 + 2] = 255;
+
+				scattered.data[y2 * 640 * 3 + x * 3] = 255;
+				scattered.data[y2 * 640 * 3 + x * 3 + 1] = 255;
+				scattered.data[y2 * 640 * 3 + x * 3 + 2] = 255;
+			}
+		}
+		filename_cal_matrix << ".png";
+		cv::imwrite(triangulation.str(), scattered);
+		*/
 
 		if (out_len > 0) {
 			int center_row = (int)(ccp[ca].calibration_discretization[1] * 0.5f);
@@ -300,21 +346,25 @@ void camera_control_calibration_from_matrix(struct camera_control * cc) {
 			cc->cam_awareness[ca].calibration.lens_north_pole = (struct statistic_unscatter_triangulation_2d*)malloc(sizeof(struct statistic_unscatter_triangulation_2d));
 			statistic_unscatter_triangulation_init(cc->cam_awareness[ca].calibration.lens_north_pole, ccp[ca].calibration_discretization, cc->cam_meta[ca].resolution);
 			statistic_unscatter_triangulation_calculate(cc->cam_awareness[ca].calibration.lens_north_pole, points, values_np);
-			statistic_unscatter_triangulation_center_shift_inverse(cc->cam_awareness[ca].calibration.lens_north_pole);
+			int tries = 10;
+			while (!statistic_unscatter_triangulation_approximate_missing(cc->cam_awareness[ca].calibration.lens_north_pole) && tries-- > 0);
+			float center_np = statistic_unscatter_triangulation_center_shift_inverse(cc->cam_awareness[ca].calibration.lens_north_pole);
 
 			cc->cam_awareness[ca].calibration.lens_horizon = (struct statistic_unscatter_triangulation_2d*)malloc(sizeof(struct statistic_unscatter_triangulation_2d));
 			statistic_unscatter_triangulation_init(cc->cam_awareness[ca].calibration.lens_horizon, ccp[ca].calibration_discretization, cc->cam_meta[ca].resolution);
 			statistic_unscatter_triangulation_calculate(cc->cam_awareness[ca].calibration.lens_horizon, points, values_h);
-			statistic_unscatter_triangulation_center_shift_inverse(cc->cam_awareness[ca].calibration.lens_horizon);
-
+			tries = 10;
+			while (!statistic_unscatter_triangulation_approximate_missing(cc->cam_awareness[ca].calibration.lens_horizon) && tries-- > 0);
+			float center_horizon = statistic_unscatter_triangulation_center_shift_inverse(cc->cam_awareness[ca].calibration.lens_horizon);
+			
 			/*
-			float x_steps = sui_np.dimension[0] / (float)sui_np.grid_size[0];
+			float x_steps = cc->cam_awareness[ca].calibration.lens_north_pole->dimension[0] / (float)cc->cam_awareness[ca].calibration.lens_north_pole->grid_size[0];
 			float x_start = x_steps / 2.0f;
 
-			float y_steps = sui_np.dimension[1] / (float)sui_np.grid_size[1];
+			float y_steps = cc->cam_awareness[ca].calibration.lens_north_pole->dimension[1] / (float)cc->cam_awareness[ca].calibration.lens_north_pole->grid_size[1];
 			float y_start = y_steps / 2.0f;
-
-			
+			*/
+			/*
 			logger("ca", ca);
 			for (int r = 0; r < ccp[ca].calibration_discretization[1]; r++) {
 				stringstream ss_r;
@@ -332,13 +382,12 @@ void camera_control_calibration_from_matrix(struct camera_control * cc) {
 				for (int c = 0; c < ccp[ca].calibration_discretization[0]; c++) {
 					struct vector2<float> target = { x_start + c * x_steps, y_start + r * y_steps };
 					struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_a_cd[r * ccp[ca].calibration_discretization[0] + c].second);
-					ss_r2 << "n:" << sui_np.data[r * ccp[ca].calibration_discretization[0] + c] << " h:" << sui_h.data[r * ccp[ca].calibration_discretization[0] + c] << " x:" << target[0] << " y: " << target[1] << "\t";
+					ss_r2 << "n:" << cc->cam_awareness[ca].calibration.lens_north_pole->data[r * ccp[ca].calibration_discretization[0] + c] << " h:" << cc->cam_awareness[ca].calibration.lens_horizon->data[r * ccp[ca].calibration_discretization[0] + c] << " x:" << target[0] << " y: " << target[1] << "\t";
 				}
 				logger(ss_r2.str());
 			}
 			logger("-----------");
 			*/
-			
 
 			//cfg
 			float calibration_object_diameter = 1.0f; //-> 1m
