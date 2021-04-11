@@ -207,13 +207,12 @@ void application_graph_add_edge_intl(int id, int closest_nid_1, int closest_nid_
     } else if (current_node->inputs[closest_id_2].second.first == AGCT_CAMERA_CONTROL) {
         struct camera_control** input_target_ptr_t = (struct camera_control**)input_target_ptr;
         *input_target_ptr_t = (struct camera_control*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
+    } else if (current_node->inputs[closest_id_2].second.first == AGCT_STATISTICS_3D) {
+        struct statistics_3d** input_target_ptr_t = (struct statistics_3d**)input_target_ptr;
+        *input_target_ptr_t = (struct statistics_3d*)(current_edge->from.first->outputs[current_edge->from.second].second.second);
     }
 
     if (current_node->on_input_connect != nullptr) {
-#ifndef FPTR_OIC_AGN_INT
-#define FPTR_OIC_AGN_INT
-        typedef void (*oicptr)(struct application_graph_node* agn, int);
-#endif
         oicptr f_ptr = (oicptr)current_node->on_input_connect;
         f_ptr(current_node, closest_id_2);
     }
@@ -279,6 +278,16 @@ void application_graph_start_node(int id, int node_id) {
 void application_graph_stop_node(int id, int node_id) {
     struct application_graph_node* current_node = ags[id]->nodes[node_id];
     current_node->process_run = false;
+}
+
+void application_graph_process_key_pressed(int id, int keycode) {
+    for (int i = 0; i < ags[id]->nodes.size(); i++) {
+        struct application_graph_node* current_node = ags[id]->nodes[i];
+        if (current_node->on_key_pressed != nullptr) {
+            oicptr f_ptr = (oicptr)current_node->on_key_pressed;
+            f_ptr(current_node, keycode);
+        }
+    }
 }
 
 void application_graph_draw_nodes(struct application_graph* ag, wxDC& dc) {
@@ -682,6 +691,8 @@ void application_graph_load(string base_dir, string name) {
         while (std::getline(g_infile, g_line)) {
             if (strlen(g_line.c_str()) == 0) break;
             struct application_graph_node* agn = new application_graph_node();
+            //TODO: fix on hotkey in ui code;
+            agn->on_key_pressed = nullptr;
             agn->start_stop_hotkey = -1;
             int n_id = stoi(g_line);
             agn->n_id = n_id;

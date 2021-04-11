@@ -5,6 +5,7 @@
 
 const string TEXT_MEMORY_BUFFER_SHARED_STATE = "SMB Shared State";
 const string TEXT_VIDEO_SOURCE = "Video Source OUT";
+const string TEXT_GPU_MEMORY_BUFFER = "GPU Memory BUffer";
 
 void statistics_3d_ui_graph_init(struct application_graph_node* agn, application_graph_component agc, int pos_x, int pos_y) {
     agn->component = agc;
@@ -34,6 +35,13 @@ void statistics_3d_ui_graph_init(struct application_graph_node* agn, application
 
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_SEPARATOR, nullptr));
 
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_STRING, (void*)&TEXT_GPU_MEMORY_BUFFER));
+
+    pair<enum application_graph_component_type, void*> inner_in1 = pair<enum application_graph_component_type, void*>(AGCT_GPU_MEMORY_BUFFER, (void*)&s3d->gmb);
+    agn->inputs.push_back(pair<int, pair<enum application_graph_component_type, void*>>(agn->v.size() - 1, inner_in1));
+
+    agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&s3d->gmb_size_req));
+
     agn->v.push_back(pair<enum application_graph_node_vtype, void*>(AGNVT_INT, (void*)&agn->process_tps_balancer.sleep_ms));
 
     application_graph_tps_balancer_init(agn, 30);
@@ -45,6 +53,7 @@ void statistics_3d_ui_graph_init(struct application_graph_node* agn, application
     agn->on_input_disconnect = nullptr;
     agn->on_input_edit = nullptr;
     agn->on_delete = statistics_3d_destroy;
+    agn->on_key_pressed = statistics_3d_on_key_pressed;
     agn->externalise = statistics_3d_externalise;
 }
 

@@ -98,6 +98,7 @@ void camera_control_init(struct camera_control* cc, int camera_count, string cam
 	cc->cam_sens_timestamps = nullptr;
 	
 	cc->calibration = false;
+	cc->position_regression = false;
 
 	cc->vs_cams = nullptr;
 	cc->smb_det = nullptr;
@@ -390,7 +391,7 @@ void camera_control_calibration_from_matrix(struct camera_control * cc) {
 			*/
 
 			//cfg
-			float calibration_object_diameter = 1.0f; //-> 1m
+			float calibration_object_diameter = 2.0f; //-> 1m
 
 			struct vector2<float> det_center = cam_detection_get_center(&ccp[ca].calibration_object_center);
 
@@ -456,8 +457,14 @@ DWORD* camera_control_loop(LPVOID args) {
 	struct statistic_detection_matcher_2d* ccp_sdm2d = nullptr;
 	bool had_new_detection_frame = false;
 
+	struct statistic_camera_ray_data scrd;
+	statistic_camera_ray_data_init(&scrd, cc);
+
 	struct statistic_detection_matcher_3d sdm3d;
-	statistic_detection_matcher_3d_init(&sdm3d, 10, 1000000000, cc, 64);
+	statistic_detection_matcher_3d_init(&sdm3d, 10, 1000000000, cc, 64, &scrd);
+
+	struct statistic_position_regression spr;
+	statistic_position_regression_init(&spr, struct vector3<float>(3.0, 3.0, 3.0), cc, "R:\\Cams\\tmp\\", &scrd, 1000);
 
 	int current_state_slot = -1;
 
@@ -594,7 +601,7 @@ DWORD* camera_control_loop(LPVOID args) {
 			shared_memory_buffer_release_r(cc->smb_det, current_detection_frame);
 			last_detection_frame = current_detection_frame;
 
-			if (!cc->calibration) {
+			if (!cc->calibration && !cc->position_regression) {
 				//if (tick > 200) {
 					statistic_detection_matcher_3d_update(&sdm3d, cc, ccss);
 				//}
@@ -614,6 +621,14 @@ DWORD* camera_control_loop(LPVOID args) {
 					}
 				}
 				*/
+			} else if (cc->position_regression) {
+				if (spr.t_c < spr.t_samples_count) {
+					statistic_position_regression_update(&spr, cc);
+				} else {
+					//start thread
+
+					cc->position_regression = false;
+				}
 			}
 		}
 
@@ -981,7 +996,7 @@ void camera_control_simple_move_inverse(int cam_id, struct vector2<float> src, s
 
 		test.volt[0] = volt_fac * 0.0f;
 		for (int v = 1; v < 23; v++) {
-			test.volt[v] = volt_fac * 0.5f;
+			test.volt[v] = volt_fac * 1.0f;
 		}
 		test.volt[23] = volt_fac * 0.0f;
 

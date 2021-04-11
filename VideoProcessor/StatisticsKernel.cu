@@ -30,7 +30,7 @@ void statistics_heatmap_kernel_launch(float *data, float *device_data, struct ve
 }
 
 
-__global__ void statistics_3d_kernel(const float* heatmap_data, const float* vectorfield_data, const float max_vel, const float max_acc, unsigned char* dst, const int width, const int height, struct vector3<int> heatmap_dims) {
+__global__ void statistics_3d_kernel(const float* heatmap_data, const float* vectorfield_data, const float max_vel, const float max_acc, unsigned char* dst, const int width, const int height, struct vector3<int> heatmap_dims, int z_axis) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (i < width * height) {
@@ -49,8 +49,8 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 		struct vector2<float> world_size_y = { 100000.0f, -100000.0f };
 		struct vector2<float> world_size_z = { 100000.0f, -100000.0f };
 
-		world_size_x = { 0.0f, 10.0f * 20.0f };
-		world_size_y = { 0.0f, 25.0f * 20.0f };
+		world_size_x = { 0.0f, 30.0f * 20.0f };
+		world_size_y = { 0.0f, 30.0f * 20.0f };
 
 		float scaling_factor = 20.0f;
 
@@ -105,12 +105,15 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 					(int)(((((screen + 1) * screen_height - row) % screen_height) / (float)(screen_height)) * (heatmap_dims[1]))
 				};
 
-				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + 0;
+				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + ((z_axis/3) % heatmap_dims[2]);
 
+				float tmp = heatmap_data[idx];
+				/*
 				float tmp = 0.0f;
 				for (int z = 0; z < heatmap_dims[2]; z++) {
 					tmp += heatmap_data[idx + z];
 				}
+				*/
 				if (tmp > 1) tmp = 1.0f;
 				if (tmp < 0) tmp = 0.0f;
 
@@ -159,7 +162,7 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 					(int)y
 				};
 
-				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + 1;
+				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + ((z_axis / 3) % heatmap_dims[2]);
 				idx *= 27 * 3;
 
 				dst[row * width * 3 + col * 3 + 0] = 0;
@@ -168,7 +171,7 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 
 				float tmp = 0.0f;
 
-				int z = 1;
+				int z = z_axis % 3;
 				//for (int z = 0; z < 3; z++) {
 					int inner_idx = (z * 9 + y_1 * 3 + x_1) * 3;
 					tmp += vectorfield_data[idx + inner_idx];
@@ -215,7 +218,7 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 					(int)y
 				};
 
-				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + 1;
+				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + ((z_axis / 3) % heatmap_dims[2]);
 				idx *= 27 * 3;
 
 				dst[row * width * 3 + col * 3 + 0] = 0;
@@ -224,7 +227,7 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 
 				float tmp = 0.0f;
 
-				int z = 1;
+				int z = z_axis % 3;
 				//for (int z = 0; z < 3; z++) {
 					int inner_idx = (z * 9 + y_1 * 3 + x_1) * 3;
 					tmp += vectorfield_data[idx + inner_idx + 1];
@@ -267,7 +270,7 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 					(int)y
 				};
 
-				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + 1;
+				int idx = position[0] * heatmap_dims[1] * heatmap_dims[2] + position[1] * heatmap_dims[2] + ((z_axis / 3) % heatmap_dims[2]);
 				idx *= 27 * 3;
 
 				dst[row * width * 3 + col * 3 + 0] = 0;
@@ -276,7 +279,7 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 
 				float tmp = 0.0f;
 
-				int z = 1;
+				int z = z_axis % 3;
 				//for (int z = 0; z < 3; z++) {
 					int inner_idx = (z * 9 + y_1 * 3 + x_1) * 3;
 					tmp += vectorfield_data[idx + inner_idx + 2];
@@ -296,14 +299,97 @@ __global__ void statistics_3d_kernel(const float* heatmap_data, const float* vec
 	}
 }
 
-void statistics_3d_kernel_launch(const float *heatmap_data, const float *vectorfield_data, const float max_vel, const float max_acc, unsigned char* dst, const int width, const int height, struct vector3<int> heatmap_dims) {
+void statistics_3d_kernel_launch(const float *heatmap_data, const float *vectorfield_data, const float max_vel, const float max_acc, unsigned char* dst, const int width, const int height, struct vector3<int> heatmap_dims, int z_axis) {
 	int threadsPerBlock = 256;
 	int blocksPerGrid = (width * height + threadsPerBlock - 1) / threadsPerBlock;
-	statistics_3d_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (heatmap_data, vectorfield_data, max_vel, max_acc, dst, width, height, heatmap_dims);
+	statistics_3d_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (heatmap_data, vectorfield_data, max_vel, max_acc, dst, width, height, heatmap_dims, z_axis);
 	cudaStreamSynchronize(cuda_streams[3]);
 }
 
-__global__ void statistics_evolutionary_tracker_kernel(const float *distance_matrix, const int max_tracked_objects, const unsigned int camera_count, const unsigned int cdh_max_size, int* population, float* scores, const unsigned int population_c) {
+__forceinline__
+__device__ int statistics_heatmap_get_base_idx(vector3<int> heatmap_dimensions, vector3<float> heatmap_quantization_factors, vector3<int> heatmap_span_start, vector3<float> position) {
+	int d_z = (int)floorf((position[2] - heatmap_span_start[2]) * heatmap_quantization_factors[2]);
+	if (d_z < 0 || d_z >= heatmap_dimensions[2]) return -1;
+	int d_y = (int)floorf((position[1] - heatmap_span_start[1]) * heatmap_quantization_factors[1]);
+	if (d_y < 0 || d_y >= heatmap_dimensions[1]) return -1;
+	d_y *= heatmap_dimensions[2];
+	int d_x = (int)floorf((position[0] - heatmap_span_start[0]) * heatmap_quantization_factors[0]);
+	if (d_x < 0 || d_x >= heatmap_dimensions[0]) return -1;
+	d_x *= heatmap_dimensions[2] * heatmap_dimensions[1];
+
+	return d_x + d_y + d_z;
+}
+
+__global__ void statistics_evolutionary_tracker_single_ray_estimates_kernel(const struct vector3<float>* ray_matrix_device, const int camera_count, const int cdh_max_size, struct vector2<float>* single_ray_position_estimate_device, const int single_ray_max_estimates, const vector3<int> heatmap_dimensions, const vector3<float> heatmap_quantization_factors, const vector3<int> heatmap_span_start, const float* heatmap_device_ptr) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (i < camera_count * cdh_max_size) {
+		int camera_id = i / (cdh_max_size);
+		int direction_id = i % cdh_max_size;
+		int estimates = 0;
+		struct vector3<float> camera_position = ray_matrix_device[camera_id * (1 + cdh_max_size)];
+		struct vector3<float> position_tmp = camera_position;
+		struct vector3<float> direction = ray_matrix_device[camera_id * (1 + cdh_max_size) + direction_id];
+		int idx = statistics_heatmap_get_base_idx(heatmap_dimensions, heatmap_quantization_factors, heatmap_span_start, position_tmp);
+		float lambda_min = 10000000.0f;
+		float smallest_p = 1.0f;
+		int smallest_p_id = -1;
+		while (true) {
+			if (idx > -1) {
+				float p_value = heatmap_device_ptr[idx];
+				if (estimates < single_ray_max_estimates) {
+					single_ray_position_estimate_device[camera_id * cdh_max_size * single_ray_max_estimates + direction_id * single_ray_max_estimates + estimates] = { p_value, lambda_min };
+					if (p_value < smallest_p) {
+						smallest_p = p_value;
+						smallest_p_id = estimates;
+					}
+					estimates++;
+				} else if (p_value > smallest_p) {
+					single_ray_position_estimate_device[camera_id * cdh_max_size * single_ray_max_estimates + direction_id * single_ray_max_estimates + smallest_p_id] = { p_value, lambda_min };
+					
+					int min_id = -1;
+					for (int e = 0; e < single_ray_max_estimates; e++) {
+						if (single_ray_position_estimate_device[camera_id * cdh_max_size * single_ray_max_estimates + direction_id * single_ray_max_estimates + e][0] < smallest_p) {
+							smallest_p = single_ray_position_estimate_device[camera_id * cdh_max_size * single_ray_max_estimates + direction_id * single_ray_max_estimates + e][0];
+							smallest_p_id = e;
+						}
+					}
+				}
+
+				//next cube
+				lambda_min = 10000000.0f;
+				for (int d = 0; d < 3; d++) {
+					if (direction[d] != 0) {
+						float lambda = (floorf((position_tmp[d] - heatmap_span_start[d]) * heatmap_quantization_factors[d]) + (1 - 2 * (direction[d] < 0)) - position_tmp[d] - heatmap_span_start[d]) / direction[d];
+						if (lambda < lambda_min) lambda_min = lambda;
+					}
+				}
+
+				position_tmp = position_tmp - -direction * lambda_min;
+				int tmp_idx = statistics_heatmap_get_base_idx(heatmap_dimensions, heatmap_quantization_factors, heatmap_span_start, position_tmp);
+				if (tmp_idx == idx) {
+					position_tmp = position_tmp - -direction * (lambda_min + (heatmap_quantization_factors[0]*0.25f));
+					tmp_idx = statistics_heatmap_get_base_idx(heatmap_dimensions, heatmap_quantization_factors, heatmap_span_start, position_tmp);
+				}
+				idx = tmp_idx;
+			} else {
+				//blank result
+				if (estimates < single_ray_max_estimates) {
+					single_ray_position_estimate_device[camera_id * cdh_max_size * single_ray_max_estimates + direction_id * single_ray_max_estimates + + estimates] = { 0.0f, 0.0f };
+					break;
+				}
+			}
+		}
+	}
+}
+
+void statistics_evulotionary_tracker_single_ray_estimates_kernel_launch_async(const struct vector3<float>* ray_matrix_device, const int camera_count, const int cdh_max_size, struct vector2<float>* single_ray_position_estimate_device, const int single_ray_max_estimates, const vector3<int> heatmap_dimensions, const vector3<float> heatmap_quantization_factors, const vector3<int> heatmap_span_start, const float* heatmap_device_ptr, int cuda_stream_index) {
+	int threadsPerBlock = 256;
+	int blocksPerGrid = (camera_count * cdh_max_size + threadsPerBlock - 1) / threadsPerBlock;
+	statistics_evolutionary_tracker_single_ray_estimates_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[cuda_stream_index] >> > (ray_matrix_device, camera_count, cdh_max_size, single_ray_position_estimate_device, single_ray_max_estimates, heatmap_dimensions, heatmap_quantization_factors, heatmap_span_start, heatmap_device_ptr);
+}
+
+__global__ void statistics_evolutionary_tracker_kernel(const float *distance_matrix, const struct vector3<float>* min_dist_central_points_matrix_device, const int max_tracked_objects, const unsigned int camera_count, const unsigned int cdh_max_size, int* population, float* scores, const unsigned int population_c, const struct vector2<float>* single_ray_position_estimate_device, const int single_ray_max_estimates, const vector3<int> heatmap_dimensions, const vector3<float> heatmap_quantization_factors, const vector3<int> heatmap_span_start, const float* heatmap_device_ptr) {
 	int i = blockIdx.x * blockDim.x + threadIdx.x;
 
 	if (i < population_c) {
@@ -328,11 +414,16 @@ __global__ void statistics_evolutionary_tracker_kernel(const float *distance_mat
 			int r_id_last = -1;
 			int ray_count = 0;
 			float object_score = 0.0f;
+			vector3<float> position = { 0.0f, 0.0f, 0.0f };
 			for (int c = 0; c < camera_count; c++) {
 				int r_id = pop_object_base_idx[0];
 				if (r_id > -1) {
 					if (c_id_last > -1) {
-						object_score += distance_matrix[c_id_last * cdh_max_size * camera_count * cdh_max_size + r_id_last * camera_count * cdh_max_size + c * cdh_max_size + r_id];
+						float dist_value = distance_matrix[c_id_last * cdh_max_size * camera_count * cdh_max_size + r_id_last * camera_count * cdh_max_size + c * cdh_max_size + r_id];
+						position = position - -(min_dist_central_points_matrix_device[c_id_last * cdh_max_size * camera_count * cdh_max_size + r_id_last * camera_count * cdh_max_size + c * cdh_max_size + r_id]);
+						if (dist_value > 2.0f) {
+							object_score += 100000.0f;
+						}
 					}
 					c_id_last = c;
 					r_id_last = r_id;
@@ -344,7 +435,27 @@ __global__ void statistics_evolutionary_tracker_kernel(const float *distance_mat
 				score += 10000000.0f;
 			} else if (ray_count == 1) {
 				single_rays++;
+
+				float max_p = 0;
+				int max_p_id = -1;
+				for (int pe = 0; pe < single_ray_max_estimates; pe++) {
+					struct vector2<float> est = single_ray_position_estimate_device[c_id_last * cdh_max_size * single_ray_max_estimates + r_id_last * single_ray_max_estimates + pe];
+					if (est[0] > max_p) {
+						max_p = est[0];
+					}
+				}
+
 			} else {
+				position = position * (1.0f / (float)ray_count);
+
+				int h_idx = statistics_heatmap_get_base_idx(heatmap_dimensions, heatmap_quantization_factors, heatmap_span_start, position);
+				if (h_idx > -1) {
+					float p_there = heatmap_device_ptr[h_idx];
+					object_score *= 1.0f - p_there;
+				} else {
+					object_score += 1000000.0f;
+				}
+
 				avg_score_per_object += object_score;
 				score += object_score;
 			}
@@ -359,10 +470,10 @@ __global__ void statistics_evolutionary_tracker_kernel(const float *distance_mat
 	}
 }
 
-void statistics_evolutionary_tracker_kernel_launch(const float* distance_matrix, const int max_tracked_objects, const unsigned int camera_count, const unsigned int cdh_max_size, int* population, float* scores, const unsigned int population_c) {
+void statistics_evolutionary_tracker_kernel_launch(const float* distance_matrix, const struct vector3<float>* min_dist_central_points_matrix_device, const int max_tracked_objects, const unsigned int camera_count, const unsigned int cdh_max_size, int* population, float* scores, const unsigned int population_c, const struct vector2<float>* single_ray_position_estimate_device, const int single_ray_max_estimates, const vector3<int> heatmap_dimensions, const vector3<float> heatmap_quantization_factors, const vector3<int> heatmap_span_start, const float* heatmap_device_ptr) {
 	int threadsPerBlock = 256;
 	int blocksPerGrid = (population_c + threadsPerBlock - 1) / threadsPerBlock;
-	statistics_evolutionary_tracker_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (distance_matrix, max_tracked_objects, camera_count, cdh_max_size, population, scores, population_c);
+	statistics_evolutionary_tracker_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (distance_matrix, min_dist_central_points_matrix_device, max_tracked_objects, camera_count, cdh_max_size, population, scores, population_c, single_ray_position_estimate_device, single_ray_max_estimates, heatmap_dimensions, heatmap_quantization_factors, heatmap_span_start, heatmap_device_ptr);
 	cudaStreamSynchronize(cuda_streams[3]);
 	cudaError_t err = cudaGetLastError();
 

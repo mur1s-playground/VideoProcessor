@@ -90,6 +90,8 @@ struct application_graph_node {
 
 	void* on_delete;
 
+	void* on_key_pressed;
+
 	void *externalise;
 };
 
@@ -103,6 +105,8 @@ struct application_graph {
 	vector<struct application_graph_node *> nodes;
 	vector<struct application_graph_edge *> edges;
 };
+
+typedef void (*oicptr)(struct application_graph_node* agn, int);
 
 unsigned long long application_graph_tps_balancer_get_time();
 
@@ -121,6 +125,8 @@ void application_graph_start_stop_node(int id, int node_id);
 //void application_graph_start_node(int id, int pos_x, int pos_y);
 void application_graph_start_node(int id, int node_id);
 void application_graph_stop_node(int id, int node_id);
+
+void application_graph_process_key_pressed(int id, int keycode);
 
 void application_graph_draw_nodes(struct application_graph* ag, wxDC& dc);
 void application_graph_draw_edges(struct application_graph* ag, wxDC& dc);

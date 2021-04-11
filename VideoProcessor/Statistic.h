@@ -46,6 +46,32 @@ struct statistic_detection_matcher_3d_detection {
 	unsigned long long		timestamp;
 };
 
+struct statistic_camera_ray_data {
+	int						cdh_max_size;
+
+	struct statistic_detection_matcher_3d_detection* detections_3d;
+
+	bool*					class_match_matrix;
+	bool*					class_match_matrix_device;
+
+	float*					distance_matrix;
+	float*					distance_matrix_device;
+
+	struct vector3<float>*	ray_matrix;
+	struct vector3<float>*	ray_matrix_device;
+
+	int						single_ray_max_estimates;
+	struct vector2<float>*	single_ray_position_estimate_device;
+
+	struct vector3<float>*	min_dist_central_points_matrix;
+	struct vector3<float>*	min_dist_central_points_matrix_device;
+
+	float*					size_estimation_correction_dist_matrix;
+	float*					size_estimation_correction_dist_matrix_device;
+};
+
+void statistic_camera_ray_data_init(struct statistic_camera_ray_data* scrd, struct camera_control *cc);
+
 struct statistic_detection_matcher_3d {
 	struct cam_detection_3d* detections;
 
@@ -56,18 +82,29 @@ struct statistic_detection_matcher_3d {
 	struct cam_detection_3d* detections_buffer;
 
 	bool* is_final_matched;
-	struct statistic_detection_matcher_3d_detection* detections_3d;
+	//struct statistic_detection_matcher_3d_detection* detections_3d;
 
 	int cdh_max_size;
 
+	struct statistic_camera_ray_data	*scrd;
+	/*
 	bool* class_match_matrix;
 
 	float* distance_matrix;
 	float* distance_matrix_device;
 
-	struct vector3<float>* min_dist_central_points_matrix;
+	struct vector3<float>*  ray_matrix;
+	struct vector3<float>*  ray_matrix_device;
 
-	float* size_factor_matrix;
+	int						single_ray_max_estimates;
+	struct vector2<float>*  single_ray_position_estimate_device;
+
+	struct vector3<float>* min_dist_central_points_matrix;
+	struct vector3<float>* min_dist_central_points_matrix_device;
+
+	float* size_estimation_correction_dist_matrix;
+	float* size_estimation_correction_dist_matrix_device;
+	*/
 
 	int					population_c;
 	float*				population_scores;
@@ -98,7 +135,7 @@ struct statistic_detection_matcher_3d {
 	*/
 };
 
-void statistic_detection_matcher_3d_init(struct statistic_detection_matcher_3d* sdm3, int size, unsigned long long ttl, struct camera_control* cc, int population_c);
+void statistic_detection_matcher_3d_init(struct statistic_detection_matcher_3d* sdm3, int size, unsigned long long ttl, struct camera_control* cc, int population_c, struct statistic_camera_ray_data* scrd);
 void statistic_detection_matcher_3d_update(struct statistic_detection_matcher_3d* sdm3, struct camera_control* cc, struct camera_control_shared_state* ccss);
 
 struct statistic_quantized_grid {
@@ -179,3 +216,22 @@ void statistic_unscatter_triangulation_destroy(struct statistic_unscatter_triang
 bool statistic_unscatter_triangulation_get_value(struct statistic_unscatter_triangulation_2d* sut2d, struct vector2<float> point, float* out_value);
 float statistic_unscatter_triangulation_center_shift_inverse(struct statistic_unscatter_triangulation_2d* sut2d);
 bool statistic_unscatter_triangulation_approximate_missing(struct statistic_unscatter_triangulation_2d* sut2d);
+
+struct statistic_position_regression {
+	struct vector3<float>	parameter_search_space;
+
+	int						camera_c;
+	struct vector3<float>	*camera_positions;
+
+	string					temporary_storage_dir;
+
+	int						t_samples_count;
+
+	struct statistic_camera_ray_data	*scrd;
+	int						t_current;
+	int						t_c;
+};
+
+void statistic_position_regression_init(struct statistic_position_regression *spr, struct vector3<float> parameter_search_space, struct camera_control *cc, string temporary_storage_dir, struct statistic_camera_ray_data *scrd, int t_samples_count);
+void statistic_position_regression_update(struct statistic_position_regression* spr, struct camera_control* cc);
+void statistic_position_regression_calculate(struct statistic_postition_regression* spr);

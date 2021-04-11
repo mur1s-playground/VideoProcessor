@@ -219,6 +219,7 @@ void BasicDrawPane::mouseMoved(wxMouseEvent& event) {
 
 bool ctrl_pressed = false;
 void BasicDrawPane::keyPressed(wxKeyEvent& event) {
+    application_graph_process_key_pressed(application_graph_active_id, event.GetKeyCode());
     if (event.GetKeyCode() == wxKeyCode::WXK_CONTROL) {
         ctrl_pressed = true;
     }

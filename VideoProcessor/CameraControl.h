@@ -210,6 +210,7 @@ struct camera_control {
 	string calibration_path;
 
 	bool calibration;
+	bool position_regression;
 
 	struct video_source* vs_cams;
 
@@ -229,6 +230,8 @@ struct camera_control {
 	struct statistic_vectorfield_3d* velocity_vectorfield_3d;
 
 	struct shared_memory_buffer* smb_detection_sim;
+
+	struct statistics_3d* statistics_3d_in;
 };
 
 void camera_control_init(struct camera_control* cc, int camera_count, string camera_meta_path, string sensors_path, string calibration_path);
