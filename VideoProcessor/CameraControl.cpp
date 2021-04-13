@@ -464,7 +464,7 @@ DWORD* camera_control_loop(LPVOID args) {
 	statistic_detection_matcher_3d_init(&sdm3d, 10, 1000000000, cc, 64, &scrd);
 
 	struct statistic_position_regression spr;
-	statistic_position_regression_init(&spr, struct vector3<float>(3.0, 3.0, 3.0), cc, "R:\\Cams\\tmp\\", &scrd, 1000);
+	statistic_position_regression_init(&spr, struct vector3<float>(0.1, 0.1, 0.1), cc, "R:\\Cams\\tmp\\", &scrd, 1000);
 
 	int current_state_slot = -1;
 
@@ -623,10 +623,10 @@ DWORD* camera_control_loop(LPVOID args) {
 				*/
 			} else if (cc->position_regression) {
 				if (spr.t_c < spr.t_samples_count) {
-					statistic_position_regression_update(&spr, cc);
+					//statistic_position_regression_update(&spr, cc);
+					spr.t_c = spr.t_samples_count;
 				} else {
-					//start thread
-
+					statistic_position_regression_calculate(&spr);
 					cc->position_regression = false;
 				}
 			}

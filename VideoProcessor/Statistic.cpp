@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <limits>
 
+float M_PI = 3.14159274101257324219;
+
 // triangulation video dump
 /*
 #include "opencv2/imgcodecs.hpp"
@@ -208,6 +210,7 @@ void statistic_camera_ray_data_init(struct statistic_camera_ray_data* scrm, stru
 	}
 
 	scrm->detections_3d = (struct statistic_detection_matcher_3d_detection*)malloc(cc->camera_count * scrm->cdh_max_size * sizeof(struct statistic_detection_matcher_3d_detection));
+	cudaMalloc(&scrm->detections_3d_device, cc->camera_count * scrm->cdh_max_size * sizeof(struct statistic_detection_matcher_3d_detection));
 
 	size_t matrix_base_size = cc->camera_count * scrm->cdh_max_size * cc->camera_count * scrm->cdh_max_size;
 
@@ -267,8 +270,6 @@ unsigned long long statistic_camera_ray_data_convert_to_3d_detection(struct stat
 					if (angles_vec[1] < 0.0f) angles_vec[1] += 360.0f;
 					if (angles_vec[0] > 360.0f) angles_vec[0] -= 360.0f;
 					if (angles_vec[1] > 360.0f) angles_vec[1] -= 360.0f;
-
-					float M_PI = 3.14159274101257324219;
 
 					sdm3->detections_3d[ca * sdm3->cdh_max_size + c].direction = {
 						sinf(angles_vec[1] * M_PI / (2.0f * 90.0f)) * cosf(angles_vec[0] * M_PI / (2.0f * 90.0f)),
@@ -354,8 +355,8 @@ void statistic_camera_ray_data_precompute_ray_correlation(struct statistic_camer
 							sdm3->class_match_matrix[ca * (sdm3->cdh_max_size * cc->camera_count * sdm3->cdh_max_size) + c * (cc->camera_count * sdm3->cdh_max_size) + ca_i * sdm3->cdh_max_size + c_i] = false;
 						}
 						else {
-							float width_t = t * 2.0f * tan(cc->cam_awareness[ca_i].calibration.lens_fov[0] * 0.5f) * sdm3->detections_3d[ca_i * sdm3->cdh_max_size + c_i].dimensions[0] / (float)cc->cam_meta[ca_i].resolution[0];
-							float width_s = s * 2.0f * tan(cc->cam_awareness[ca].calibration.lens_fov[0] * 0.5f) * sdm3->detections_3d[ca * sdm3->cdh_max_size + c].dimensions[0] / (float)cc->cam_meta[ca].resolution[0];
+							float width_t = t * 2.0f * tan(cc->cam_awareness[ca_i].calibration.lens_fov[0] * 0.5f * (M_PI/(180.0f))) * sdm3->detections_3d[ca_i * sdm3->cdh_max_size + c_i].dimensions[0] / (float)cc->cam_meta[ca_i].resolution[0];
+							float width_s = s * 2.0f * tan(cc->cam_awareness[ca].calibration.lens_fov[0] * 0.5f * (M_PI / (180.0f))) * sdm3->detections_3d[ca * sdm3->cdh_max_size + c].dimensions[0] / (float)cc->cam_meta[ca].resolution[0];
 
 							float target_t = width_s / (width_t / t);
 							float target_s = width_t / (width_s / s);
@@ -1751,16 +1752,23 @@ void statistic_position_regression_init(struct statistic_position_regression* sp
 
 	spr->parameter_search_space = parameter_search_space;
 	spr->camera_c = cc->camera_count;
+	spr->stepsize = 0.1f;
 
 	spr->camera_positions = (struct vector3<float> *) malloc(spr->camera_c * sizeof(struct vector3<float>));
+	spr->camera_fov_factors = (float*)malloc(spr->camera_c * sizeof(float));
+	spr->camera_resolutions_x = (int*)malloc(spr->camera_c * sizeof(int));
 	for (int c = 0; c < spr->camera_c; c++) {
 		spr->camera_positions[c] = cc->cam_awareness[c].calibration.position;
+		spr->camera_fov_factors[c] = tan(cc->cam_awareness[c].calibration.lens_fov[0] * 0.5f * (M_PI / (180.0f)));
+		spr->camera_resolutions_x[c] = cc->cam_meta[c].resolution[0];
 	}
 
 	spr->temporary_storage_dir = temporary_storage_dir;
 	spr->t_samples_count = t_samples_count;
 
 	spr->scrd = scrd;
+
+	spr->parallel_c = 2048 * 20;
 }
 
 void statistic_position_regression_update(struct statistic_position_regression* spr, struct camera_control *cc) {
@@ -1773,6 +1781,10 @@ void statistic_position_regression_update(struct statistic_position_regression* 
 
 		stringstream ss_filename;
 		ss_filename << spr->temporary_storage_dir << spr->t_c << "_";
+
+		stringstream ss_filename_det_3d;
+		ss_filename_det_3d << ss_filename.str() << "detections_3d.bin";
+		util_write_binary(ss_filename_det_3d.str(), (unsigned char *) spr->scrd->detections_3d, spr->camera_c * spr->scrd->cdh_max_size * sizeof(struct statistic_detection_matcher_3d_detection));
 		
 		stringstream ss_filename_cmm;
 		ss_filename_cmm << ss_filename.str() << "class_match_matrix.bin";
@@ -1791,6 +1803,174 @@ void statistic_position_regression_update(struct statistic_position_regression* 
 	}
 }
 
-void statistic_position_regression_calculate(struct statistic_postition_regression* spr) {
+void statistic_position_regression_calculate(struct statistic_position_regression* spr) {
+	size_t matrix_base_size = spr->camera_c * spr->scrd->cdh_max_size * spr->camera_c * spr->scrd->cdh_max_size;
 
+	cudaMalloc(&spr->camera_positions_device, spr->camera_c * sizeof(struct vector3<float>));
+	cudaMemcpyAsync(spr->camera_positions_device, spr->camera_positions, spr->camera_c * sizeof(struct vector3<float>), cudaMemcpyHostToDevice, cuda_streams[0]);
+
+	cudaMalloc(&spr->camera_fov_factors_device, spr->camera_c * sizeof(float));
+	cudaMemcpyAsync(spr->camera_fov_factors_device, spr->camera_fov_factors, spr->camera_c * sizeof(float), cudaMemcpyHostToDevice, cuda_streams[0]);
+
+	cudaMalloc(&spr->camera_resolutions_x_device, spr->camera_c * sizeof(int));
+	cudaMemcpyAsync(spr->camera_resolutions_x_device, spr->camera_resolutions_x, spr->camera_c * sizeof(int), cudaMemcpyHostToDevice, cuda_streams[0]);
+
+	size_t parallel_cc_matrix_base_size = spr->camera_c * spr->camera_c * spr->parallel_c;
+
+	spr->cc_matrix_avg_distance = (float *) malloc(parallel_cc_matrix_base_size * sizeof(float));
+	cudaMalloc(&spr->cc_matrix_avg_distance_device, parallel_cc_matrix_base_size * sizeof(float));
+
+	spr->cc_matrix_avg_correction_distance = (float *) malloc(parallel_cc_matrix_base_size * sizeof(float));
+	cudaMalloc(&spr->cc_matrix_avg_correction_distance_device, parallel_cc_matrix_base_size * sizeof(float));
+
+	cudaMalloc(&spr->camera_position_offsets_device, spr->parallel_c * spr->camera_c * sizeof(struct vector3<float>));
+	
+
+	struct vector3<size_t> ss_factor(2 * ceil(spr->parameter_search_space[0] / spr->stepsize) + 1, 2 * ceil(spr->parameter_search_space[1] / spr->stepsize) + 1, 2 * ceil(spr->parameter_search_space[2] / spr->stepsize) + 1);
+	//struct vector3<size_t> ss_factor(2 * ceil(spr->parameter_search_space[0] / spr->stepsize), 2 * ceil(spr->parameter_search_space[1] / spr->stepsize), 2 * ceil(spr->parameter_search_space[2] / spr->stepsize));
+	size_t search_space_size = ss_factor[0] * ss_factor[1] * ss_factor[2];
+	size_t total_idx = search_space_size;
+	for (int c = 1; c < spr->camera_c; c++) {
+		total_idx *= search_space_size;
+	}
+
+	float min_norm_avg = FLT_MAX;
+	size_t min_avg_p_idx = 0;
+
+	float min_norm_avg_corr = FLT_MAX;
+	size_t min_avg_corr_p_idx = 0;
+
+	float min_norm_combined = FLT_MAX;
+	size_t min_avg_combined_p_idx = 0;
+
+	bool something_new = false;
+
+	for (int i = 0; i < 10; i++) {
+
+		for (size_t p_idx = 0; p_idx < total_idx; p_idx += spr->parallel_c) {
+			logger(p_idx);
+
+			cudaMemsetAsync(spr->cc_matrix_avg_distance_device, 0, parallel_cc_matrix_base_size * sizeof(float), cuda_streams[1]);
+			cudaMemsetAsync(spr->cc_matrix_avg_correction_distance_device, 0, parallel_cc_matrix_base_size * sizeof(float), cuda_streams[2]);
+			cudaStreamSynchronize(cuda_streams[1]);
+			cudaStreamSynchronize(cuda_streams[2]);
+
+			for (int t_c = 0; t_c < spr->t_samples_count; t_c++) {
+				size_t out_len = 0;
+
+				stringstream ss_filename;
+				ss_filename << spr->temporary_storage_dir << t_c << "_";
+
+				stringstream ss_filename_det_3d;
+				ss_filename_det_3d << ss_filename.str() << "detections_3d.bin";
+				util_read_binary(ss_filename_det_3d.str(), (unsigned char*)spr->scrd->detections_3d, &out_len);
+				cudaMemcpyAsync(spr->scrd->detections_3d_device, spr->scrd->detections_3d, spr->camera_c * spr->scrd->cdh_max_size * sizeof(struct statistic_detection_matcher_3d_detection), cudaMemcpyHostToDevice, cuda_streams[0]);
+
+				stringstream ss_filename_cmm;
+				ss_filename_cmm << ss_filename.str() << "class_match_matrix.bin";
+				util_read_binary(ss_filename.str(), (unsigned char*)spr->scrd->class_match_matrix, &out_len);
+				cudaMemcpyAsync(spr->scrd->class_match_matrix_device, spr->scrd->class_match_matrix, matrix_base_size * sizeof(bool), cudaMemcpyHostToDevice, cuda_streams[0]);
+
+				stringstream ss_filename_dm;
+				ss_filename_dm << ss_filename.str() << "distance_matrix.bin";
+				util_read_binary(ss_filename_dm.str(), (unsigned char*)spr->scrd->distance_matrix, &out_len);
+				cudaMemcpyAsync(spr->scrd->distance_matrix_device, spr->scrd->distance_matrix, matrix_base_size * sizeof(float), cudaMemcpyHostToDevice, cuda_streams[0]);
+
+				stringstream ss_filename_se;
+				ss_filename_se << ss_filename.str() << "size_estimation_correction_dist.bin";
+				util_read_binary(ss_filename_se.str(), (unsigned char*)spr->scrd->size_estimation_correction_dist_matrix, &out_len);
+				cudaMemcpyAsync(spr->scrd->size_estimation_correction_dist_matrix_device, spr->scrd->size_estimation_correction_dist_matrix, matrix_base_size * sizeof(float), cudaMemcpyHostToDevice, cuda_streams[0]);
+
+				cudaStreamSynchronize(cuda_streams[0]);
+				
+				statistics_position_regression_kernel_launch(spr->camera_positions_device, spr->camera_fov_factors_device, spr->camera_resolutions_x_device, spr->camera_c, spr->scrd->cdh_max_size, spr->scrd->detections_3d_device, spr->scrd->class_match_matrix_device, spr->scrd->distance_matrix_device, spr->scrd->size_estimation_correction_dist_matrix_device, spr->t_samples_count, spr->parallel_c, p_idx, total_idx, search_space_size, spr->parameter_search_space, spr->stepsize, struct vector2<size_t>(ss_factor[0], ss_factor[1]), spr->camera_position_offsets_device, spr->cc_matrix_avg_distance_device, spr->cc_matrix_avg_correction_distance_device);
+			}
+
+			cudaMemcpyAsync(spr->cc_matrix_avg_distance, spr->cc_matrix_avg_distance_device, parallel_cc_matrix_base_size * sizeof(float), cudaMemcpyDeviceToHost, cuda_streams[4]);
+			cudaMemcpyAsync(spr->cc_matrix_avg_correction_distance, spr->cc_matrix_avg_correction_distance_device, parallel_cc_matrix_base_size * sizeof(float), cudaMemcpyDeviceToHost, cuda_streams[4]);
+			cudaStreamSynchronize(cuda_streams[4]);
+
+			for (int p = 0; p < spr->parallel_c; p++) {
+				if (p_idx + p < total_idx) {
+					float m_norm_avg_d = 0.0f;
+					float m_norm_avg_corr_d = 0.0f;
+					float m_norm_combined_d = 0.0f;
+					for (int c = 0; c < spr->camera_c; c++) {
+						float m_norm_l = 0.0f;
+						float m_norm_c_l = 0.0f;
+
+						for (int d = 0; d < spr->camera_c; d++) {
+							float m_col = spr->cc_matrix_avg_distance[p * spr->camera_c * spr->camera_c + c * spr->camera_c + d];
+							m_col *= m_col;
+							m_norm_l += m_col;
+
+							float m_col_c = spr->cc_matrix_avg_correction_distance[p * spr->camera_c * spr->camera_c + c * spr->camera_c + d];
+							m_col_c *= m_col_c;
+							m_norm_c_l += m_col_c;
+						}
+
+						m_norm_avg_d = max(sqrtf(m_norm_l), m_norm_avg_d);
+						m_norm_avg_corr_d = max(sqrtf(m_norm_c_l), m_norm_avg_corr_d);
+						m_norm_combined_d = max(max(m_norm_avg_corr_d, m_norm_avg_d), m_norm_combined_d);
+					}
+					if (m_norm_avg_d < min_norm_avg) {
+						min_norm_avg = m_norm_avg_d;
+						min_avg_p_idx = p_idx + p;
+						logger("min_norm_avg", min_norm_avg);
+						logger("idx", min_avg_p_idx);
+					}
+					if (m_norm_avg_corr_d < min_norm_avg_corr) {
+						min_norm_avg_corr = m_norm_avg_corr_d;
+						min_avg_corr_p_idx = p_idx + p;
+						logger("min_norm_corr_avg", min_norm_avg_corr);
+						logger("idx", min_avg_corr_p_idx);
+					}
+					if (m_norm_combined_d < min_norm_combined) {
+						min_norm_combined = m_norm_combined_d;
+						min_avg_combined_p_idx = p_idx + p;
+						logger("min_norm_combined", min_norm_combined);
+						logger("idx", min_avg_combined_p_idx);
+						something_new = true;
+					}
+				}
+			}
+		}
+
+		logger("min_norm_avg", min_norm_avg);
+		logger("idx", min_avg_p_idx);
+
+		logger("min_norm_corr_avg", min_norm_avg_corr);
+		logger("idx", min_avg_corr_p_idx);
+
+		logger("min_norm_combined", min_norm_combined);
+		logger("idx", min_avg_combined_p_idx);
+
+		if (something_new) {
+			size_t cam_offset_base = min_avg_combined_p_idx;
+
+			for (int c = 0; c < spr->camera_c; c++) {
+				size_t c_idx = cam_offset_base % search_space_size;
+
+				size_t idx_z = c_idx / (ss_factor[0] * ss_factor[1]);
+
+				size_t idx__y = c_idx % ((ss_factor[0] * ss_factor[1]));
+				size_t idx_y = idx__y / (ss_factor[0]);
+
+				size_t idx_x = idx__y % ss_factor[0];
+
+				spr->camera_positions[c] = spr->camera_positions[c] - -struct vector3<float>(-spr->parameter_search_space[0] + (float)idx_x * spr->stepsize, -spr->parameter_search_space[1] + (float)idx_y * spr->stepsize, -spr->parameter_search_space[2] + (float)idx_z * spr->stepsize);
+
+				stringstream s_c;
+				s_c << c << ": " << spr->camera_positions[c][0] << ", " << spr->camera_positions[c][1] << ", " << spr->camera_positions[c][2];
+
+				logger(s_c.str());
+
+				cam_offset_base /= search_space_size;
+			}
+			cudaMemcpyAsync(spr->camera_positions_device, spr->camera_positions, spr->camera_c * sizeof(struct vector3<float>), cudaMemcpyHostToDevice, cuda_streams[0]);
+			something_new = false;
+		} else {
+			break;
+		}
+	}
 }

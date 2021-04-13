@@ -50,6 +50,7 @@ struct statistic_camera_ray_data {
 	int						cdh_max_size;
 
 	struct statistic_detection_matcher_3d_detection* detections_3d;
+	struct statistic_detection_matcher_3d_detection* detections_3d_device;
 
 	bool*					class_match_matrix;
 	bool*					class_match_matrix_device;
@@ -218,20 +219,49 @@ float statistic_unscatter_triangulation_center_shift_inverse(struct statistic_un
 bool statistic_unscatter_triangulation_approximate_missing(struct statistic_unscatter_triangulation_2d* sut2d);
 
 struct statistic_position_regression {
-	struct vector3<float>	parameter_search_space;
+	struct vector3<float>				parameter_search_space;
+	float								stepsize;
 
-	int						camera_c;
-	struct vector3<float>	*camera_positions;
+	int									camera_c;
+	struct vector3<float>				*camera_positions;
+	struct vector3<float>				*camera_positions_device;
 
-	string					temporary_storage_dir;
+	struct vector3<float>				*camera_position_offsets_device;
 
-	int						t_samples_count;
+	float								*camera_fov_factors;
+	float								*camera_fov_factors_device;
+
+	int									*camera_resolutions_x;
+	int									*camera_resolutions_x_device;
+
+	string								temporary_storage_dir;
+
+	int									t_samples_count;
+	
+	int									parallel_c;
 
 	struct statistic_camera_ray_data	*scrd;
-	int						t_current;
-	int						t_c;
+	int									t_current;
+	int									t_c;
+
+
+	struct statistic_detection_matcher_3d_detection* detections_3d;
+	struct statistic_detection_matcher_3d_detection* detections_3d_device;
+
+	float* distance_matrix;
+	float* distance_matrix_device;
+
+	float* size_estimation_correction_dist_matrix;
+	float* size_estimation_correction_dist_matrix_device;
+
+
+	float*								cc_matrix_avg_distance;
+	float*								cc_matrix_avg_distance_device;
+
+	float*								cc_matrix_avg_correction_distance;
+	float*								cc_matrix_avg_correction_distance_device;
 };
 
 void statistic_position_regression_init(struct statistic_position_regression *spr, struct vector3<float> parameter_search_space, struct camera_control *cc, string temporary_storage_dir, struct statistic_camera_ray_data *scrd, int t_samples_count);
 void statistic_position_regression_update(struct statistic_position_regression* spr, struct camera_control* cc);
-void statistic_position_regression_calculate(struct statistic_postition_regression* spr);
+void statistic_position_regression_calculate(struct statistic_position_regression* spr);

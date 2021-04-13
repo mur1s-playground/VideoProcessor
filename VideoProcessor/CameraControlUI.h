@@ -15,11 +15,14 @@ public:
 	wxTextCtrl* tc_c_path;
 
 	wxButton* calibrate_button;
+	wxButton* pos_reg_button;
+
 	wxButton* ok_button;
 
 	CameraControlFrame(wxWindow* parent);
 
 	void OnCameraControlFrameButtonCalibrate(wxCommandEvent& event);
+	void OnCameraControlFrameButtonPositionRegression(wxCommandEvent& event);
 
 	void OnCameraControlFrameButtonOk(wxCommandEvent& event);
 	void OnCameraControlFrameButtonClose(wxCommandEvent& event);

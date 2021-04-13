@@ -139,6 +139,15 @@ CameraControlFrame::CameraControlFrame(wxWindow* parent) : wxFrame(parent, -1, w
 
     vbox->Add(-1, 10);
 
+    wxBoxSizer* hbox_posreg = new wxBoxSizer(wxHORIZONTAL);
+    pos_reg_button = new wxButton(panel, -1, wxT("Position Regression"), wxDefaultPosition, wxSize(70, 30));
+    pos_reg_button->Bind(wxEVT_BUTTON, &CameraControlFrame::OnCameraControlFrameButtonPositionRegression, this);
+    hbox_posreg->Add(pos_reg_button, 0);
+
+    vbox->Add(hbox_posreg, 0, wxALIGN_RIGHT | wxRIGHT, 10);
+
+    vbox->Add(-1, 10);
+
     wxBoxSizer* hbox_buttons = new wxBoxSizer(wxHORIZONTAL);
 
     ok_button = new wxButton(panel, -1, wxT("Ok"), wxDefaultPosition, wxSize(70, 30));
@@ -192,6 +201,14 @@ void CameraControlFrame::OnCameraControlFrameButtonCalibrate(wxCommandEvent& eve
         struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
         struct camera_control* cc = (struct camera_control*)agn->component;
         cc->calibration = true;
+    }
+}
+
+void CameraControlFrame::OnCameraControlFrameButtonPositionRegression(wxCommandEvent& event) {
+    if (node_id != -1) {
+        struct application_graph_node* agn = ags[node_graph_id]->nodes[node_id];
+        struct camera_control* cc = (struct camera_control*)agn->component;
+        cc->position_regression = true;
     }
 }
 

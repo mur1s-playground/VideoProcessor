@@ -874,3 +874,105 @@ void statistics_evolutionary_tracker_population_evolve_kernel_launch(const int m
 		logger("CUDA Error etpekl: %s\n", cudaGetErrorString(err));
 	}
 }
+
+#ifndef STATISTIC_DETECTION_MATCHER_3D_DETECTION
+#define STATISTIC_DETECTION_MATCHER_3D_DETECTION
+
+struct statistic_detection_matcher_3d_detection {
+	int						class_id;
+
+	struct vector3<float>	direction;
+
+	struct vector2<int>		dimensions;
+
+	unsigned long long		timestamp;
+};
+
+#endif /* STATISTIC_DETECTION_MATCHER_3D_DETECTION */
+
+
+__global__ void statistics_position_regression_kernel(const vector3<float>* camera_positions, const float* camera_fov_factors, const int* camera_resolutions_x, const int camera_c, const int cdh_max_size, const struct statistic_detection_matcher_3d_detection* detections_3d, const bool* class_match_matrix, const float* distance_matrix, const float* correction_distance_matrix, const int t_samples_count, const int parallel_c, const size_t base_idx, const size_t total_idx, const size_t search_space_size, const struct vector3<float> parameter_search_space, const float stepsize, const struct vector2<size_t> ss_factor, struct vector3<float>* camera_offsets, float* cc_matrix_avg_dist, float* cc_matrix_avg_corr_dist) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+
+	if (i < total_idx - base_idx && i < parallel_c) {
+		int target_idx = i % parallel_c;
+
+		size_t cam_offset_base = base_idx + target_idx;
+		for (int c = 0; c < camera_c; c++) {
+			size_t c_idx = cam_offset_base % search_space_size;
+
+			size_t idx_z = c_idx / (ss_factor[0] * ss_factor[1]);
+
+			size_t idx__y = c_idx % ((ss_factor[0] * ss_factor[1]));
+			size_t idx_y = idx__y / (ss_factor[0]);
+
+			size_t idx_x = idx__y % ss_factor[0];
+
+			camera_offsets[target_idx * camera_c + c] = {
+				-parameter_search_space[0] + (float)idx_x * stepsize,
+				-parameter_search_space[1] + (float)idx_y * stepsize,
+				-parameter_search_space[2] + (float)idx_z * stepsize
+			};
+
+			cam_offset_base /= search_space_size;
+		}
+
+		for (int ca = 0; ca < camera_c; ca++) {
+			struct vector3<float> cam_pos = camera_positions[ca] - -camera_offsets[target_idx * camera_c + ca];
+
+			for (int c = 0; c < 1; c++) {
+				if (detections_3d[ca * cdh_max_size + c].class_id != 37) continue;
+
+				for (int ca_i = 0; ca_i < camera_c; ca_i++) {
+					if (ca_i == ca) continue;
+					struct vector3<float> cam_pos_i = camera_positions[ca_i] - -camera_offsets[target_idx * camera_c + ca_i];
+					for (int c_i = 0; c_i < 1; c_i++) {
+						if (detections_3d[ca_i * cdh_max_size + c_i].class_id != 37) continue;
+
+						if (class_match_matrix[ca * (cdh_max_size * camera_c * cdh_max_size) + c * (camera_c * cdh_max_size) + ca_i * cdh_max_size + c_i]) {
+
+							struct vector3<float> pmp = cam_pos_i - cam_pos;
+
+							struct vector3<float> u = detections_3d[ca * cdh_max_size + c].direction;
+							struct vector3<float> v = detections_3d[ca_i * cdh_max_size + c_i].direction;
+
+							struct vector3<float> vxu = cross(v, u);
+
+							float len_vxu = length(vxu);
+
+							if (len_vxu > 0) {
+								float t = -dot(cross(pmp, u), vxu) / length(vxu);
+								float s = -dot(cross(pmp, v), vxu) / length(vxu);
+
+								if (t > 0 && s > 0) {
+									cc_matrix_avg_dist[target_idx * camera_c * camera_c + ca * camera_c + ca_i] += abs(scalar_proj(pmp, vxu)) / (float)t_samples_count;
+
+									float width_t = t * 2.0f * camera_fov_factors[ca_i] * detections_3d[ca_i * cdh_max_size + c_i].dimensions[0] / (float)camera_resolutions_x[ca_i];
+									float width_s = s * 2.0f * camera_fov_factors[ca] * detections_3d[ca * cdh_max_size + c].dimensions[0] / (float)camera_resolutions_x[ca];
+
+									//float target_t = width_s / (width_t / t);
+									float target_s = width_t / (width_s / s);
+
+									cc_matrix_avg_corr_dist[target_idx * camera_c * camera_c + ca * camera_c + ca_i] += abs(target_s - s) / (float)t_samples_count;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void statistics_position_regression_kernel_launch(const vector3<float>* camera_positions, const float* camera_fov_factors, const int* camera_resolutions_x, const int camera_c, const int cdh_max_size, const struct statistic_detection_matcher_3d_detection* detections_3d, const bool* class_match_matrix, const float* distance_matrix, const float* correction_distance_matrix, const int t_samples_count, const int parallel_c, const size_t base_idx, const size_t total_idx, const size_t search_space_size, const struct vector3<float> parameter_search_space, const float stepsize, const struct vector2<size_t> ss_factor, struct vector3<float>* camera_offsets, float* cc_matrix_avg_dist, float* cc_matrix_avg_corr_dist) {
+	int threadsPerBlock = 1024;
+
+	int blocksPerGrid = (parallel_c + threadsPerBlock - 1) / threadsPerBlock;
+	statistics_position_regression_kernel << <blocksPerGrid, threadsPerBlock, 0, cuda_streams[3] >> > (camera_positions, camera_fov_factors, camera_resolutions_x, camera_c, cdh_max_size, detections_3d, class_match_matrix, distance_matrix, correction_distance_matrix, t_samples_count, parallel_c, base_idx, total_idx, search_space_size, parameter_search_space, stepsize, ss_factor, camera_offsets, cc_matrix_avg_dist, cc_matrix_avg_corr_dist);
+	cudaStreamSynchronize(cuda_streams[3]);
+	cudaError_t err = cudaGetLastError();
+
+	if (err != cudaSuccess) {
+		logger("CUDA Error regression: %s\n", cudaGetErrorString(err));
+	}
+}
